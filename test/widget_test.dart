@@ -1,30 +1,44 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:alpha_plus/core/theme/app_theme.dart';
+import 'package:alpha_plus/features/auth/presentation/phone_login_screen.dart';
+import 'package:alpha_plus/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:alpha_plus/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('splash runs once and opens the phone screen', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const AlphaPlusApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.bySemanticsLabel('Alpha Plus'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.pump(const Duration(milliseconds: 2700));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.text('Drive with Alpha+'), findsOneWidget);
+    expect(find.byKey(const Key('phoneField')), findsOneWidget);
+  });
+
+  testWidgets('valid South Sudan phone number opens OTP', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const PhoneLoginScreen()),
+    );
+
+    await tester.enterText(find.byKey(const Key('phoneField')), '912345678');
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final ElevatedButton button = tester.widget<ElevatedButton>(
+      find.widgetWithText(ElevatedButton, 'Continue'),
+    );
+
+    expect(button.onPressed, isNotNull);
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Verify your number'), findsOneWidget);
+    expect(find.byKey(const Key('otpField')), findsOneWidget);
   });
 }
