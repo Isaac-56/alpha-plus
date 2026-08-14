@@ -35,12 +35,17 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 520),
-        pageBuilder: (_, Animation<double> animation, _) {
-          return FadeTransition(
-            opacity: animation,
-            child: const PhoneLoginScreen(),
-          );
-        },
+        pageBuilder:
+            (
+              BuildContext context,
+              Animation<double> animation,
+              Animation<double> secondaryAnimation,
+            ) {
+              return FadeTransition(
+                opacity: animation,
+                child: const PhoneLoginScreen(),
+              );
+            },
       ),
     );
   }

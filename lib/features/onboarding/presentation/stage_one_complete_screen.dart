@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import 'vehicle_setup_screen.dart';
 
 class StageOneCompleteScreen extends StatelessWidget {
   const StageOneCompleteScreen({required this.driverName, super.key});
@@ -84,11 +85,10 @@ class StageOneCompleteScreen extends StatelessWidget {
                 const SizedBox(height: 18),
                 ElevatedButton(
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Vehicle registration is coming in Stage 2.',
-                        ),
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            VehicleSetupScreen(driverName: driverName),
                       ),
                     );
                   },

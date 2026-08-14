@@ -1,6 +1,7 @@
 import 'package:alpha_plus/main.dart';
 import 'package:alpha_plus/core/theme/app_theme.dart';
 import 'package:alpha_plus/features/auth/presentation/phone_login_screen.dart';
+import 'package:alpha_plus/features/onboarding/presentation/stage_one_complete_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -39,5 +40,25 @@ void main() {
 
     expect(find.text('Verify your number'), findsOneWidget);
     expect(find.byKey(const Key('otpField')), findsOneWidget);
+  });
+
+  testWidgets('stage one continues to vehicle registration', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const StageOneCompleteScreen(driverName: 'Test Driver'),
+      ),
+    );
+
+    await tester.tap(
+      find.widgetWithText(ElevatedButton, 'Continue to vehicle setup'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Enter your vehicle details'), findsOneWidget);
+    expect(find.text('Type of vehicle'), findsOneWidget);
+    expect(find.text('Vehicle plate number'), findsOneWidget);
   });
 }
