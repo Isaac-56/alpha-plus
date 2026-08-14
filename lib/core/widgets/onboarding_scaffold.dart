@@ -9,6 +9,8 @@ class OnboardingScaffold extends StatelessWidget {
     super.key,
     this.subtitle,
     this.bottom,
+    this.header,
+    this.centerHeader = false,
     this.showBackButton = true,
     this.onBack,
   });
@@ -17,6 +19,8 @@ class OnboardingScaffold extends StatelessWidget {
   final String? subtitle;
   final Widget child;
   final Widget? bottom;
+  final Widget? header;
+  final bool centerHeader;
   final bool showBackButton;
   final VoidCallback? onBack;
 
@@ -44,16 +48,39 @@ class OnboardingScaffold extends StatelessWidget {
                   children: <Widget>[
                     if (showBackButton) AlphaBackButton(onPressed: onBack),
                     SizedBox(height: showBackButton ? 34 : 12),
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.displaySmall,
+                    if (header != null) ...<Widget>[
+                      Align(alignment: Alignment.center, child: header!),
+                      const SizedBox(height: 36),
+                    ],
+                    Align(
+                      alignment: centerHeader
+                          ? Alignment.center
+                          : Alignment.centerLeft,
+                      child: Text(
+                        title,
+                        textAlign: centerHeader
+                            ? TextAlign.center
+                            : TextAlign.left,
+                        style: Theme.of(context).textTheme.displaySmall,
+                      ),
                     ),
                     if (subtitle != null) ...<Widget>[
                       const SizedBox(height: 14),
-                      Text(
-                        subtitle!,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                      Align(
+                        alignment: centerHeader
+                            ? Alignment.center
+                            : Alignment.centerLeft,
+                        child: Text(
+                          subtitle!,
+                          textAlign: centerHeader
+                              ? TextAlign.center
+                              : TextAlign.left,
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color,
+                              ),
                         ),
                       ),
                     ],

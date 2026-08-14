@@ -1,12 +1,12 @@
-# ALPHA+
+# ALPHA +
 
-ALPHA+ is the South Sudan driver partner app for AlphaRide. It is built with
+ALPHA + is the South Sudan driver partner app for AlphaRide. It is built with
 Flutter and shares the passenger app's neon-green brand system while keeping a
 driver-focused onboarding and operations flow.
 
 ## Stage 1
 
-- Single-run animated `ALPHA+` splash
+- Single-run animated `ALPHA +` splash
 - South Sudan phone entry (`+211`)
 - Keyboard-safe six-digit OTP screen
 - Driver name collection

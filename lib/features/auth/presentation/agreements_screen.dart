@@ -30,7 +30,7 @@ class _AgreementsScreenState extends State<AgreementsScreen> {
   Widget build(BuildContext context) {
     return OnboardingScaffold(
       title: 'Agreements',
-      subtitle: 'Review how Alpha+ works before creating your driver profile.',
+      subtitle: 'Review how Alpha + works before creating your driver profile.',
       bottom: ElevatedButton(
         onPressed: _accepted ? _continue : null,
         child: const Text('Accept and continue'),
@@ -68,7 +68,7 @@ class _AgreementsScreenState extends State<AgreementsScreen> {
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  'Your personal information is processed according to the Alpha+ Privacy Policy.',
+                  'Your personal information is processed according to the Alpha + Privacy Policy.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),

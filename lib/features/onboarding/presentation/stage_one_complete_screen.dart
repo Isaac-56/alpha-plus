@@ -49,7 +49,7 @@ class StageOneCompleteScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'Your Alpha+ identity is ready. Next, we’ll add your vehicle and driver’s licence.',
+                  'Your Alpha + identity is ready. Next, we’ll add your vehicle and driver’s licence.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context).textTheme.bodyMedium?.color,

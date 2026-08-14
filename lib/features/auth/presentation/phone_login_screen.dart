@@ -16,7 +16,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final FocusNode _phoneFocus = FocusNode();
 
-  bool get _isValid => _phoneController.text.replaceAll(' ', '').length >= 9;
+  bool get _isValid => _phoneController.text.length == 9;
 
   @override
   void dispose() {
@@ -43,9 +43,33 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   Widget build(BuildContext context) {
     return OnboardingScaffold(
       showBackButton: false,
-      title: 'Drive with Alpha+',
+      centerHeader: true,
+      header: Container(
+        width: 144,
+        height: 144,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.08),
+          shape: BoxShape.circle,
+        ),
+        child: Container(
+          width: 104,
+          height: 104,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.16),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.phone_rounded,
+            size: 54,
+            color: AppColors.ink,
+          ),
+        ),
+      ),
+      title: 'Enter your phone number',
       subtitle:
-          'Enter your phone number to sign in or create a driver account.',
+          'We’ll send you a verification code by SMS to confirm your number.',
       bottom: ElevatedButton(
         onPressed: _isValid ? _continue : null,
         child: const Text('Continue'),
@@ -53,81 +77,61 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Center(
-            child: Container(
-              width: 112,
-              height: 112,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Text(
-                'A+',
-                style: TextStyle(
-                  color: AppColors.ink,
-                  fontSize: 38,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -2,
-                ),
-              ),
+          Text(
+            'Phone number',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 42),
-          Text('Phone number', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Container(
-                height: 60,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-                child: const Row(
+          const SizedBox(height: 10),
+          TextField(
+            key: const Key('phoneField'),
+            controller: _phoneController,
+            focusNode: _phoneFocus,
+            autofocus: false,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.done,
+            inputFormatters: <TextInputFormatter>[
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(9),
+            ],
+            decoration: InputDecoration(
+              hintText: '912 345 678',
+              counterText: '',
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 0,
+                minHeight: 0,
+              ),
+              prefixIcon: Padding(
+                padding: const EdgeInsets.only(left: 16, right: 14),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Text('🇸🇸', style: TextStyle(fontSize: 23)),
-                    SizedBox(width: 9),
+                    const Text('🇸🇸', style: TextStyle(fontSize: 22)),
+                    const SizedBox(width: 8),
                     Text(
                       '+211',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
+                    ),
+                    const SizedBox(width: 14),
+                    Container(
+                      width: 1,
+                      height: 28,
+                      color: Theme.of(context).dividerColor,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  key: const Key('phoneField'),
-                  controller: _phoneController,
-                  focusNode: _phoneFocus,
-                  autofocus: false,
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.done,
-                  inputFormatters: <TextInputFormatter>[
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')),
-                    LengthLimitingTextInputFormatter(12),
-                  ],
-                  decoration: const InputDecoration(
-                    hintText: '912 345 678',
-                    counterText: '',
-                  ),
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) => _continue(),
-                ),
-              ),
-            ],
+            ),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _continue(),
           ),
           const SizedBox(height: 20),
           Text(
-            'By continuing, you accept the Alpha+ User Agreement and Privacy Policy.',
+            'By continuing, you accept the Alpha + User Agreement and Privacy Policy.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],

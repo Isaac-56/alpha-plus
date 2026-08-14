@@ -1,6 +1,6 @@
+import 'package:alpha_plus/main.dart';
 import 'package:alpha_plus/core/theme/app_theme.dart';
 import 'package:alpha_plus/features/auth/presentation/phone_login_screen.dart';
-import 'package:alpha_plus/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -12,10 +12,10 @@ void main() {
 
     expect(find.bySemanticsLabel('Alpha Plus'), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 2700));
+    await tester.pump(const Duration(milliseconds: 2900));
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.text('Drive with Alpha+'), findsOneWidget);
+    expect(find.text('Enter your phone number'), findsOneWidget);
     expect(find.byKey(const Key('phoneField')), findsOneWidget);
   });
 
@@ -32,7 +32,6 @@ void main() {
     final ElevatedButton button = tester.widget<ElevatedButton>(
       find.widgetWithText(ElevatedButton, 'Continue'),
     );
-
     expect(button.onPressed, isNotNull);
 
     await tester.tap(find.widgetWithText(ElevatedButton, 'Continue'));
