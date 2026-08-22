@@ -21,7 +21,8 @@ class BiometricOptInScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnboardingScaffold(
       title: 'Sign in faster',
-      subtitle: 'Use your fingerprint or face unlock for quick access to Alpha Plus.',
+      subtitle:
+          'Use your fingerprint or face unlock for quick access to Alpha Plus.',
       bottom: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -47,7 +48,8 @@ class BiometricOptInScreen extends StatelessWidget {
           _BenefitTile(
             icon: Icons.shield_outlined,
             title: 'Protected on your device',
-            subtitle: 'Alpha Plus never receives your fingerprint or face data.',
+            subtitle:
+                'Alpha Plus never receives your fingerprint or face data.',
           ),
           _BenefitTile(
             icon: Icons.lock_person_outlined,

@@ -43,7 +43,10 @@ class _ServiceRegistrationScreenState extends State<ServiceRegistrationScreen> {
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 6,
+              ),
               leading: const Icon(Icons.location_city_rounded),
               title: const Text('Registration city'),
               subtitle: const Text('Juba, South Sudan'),
@@ -51,7 +54,10 @@ class _ServiceRegistrationScreenState extends State<ServiceRegistrationScreen> {
             ),
           ),
           const SizedBox(height: 28),
-          Text('Choose a service', style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            'Choose a service',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
           const SizedBox(height: 16),
           _ServiceCard(
             selected: _selected == DriverService.rides,
@@ -117,7 +123,9 @@ class _ServiceCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: selected ? AppColors.primary : Theme.of(context).dividerColor,
+                color: selected
+                    ? AppColors.primary
+                    : Theme.of(context).dividerColor,
                 width: selected ? 2 : 1,
               ),
             ),
@@ -144,14 +152,15 @@ class _ServiceCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               title,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
+                              style: Theme.of(context).textTheme.titleLarge
                                   ?.copyWith(color: foreground),
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 5,
+                            ),
                             decoration: BoxDecoration(
                               color: selected
                                   ? AppColors.primary.withValues(alpha: 0.18)
@@ -170,13 +179,19 @@ class _ServiceCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 5),
-                      Text(description, style: Theme.of(context).textTheme.bodyMedium),
+                      Text(
+                        description,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
                     ],
                   ),
                 ),
                 if (selected) ...<Widget>[
                   const SizedBox(width: 8),
-                  const Icon(Icons.check_circle_rounded, color: AppColors.primary),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.primary,
+                  ),
                 ],
               ],
             ),

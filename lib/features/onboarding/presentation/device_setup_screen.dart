@@ -43,7 +43,9 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  overlay ? 'Allow screen overlay' : 'Allow background location',
+                  overlay
+                      ? 'Allow screen overlay'
+                      : 'Allow background location',
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 10),
@@ -153,14 +155,17 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                       Divider(height: 1, color: Theme.of(context).dividerColor),
                       _PermissionTile(
                         title: 'Background location access',
-                        subtitle: 'Keep your availability and position accurate',
+                        subtitle:
+                            'Keep your availability and position accurate',
                         complete: _backgroundLocationReady,
                         onTap: () => _explainPermission(overlay: false),
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: ready ? _finish : null,
-                        child: Text(ready ? 'Open Alpha Plus' : 'Complete setup'),
+                        child: Text(
+                          ready ? 'Open Alpha Plus' : 'Complete setup',
+                        ),
                       ),
                     ],
                   ),

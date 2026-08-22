@@ -53,8 +53,8 @@ class StageOneCompleteScreen extends StatelessWidget {
                   'Your Alpha Plus identity is ready. Next, we’ll add your vehicle and driver’s licence.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color,
-                      ),
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
                 ),
                 const Spacer(flex: 3),
                 Container(
@@ -72,7 +72,10 @@ class StageOneCompleteScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           'Stage 2: Vehicle and document registration',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                       Icon(Icons.arrow_forward_rounded),
@@ -84,9 +87,8 @@ class StageOneCompleteScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => VehicleSetupScreen(
-                          driverName: driverName,
-                        ),
+                        builder: (_) =>
+                            VehicleSetupScreen(driverName: driverName),
                       ),
                     );
                   },

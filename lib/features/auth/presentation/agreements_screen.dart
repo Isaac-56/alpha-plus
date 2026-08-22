@@ -20,7 +20,8 @@ class _AgreementsScreenState extends State<AgreementsScreen> {
   void _continue() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ServiceRegistrationScreen(driverName: widget.driverName),
+        builder: (_) =>
+            ServiceRegistrationScreen(driverName: widget.driverName),
       ),
     );
   }
@@ -29,7 +30,8 @@ class _AgreementsScreenState extends State<AgreementsScreen> {
   Widget build(BuildContext context) {
     return OnboardingScaffold(
       title: 'Agreements',
-      subtitle: 'Review how Alpha Plus works before creating your driver profile.',
+      subtitle:
+          'Review how Alpha Plus works before creating your driver profile.',
       bottom: ElevatedButton(
         onPressed: _accepted ? _continue : null,
         child: const Text('Accept and continue'),
@@ -136,7 +138,8 @@ class _AgreementCard extends StatelessWidget {
                         if (required)
                           Text(
                             'Required',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -144,12 +147,17 @@ class _AgreementCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(description, style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: () {},
                       style: TextButton.styleFrom(
-                        foregroundColor: Theme.of(context).colorScheme.onSurface,
+                        foregroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onSurface,
                         padding: EdgeInsets.zero,
                         minimumSize: const Size(0, 36),
                       ),

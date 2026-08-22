@@ -96,7 +96,10 @@ class _RequestsPage extends StatelessWidget {
             child: Column(
               children: <Widget>[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 13,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(18),
@@ -268,7 +271,10 @@ class _ProgressRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                   Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
@@ -306,8 +312,16 @@ class _MoneyPage extends StatelessWidget {
         children: <Widget>[
           Text('Money', style: Theme.of(context).textTheme.displaySmall),
           const SizedBox(height: 28),
-          Text('SSP 0', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontSize: 52)),
-          const Text('Today', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(
+            'SSP 0',
+            style: Theme.of(
+              context,
+            ).textTheme.displaySmall?.copyWith(fontSize: 52),
+          ),
+          const Text(
+            'Today',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 26),
           _DashboardCard(
             child: Column(
@@ -317,13 +331,19 @@ class _MoneyPage extends StatelessWidget {
                   leading: Icon(Icons.lock_outline_rounded),
                   title: Text('Balance limit'),
                   subtitle: Text('Everything looks good'),
-                  trailing: Text('-SSP 0', style: TextStyle(fontWeight: FontWeight.w800)),
+                  trailing: Text(
+                    '-SSP 0',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
                 Divider(color: Theme.of(context).dividerColor),
                 const ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text('Balance'),
-                  trailing: Text('SSP 0', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                  trailing: Text(
+                    'SSP 0',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  ),
                 ),
               ],
             ),
@@ -345,10 +365,24 @@ class _ChatsPage extends StatelessWidget {
         children: <Widget>[
           Text('Messages', style: Theme.of(context).textTheme.displaySmall),
           const SizedBox(height: 24),
-          const _MessageTile(icon: Icons.support_agent_rounded, title: 'Support', color: AppColors.primary),
-          const _MessageTile(icon: Icons.newspaper_rounded, title: 'Alpha Plus news', subtitle: 'Welcome to the driver community'),
-          const _MessageTile(icon: Icons.notifications_active_rounded, title: 'Service notifications'),
-          const _MessageTile(icon: Icons.warning_amber_rounded, title: 'Safety alerts'),
+          const _MessageTile(
+            icon: Icons.support_agent_rounded,
+            title: 'Support',
+            color: AppColors.primary,
+          ),
+          const _MessageTile(
+            icon: Icons.newspaper_rounded,
+            title: 'Alpha Plus news',
+            subtitle: 'Welcome to the driver community',
+          ),
+          const _MessageTile(
+            icon: Icons.notifications_active_rounded,
+            title: 'Service notifications',
+          ),
+          const _MessageTile(
+            icon: Icons.warning_amber_rounded,
+            title: 'Safety alerts',
+          ),
         ],
       ),
     );
@@ -376,7 +410,10 @@ class _ProfilePage extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(driverName, style: Theme.of(context).textTheme.headlineMedium),
+                child: Text(
+                  driverName,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
               ),
               IconButton.filledTonal(
                 onPressed: () {},
@@ -392,12 +429,18 @@ class _ProfilePage extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Driver status'),
                   trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text('Under review', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      'Under review',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ),
                 Divider(color: Theme.of(context).dividerColor),
@@ -411,10 +454,22 @@ class _ProfilePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          const _ProfileAction(icon: Icons.build_circle_outlined, title: 'Troubleshooting'),
-          const _ProfileAction(icon: Icons.camera_alt_outlined, title: 'Photo check'),
-          const _ProfileAction(icon: Icons.card_giftcard_rounded, title: 'Invite a friend'),
-          const _ProfileAction(icon: Icons.settings_outlined, title: 'Settings'),
+          const _ProfileAction(
+            icon: Icons.build_circle_outlined,
+            title: 'Troubleshooting',
+          ),
+          const _ProfileAction(
+            icon: Icons.camera_alt_outlined,
+            title: 'Photo check',
+          ),
+          const _ProfileAction(
+            icon: Icons.card_giftcard_rounded,
+            title: 'Invite a friend',
+          ),
+          const _ProfileAction(
+            icon: Icons.settings_outlined,
+            title: 'Settings',
+          ),
         ],
       ),
     );
@@ -461,7 +516,11 @@ class _EmptyStatePage extends StatelessWidget {
                   const SizedBox(height: 24),
                   Text(headline, style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 6),
-                  Text(description, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
+                  Text(
+                    description,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
                   const SizedBox(height: 18),
                   FilledButton.tonalIcon(
                     onPressed: () {},
@@ -499,7 +558,12 @@ class _DashboardCard extends StatelessWidget {
 }
 
 class _MessageTile extends StatelessWidget {
-  const _MessageTile({required this.icon, required this.title, this.subtitle, this.color});
+  const _MessageTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.color,
+  });
 
   final IconData icon;
   final String title;

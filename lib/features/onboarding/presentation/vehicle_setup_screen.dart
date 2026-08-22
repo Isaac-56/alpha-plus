@@ -21,11 +21,7 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _plateController = TextEditingController();
 
-  static const List<String> _vehicleTypes = <String>[
-    'Car',
-    'Boda',
-    'Rickshaw',
-  ];
+  static const List<String> _vehicleTypes = <String>['Car', 'Boda', 'Rickshaw'];
   static const List<String> _makes = <String>[
     'Toyota',
     'Nissan',
@@ -138,84 +134,84 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
               ),
               child: Column(
                 children: <Widget>[
-            _PickerRow(
-              label: 'Type of vehicle',
-              value: _registration.vehicleType,
-              icon: Icons.local_taxi_rounded,
-              onTap: () => _pick(
-                title: 'Vehicle type',
-                options: _vehicleTypes,
-                selected: _registration.vehicleType,
-                onSelected: (String value) {
-                  _registration.vehicleType = value;
-                },
-              ),
-            ),
-            _PickerRow(
-              label: 'Make',
-              value: _registration.make,
-              icon: Icons.factory_outlined,
-              onTap: () => _pick(
-                title: 'Make',
-                options: _makes,
-                selected: _registration.make,
-                onSelected: (String value) {
-                  _registration.make = value;
-                  _registration.model = '';
-                },
-              ),
-            ),
-            _PickerRow(
-              label: 'Model',
-              value: _registration.model,
-              icon: Icons.directions_car_filled_rounded,
-              onTap: _registration.make.isEmpty
-                  ? null
-                  : () => _pick(
-                        title: 'Model',
-                        options: _models,
-                        selected: _registration.model,
-                        onSelected: (String value) =>
-                            _registration.model = value,
-                      ),
-            ),
-            _PickerRow(
-              label: 'Color',
-              value: _registration.color,
-              icon: Icons.palette_outlined,
-              swatch: _colors[_registration.color],
-              onTap: () => _pick(
-                title: 'Color',
-                options: _colors.keys.toList(),
-                selected: _registration.color,
-                colors: _colors,
-                onSelected: (String value) => _registration.color = value,
-              ),
-            ),
-            _InputRow(
-              controller: _yearController,
-              label: 'Manufacture year',
-              hint: 'e.g. 2018',
-              icon: Icons.calendar_month_outlined,
-              keyboardType: TextInputType.number,
-              inputFormatters: <TextInputFormatter>[
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(4),
-              ],
-              onChanged: (_) => setState(() {}),
-            ),
-            _InputRow(
-              controller: _plateController,
-              label: 'Vehicle plate number',
-              hint: 'e.g. SSD 1234',
-              icon: Icons.pin_outlined,
-              textCapitalization: TextCapitalization.characters,
-              inputFormatters: <TextInputFormatter>[
-                LengthLimitingTextInputFormatter(14),
-              ],
-              showDivider: false,
-              onChanged: (_) => setState(() {}),
-            ),
+                  _PickerRow(
+                    label: 'Type of vehicle',
+                    value: _registration.vehicleType,
+                    icon: Icons.local_taxi_rounded,
+                    onTap: () => _pick(
+                      title: 'Vehicle type',
+                      options: _vehicleTypes,
+                      selected: _registration.vehicleType,
+                      onSelected: (String value) {
+                        _registration.vehicleType = value;
+                      },
+                    ),
+                  ),
+                  _PickerRow(
+                    label: 'Make',
+                    value: _registration.make,
+                    icon: Icons.factory_outlined,
+                    onTap: () => _pick(
+                      title: 'Make',
+                      options: _makes,
+                      selected: _registration.make,
+                      onSelected: (String value) {
+                        _registration.make = value;
+                        _registration.model = '';
+                      },
+                    ),
+                  ),
+                  _PickerRow(
+                    label: 'Model',
+                    value: _registration.model,
+                    icon: Icons.directions_car_filled_rounded,
+                    onTap: _registration.make.isEmpty
+                        ? null
+                        : () => _pick(
+                            title: 'Model',
+                            options: _models,
+                            selected: _registration.model,
+                            onSelected: (String value) =>
+                                _registration.model = value,
+                          ),
+                  ),
+                  _PickerRow(
+                    label: 'Color',
+                    value: _registration.color,
+                    icon: Icons.palette_outlined,
+                    swatch: _colors[_registration.color],
+                    onTap: () => _pick(
+                      title: 'Color',
+                      options: _colors.keys.toList(),
+                      selected: _registration.color,
+                      colors: _colors,
+                      onSelected: (String value) => _registration.color = value,
+                    ),
+                  ),
+                  _InputRow(
+                    controller: _yearController,
+                    label: 'Manufacture year',
+                    hint: 'e.g. 2018',
+                    icon: Icons.calendar_month_outlined,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(4),
+                    ],
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  _InputRow(
+                    controller: _plateController,
+                    label: 'Vehicle plate number',
+                    hint: 'e.g. SSD 1234',
+                    icon: Icons.pin_outlined,
+                    textCapitalization: TextCapitalization.characters,
+                    inputFormatters: <TextInputFormatter>[
+                      LengthLimitingTextInputFormatter(14),
+                    ],
+                    showDivider: false,
+                    onChanged: (_) => setState(() {}),
+                  ),
                 ],
               ),
             ),
@@ -292,17 +288,17 @@ class _PickerRow extends StatelessWidget {
       children: <Widget>[
         ListTile(
           enabled: onTap != null,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 3),
-          leading: _StatusIcon(complete: complete, icon: icon, swatch: swatch),
-          title: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 0,
+            vertical: 3,
           ),
+          leading: _StatusIcon(complete: complete, icon: icon, swatch: swatch),
+          title: Text(label, style: Theme.of(context).textTheme.bodyMedium),
           subtitle: Text(
             complete ? value : 'Select',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
           trailing: const Icon(Icons.keyboard_arrow_right_rounded),
           onTap: onTap,
@@ -385,7 +381,8 @@ class _StatusIcon extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: swatch ??
+        color:
+            swatch ??
             (complete
                 ? AppColors.primary
                 : Theme.of(context).scaffoldBackgroundColor),

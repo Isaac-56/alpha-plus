@@ -68,7 +68,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
         ),
       ),
       title: 'Enter your phone number',
-      subtitle: 'We’ll send you a verification code by SMS to confirm your number.',
+      subtitle:
+          'We’ll send you a verification code by SMS to confirm your number.',
       bottom: ElevatedButton(
         onPressed: _isValid ? _continue : null,
         child: const Text('Continue'),
@@ -79,9 +80,9 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
           Text(
             'Phone number',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -112,8 +113,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     Text(
                       '+211',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Container(

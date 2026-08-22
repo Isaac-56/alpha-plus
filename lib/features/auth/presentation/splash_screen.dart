@@ -31,18 +31,11 @@ class _SplashScreenState extends State<SplashScreen>
 
     _logoEntrance = CurvedAnimation(
       parent: _controller,
-      curve: const Interval(
-        0,
-        0.34,
-        curve: Curves.easeOutCubic,
-      ),
+      curve: const Interval(0, 0.34, curve: Curves.easeOutCubic),
     );
 
     _controller.forward();
-    _navigationTimer = Timer(
-      const Duration(milliseconds: 2450),
-      _openLogin,
-    );
+    _navigationTimer = Timer(const Duration(milliseconds: 2450), _openLogin);
   }
 
   void _openLogin() {
@@ -53,19 +46,20 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 420),
-        pageBuilder: (
-          BuildContext context,
-          Animation<double> animation,
-          Animation<double> secondaryAnimation,
-        ) {
-          return FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ),
-            child: const PhoneLoginScreen(),
-          );
-        },
+        pageBuilder:
+            (
+              BuildContext context,
+              Animation<double> animation,
+              Animation<double> secondaryAnimation,
+            ) {
+              return FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                ),
+                child: const PhoneLoginScreen(),
+              );
+            },
       ),
     );
   }
@@ -83,12 +77,10 @@ class _SplashScreenState extends State<SplashScreen>
       backgroundColor: _primaryColor,
       body: SafeArea(
         child: LayoutBuilder(
-          builder: (
-            BuildContext context,
-            BoxConstraints constraints,
-          ) {
-            final double logoSize =
-                (constraints.maxWidth * 0.82).clamp(260.0, 370.0).toDouble();
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double logoSize = (constraints.maxWidth * 0.82)
+                .clamp(260.0, 370.0)
+                .toDouble();
 
             return Center(
               child: Semantics(
@@ -119,9 +111,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 top: logoSize * 0.477,
                                 width: logoSize * 0.55,
                                 height: logoSize * 0.09,
-                                child: const ColoredBox(
-                                  color: _primaryColor,
-                                ),
+                                child: const ColoredBox(color: _primaryColor),
                               ),
                               Positioned(
                                 left: logoSize * 0.225,
@@ -143,11 +133,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: FadeTransition(
                         opacity: CurvedAnimation(
                           parent: _controller,
-                          curve: const Interval(
-                            0.72,
-                            1,
-                            curve: Curves.easeOut,
-                          ),
+                          curve: const Interval(0.72, 1, curve: Curves.easeOut),
                         ),
                         child: const SizedBox(
                           width: 26,
@@ -171,10 +157,7 @@ class _SplashScreenState extends State<SplashScreen>
 }
 
 class _AnimatedBrandName extends StatelessWidget {
-  const _AnimatedBrandName({
-    required this.controller,
-    required this.text,
-  });
+  const _AnimatedBrandName({required this.controller, required this.text});
 
   final AnimationController controller;
   final String text;
@@ -188,57 +171,51 @@ class _AnimatedBrandName extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List<Widget>.generate(
-          characters.length,
-          (int index) {
-            final String character = characters[index];
-            final double start = 0.20 + (index * 0.055);
-            final double end = (start + 0.24).clamp(0.0, 1.0).toDouble();
-            final Animation<double> letterAnimation = CurvedAnimation(
-              parent: controller,
-              curve: Interval(
-                start.clamp(0.0, 1.0).toDouble(),
-                end,
-                curve: Curves.easeOutBack,
-              ),
-            );
+        children: List<Widget>.generate(characters.length, (int index) {
+          final String character = characters[index];
+          final double start = 0.20 + (index * 0.055);
+          final double end = (start + 0.24).clamp(0.0, 1.0).toDouble();
+          final Animation<double> letterAnimation = CurvedAnimation(
+            parent: controller,
+            curve: Interval(
+              start.clamp(0.0, 1.0).toDouble(),
+              end,
+              curve: Curves.easeOutBack,
+            ),
+          );
 
-            if (character == ' ') {
-              return const SizedBox(width: 8);
-            }
+          if (character == ' ') {
+            return const SizedBox(width: 8);
+          }
 
-            return AnimatedBuilder(
-              animation: letterAnimation,
-              builder: (
-                BuildContext context,
-                Widget? child,
-              ) {
-                final double value = letterAnimation.value;
+          return AnimatedBuilder(
+            animation: letterAnimation,
+            builder: (BuildContext context, Widget? child) {
+              final double value = letterAnimation.value;
 
-                return Opacity(
-                  opacity: value.clamp(0.0, 1.0).toDouble(),
-                  child: Transform.translate(
-                    offset: Offset(0, 12 * (1 - value)),
-                    child: Transform.scale(
-                      scale: 0.72 + (0.28 * value),
-                      child: child,
-                    ),
+              return Opacity(
+                opacity: value.clamp(0.0, 1.0).toDouble(),
+                child: Transform.translate(
+                  offset: Offset(0, 12 * (1 - value)),
+                  child: Transform.scale(
+                    scale: 0.72 + (0.28 * value),
+                    child: child,
                   ),
-                );
-              },
-              child: Text(
-                character,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 27,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.2,
                 ),
+              );
+            },
+            child: Text(
+              character,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 27,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.2,
               ),
-            );
-          },
-        ),
+            ),
+          );
+        }),
       ),
     );
   }
