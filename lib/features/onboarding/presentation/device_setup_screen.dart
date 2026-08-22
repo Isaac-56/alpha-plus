@@ -43,16 +43,14 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  overlay
-                      ? 'Allow screen overlay'
-                      : 'Allow background location',
+                  overlay ? 'Allow screen overlay' : 'Allow background location',
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 10),
                 Text(
                   overlay
-                      ? 'This lets ALPHA + show a compact trip request while another app is open.'
-                      : 'This lets ALPHA + receive trip requests and update your position while you are online.',
+                      ? 'This lets Alpha Plus show a compact trip request while another app is open.'
+                      : 'This lets Alpha Plus receive trip requests and update your position while you are online.',
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 24),
@@ -155,15 +153,14 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                       Divider(height: 1, color: Theme.of(context).dividerColor),
                       _PermissionTile(
                         title: 'Background location access',
-                        subtitle:
-                            'Keep your availability and position accurate',
+                        subtitle: 'Keep your availability and position accurate',
                         complete: _backgroundLocationReady,
                         onTap: () => _explainPermission(overlay: false),
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: ready ? _finish : null,
-                        child: Text(ready ? 'Open ALPHA +' : 'Complete setup'),
+                        child: Text(ready ? 'Open Alpha Plus' : 'Complete setup'),
                       ),
                     ],
                   ),
@@ -208,7 +205,7 @@ class _DriverBackdrop extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 const Text(
-                  'ALPHA +',
+                  'ALPHA PLUS',
                   style: TextStyle(
                     color: AppColors.ink,
                     fontSize: 28,

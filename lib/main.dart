@@ -15,7 +15,7 @@ class AlphaPlusApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'ALPHA +',
+      title: 'Alpha Plus',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,

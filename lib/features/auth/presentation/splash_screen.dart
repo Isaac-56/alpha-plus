@@ -1,8 +1,7 @@
-import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
 import 'phone_login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -14,227 +13,231 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
+  static const Color _primaryColor = Color(0xFF39FF14);
+  static const String _brandName = 'ALPHA PLUS';
+
   late final AnimationController _controller;
+  late final Animation<double> _logoEntrance;
+  Timer? _navigationTimer;
 
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2850),
-    )..addStatusListener(_openLoginWhenComplete);
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    _logoEntrance = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(
+        0,
+        0.34,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
     _controller.forward();
+    _navigationTimer = Timer(
+      const Duration(milliseconds: 2450),
+      _openLogin,
+    );
   }
 
-  void _openLoginWhenComplete(AnimationStatus status) {
-    if (status != AnimationStatus.completed || !mounted) {
+  void _openLogin() {
+    if (!mounted) {
       return;
     }
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 520),
-        pageBuilder:
-            (
-              BuildContext context,
-              Animation<double> animation,
-              Animation<double> secondaryAnimation,
-            ) {
-              return FadeTransition(
-                opacity: animation,
-                child: const PhoneLoginScreen(),
-              );
-            },
+        transitionDuration: const Duration(milliseconds: 420),
+        pageBuilder: (
+          BuildContext context,
+          Animation<double> animation,
+          Animation<double> secondaryAnimation,
+        ) {
+          return FadeTransition(
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            ),
+            child: const PhoneLoginScreen(),
+          );
+        },
       ),
     );
   }
 
   @override
   void dispose() {
-    _controller
-      ..removeStatusListener(_openLoginWhenComplete)
-      ..dispose();
+    _navigationTimer?.cancel();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: AnimatedBuilder(
-        animation: _controller,
-        builder: (BuildContext context, Widget? child) {
-          final double pulse = math.sin(_controller.value * math.pi * 3);
-          final double carEntrance = Curves.easeOutBack.transform(
-            const Interval(0, 0.34).transform(_controller.value),
-          );
-          final double carOpacity = Curves.easeOut.transform(
-            const Interval(0, 0.18).transform(_controller.value),
-          );
-          return Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              Center(
-                child: Transform.scale(
-                  scale: 1 + (pulse * 0.025),
-                  child: Container(
-                    width: 290,
-                    height: 290,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.ink.withValues(
-                          alpha: 0.05 + (_controller.value * 0.04),
-                        ),
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Center(
-                child: Semantics(
-                  label: 'Alpha Plus',
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      SizedBox(
-                        width: 286,
-                        height: 222,
-                        child: Stack(
-                          alignment: Alignment.topCenter,
-                          children: <Widget>[
-                            Opacity(
-                              opacity: carOpacity,
-                              child: Transform.translate(
-                                offset: Offset(0, -34 * (1 - carEntrance)),
-                                child: Transform.scale(
-                                  scale: 0.82 + (carEntrance * 0.18),
-                                  child: Image.asset(
-                                    'assets/branding/alpha_plus_car_frame.png',
-                                    width: 286,
-                                    height: 222,
-                                    fit: BoxFit.contain,
-                                    filterQuality: FilterQuality.high,
-                                  ),
+      backgroundColor: _primaryColor,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (
+            BuildContext context,
+            BoxConstraints constraints,
+          ) {
+            final double logoSize =
+                (constraints.maxWidth * 0.82).clamp(260.0, 370.0).toDouble();
+
+            return Center(
+              child: Semantics(
+                label: 'Alpha Plus',
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    FadeTransition(
+                      opacity: _logoEntrance,
+                      child: ScaleTransition(
+                        scale: Tween<double>(
+                          begin: 0.86,
+                          end: 1,
+                        ).animate(_logoEntrance),
+                        child: SizedBox.square(
+                          dimension: logoSize,
+                          child: Stack(
+                            children: <Widget>[
+                              Positioned.fill(
+                                child: Image.asset(
+                                  'assets/branding/alpha_plus_logo.png',
+                                  cacheWidth: 800,
+                                  filterQuality: FilterQuality.medium,
                                 ),
                               ),
-                            ),
-                            Positioned(
-                              top: 113,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: List<Widget>.generate(
-                                  7,
-                                  (int index) => _AnimatedLetter(
-                                    controller: _controller,
-                                    index: index,
-                                    character: 'ALPHA +'[index],
-                                  ),
+                              Positioned(
+                                left: logoSize * 0.225,
+                                top: logoSize * 0.477,
+                                width: logoSize * 0.55,
+                                height: logoSize * 0.09,
+                                child: const ColoredBox(
+                                  color: _primaryColor,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Transform.translate(
-                        offset: const Offset(0, -2),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(99),
-                          child: SizedBox(
-                            width: 118,
-                            height: 3,
-                            child: LinearProgressIndicator(
-                              value: Curves.easeInOutCubic.transform(
-                                _controller.value,
+                              Positioned(
+                                left: logoSize * 0.225,
+                                top: logoSize * 0.487,
+                                width: logoSize * 0.55,
+                                height: logoSize * 0.07,
+                                child: _AnimatedBrandName(
+                                  controller: _controller,
+                                  text: _brandName,
+                                ),
                               ),
-                              backgroundColor: AppColors.ink.withValues(
-                                alpha: 0.12,
-                              ),
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                AppColors.ink,
-                              ),
-                            ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 48,
-                child: FadeTransition(
-                  opacity: CurvedAnimation(
-                    parent: _controller,
-                    curve: const Interval(0.62, 0.88, curve: Curves.easeOut),
-                  ),
-                  child: const Text(
-                    'DRIVE WITH CONFIDENCE',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.ink,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2.1,
                     ),
-                  ),
+                    Transform.translate(
+                      offset: Offset(0, -logoSize * 0.15),
+                      child: FadeTransition(
+                        opacity: CurvedAnimation(
+                          parent: _controller,
+                          curve: const Interval(
+                            0.72,
+                            1,
+                            curve: Curves.easeOut,
+                          ),
+                        ),
+                        child: const SizedBox(
+                          width: 26,
+                          height: 26,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.6,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
 }
 
-class _AnimatedLetter extends StatelessWidget {
-  const _AnimatedLetter({
+class _AnimatedBrandName extends StatelessWidget {
+  const _AnimatedBrandName({
     required this.controller,
-    required this.index,
-    required this.character,
+    required this.text,
   });
 
   final AnimationController controller;
-  final int index;
-  final String character;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    if (character == ' ') {
-      return const SizedBox(width: 10);
-    }
+    final List<String> characters = text.split('');
 
-    final double start = 0.22 + (index * 0.055);
-    final double end = (start + 0.22).clamp(0, 1).toDouble();
-    final CurvedAnimation entrance = CurvedAnimation(
-      parent: controller,
-      curve: Interval(start, end, curve: Curves.easeOutBack),
-    );
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List<Widget>.generate(
+          characters.length,
+          (int index) {
+            final String character = characters[index];
+            final double start = 0.20 + (index * 0.055);
+            final double end = (start + 0.24).clamp(0.0, 1.0).toDouble();
+            final Animation<double> letterAnimation = CurvedAnimation(
+              parent: controller,
+              curve: Interval(
+                start.clamp(0.0, 1.0).toDouble(),
+                end,
+                curve: Curves.easeOutBack,
+              ),
+            );
 
-    return FadeTransition(
-      opacity: entrance,
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: Offset(0, index.isEven ? 0.7 : -0.7),
-          end: Offset.zero,
-        ).animate(entrance),
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 0.62, end: 1).animate(entrance),
-          child: Text(
-            character,
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontSize: 36,
-              height: 1,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -1.7,
-            ),
-          ),
+            if (character == ' ') {
+              return const SizedBox(width: 8);
+            }
+
+            return AnimatedBuilder(
+              animation: letterAnimation,
+              builder: (
+                BuildContext context,
+                Widget? child,
+              ) {
+                final double value = letterAnimation.value;
+
+                return Opacity(
+                  opacity: value.clamp(0.0, 1.0).toDouble(),
+                  child: Transform.translate(
+                    offset: Offset(0, 12 * (1 - value)),
+                    child: Transform.scale(
+                      scale: 0.72 + (0.28 * value),
+                      child: child,
+                    ),
+                  ),
+                );
+              },
+              child: Text(
+                character,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 27,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

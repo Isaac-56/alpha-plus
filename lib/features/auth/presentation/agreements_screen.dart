@@ -20,8 +20,7 @@ class _AgreementsScreenState extends State<AgreementsScreen> {
   void _continue() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            ServiceRegistrationScreen(driverName: widget.driverName),
+        builder: (_) => ServiceRegistrationScreen(driverName: widget.driverName),
       ),
     );
   }
@@ -30,7 +29,7 @@ class _AgreementsScreenState extends State<AgreementsScreen> {
   Widget build(BuildContext context) {
     return OnboardingScaffold(
       title: 'Agreements',
-      subtitle: 'Review how Alpha + works before creating your driver profile.',
+      subtitle: 'Review how Alpha Plus works before creating your driver profile.',
       bottom: ElevatedButton(
         onPressed: _accepted ? _continue : null,
         child: const Text('Accept and continue'),
@@ -68,7 +67,7 @@ class _AgreementsScreenState extends State<AgreementsScreen> {
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  'Your personal information is processed according to the Alpha + Privacy Policy.',
+                  'Your personal information is processed according to the Alpha Plus Privacy Policy.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
@@ -137,8 +136,7 @@ class _AgreementCard extends StatelessWidget {
                         if (required)
                           Text(
                             'Required',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -146,17 +144,12 @@ class _AgreementCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      description,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
+                    Text(description, style: Theme.of(context).textTheme.bodyMedium),
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: () {},
                       style: TextButton.styleFrom(
-                        foregroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onSurface,
+                        foregroundColor: Theme.of(context).colorScheme.onSurface,
                         padding: EdgeInsets.zero,
                         minimumSize: const Size(0, 36),
                       ),
