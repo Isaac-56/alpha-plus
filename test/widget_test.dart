@@ -1,6 +1,8 @@
 import 'package:alpha_plus/main.dart';
 import 'package:alpha_plus/core/theme/app_theme.dart';
 import 'package:alpha_plus/features/auth/presentation/phone_login_screen.dart';
+import 'package:alpha_plus/features/dashboard/presentation/driver_shell.dart';
+import 'package:alpha_plus/features/onboarding/models/driver_registration.dart';
 import 'package:alpha_plus/features/onboarding/presentation/stage_one_complete_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,7 +26,10 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const PhoneLoginScreen()),
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const PhoneLoginScreen(),
+      ),
     );
 
     await tester.enterText(find.byKey(const Key('phoneField')), '912345678');
@@ -60,5 +65,63 @@ void main() {
     expect(find.text('Enter your vehicle details'), findsOneWidget);
     expect(find.text('Type of vehicle'), findsOneWidget);
     expect(find.text('Vehicle plate number'), findsOneWidget);
+  });
+
+  testWidgets('driver profile actions open their detail pages', (
+    WidgetTester tester,
+  ) async {
+    final DriverRegistration registration = DriverRegistration()
+      ..vehicleType = 'Car'
+      ..make = 'Toyota'
+      ..model = 'Corolla'
+      ..color = 'White'
+      ..manufactureYear = '2020'
+      ..plateNumber = 'SSD 123 A';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: DriverShell(
+          driverName: 'Test Driver',
+          registration: registration,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Alpha Plus South Sudan'), findsOneWidget);
+    expect(find.text('Promo codes'), findsNothing);
+
+    await tester.tap(find.text('Payment'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cash payments'), findsOneWidget);
+    expect(find.text('Card payments'), findsOneWidget);
+    expect(find.text('Alpha Wallet'), findsOneWidget);
+    expect(find.text('Coming soon'), findsNWidgets(2));
+  });
+
+  testWidgets('money balance limit opens its explanation', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: DriverShell(
+          driverName: 'Test Driver',
+          registration: DriverRegistration(),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Money'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Balance limit'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Check your account\nbalance limit'), findsOneWidget);
+    expect(find.text('Got it'), findsOneWidget);
   });
 }

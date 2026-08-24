@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../onboarding/models/driver_registration.dart';
+import 'driver_detail_screens.dart';
 
 class DriverShell extends StatefulWidget {
   const DriverShell({
@@ -96,10 +97,7 @@ class _RequestsPage extends StatelessWidget {
             child: Column(
               children: <Widget>[
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 13,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(18),
@@ -271,10 +269,7 @@ class _ProgressRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
                   Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
@@ -291,12 +286,17 @@ class _PoolPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _EmptyStatePage(
+    return _EmptyStatePage(
       title: 'Order pool',
       icon: Icons.inbox_rounded,
       headline: 'No trip requests right now',
       description: 'New requests will appear here as soon as you are approved.',
       buttonLabel: 'Update',
+      onPressed: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order pool refreshed.')),
+        );
+      },
     );
   }
 }
@@ -310,7 +310,24 @@ class _MoneyPage extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(24),
         children: <Widget>[
-          Text('Money', style: Theme.of(context).textTheme.displaySmall),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Money',
+                  style: Theme.of(context).textTheme.displaySmall,
+                ),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: () => _openScreen(
+                  context,
+                  const SupportConversationScreen(),
+                ),
+                icon: const Icon(Icons.support_agent_rounded),
+                label: const Text('Support'),
+              ),
+            ],
+          ),
           const SizedBox(height: 28),
           Text(
             'SSP 0',
@@ -322,18 +339,42 @@ class _MoneyPage extends StatelessWidget {
             'Today',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
+          const SizedBox(height: 20),
+          _DashboardCard(
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                "View other drivers' stats",
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: const Text('Complete trips to see your own'),
+              trailing: const Icon(Icons.keyboard_arrow_right_rounded),
+              onTap: () => _showComingSoon(context, 'Driver statistics'),
+            ),
+          ),
           const SizedBox(height: 26),
           _DashboardCard(
             child: Column(
               children: <Widget>[
-                const ListTile(
+                ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.lock_outline_rounded),
-                  title: Text('Balance limit'),
-                  subtitle: Text('Everything looks good'),
-                  trailing: Text(
-                    '-SSP 0',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                  leading: const Icon(Icons.lock_outline_rounded),
+                  title: const Text('Balance limit'),
+                  subtitle: const Text('Everything looks good'),
+                  trailing: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        '-SSP 0',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.keyboard_arrow_right_rounded),
+                    ],
+                  ),
+                  onTap: () => _openScreen(
+                    context,
+                    const BalanceLimitScreen(),
                   ),
                 ),
                 Divider(color: Theme.of(context).dividerColor),
@@ -343,6 +384,21 @@ class _MoneyPage extends StatelessWidget {
                   trailing: Text(
                     'SSP 0',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('Service partner'),
+                      SizedBox(height: 4),
+                      Text(
+                        'Alpha Plus South Sudan',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -364,24 +420,90 @@ class _ChatsPage extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         children: <Widget>[
           Text('Messages', style: Theme.of(context).textTheme.displaySmall),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 142,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: <Widget>[
+                _MessageStory(
+                  icon: Icons.route_rounded,
+                  title: 'Earn on your way',
+                  onTap: () => _openScreen(
+                    context,
+                    const InformationMessageScreen(
+                      title: 'Earn on your way',
+                      body:
+                          'When requests go live, Alpha Plus can show trips that move you toward your chosen area.',
+                      icon: Icons.route_rounded,
+                    ),
+                  ),
+                ),
+                _MessageStory(
+                  icon: Icons.health_and_safety_rounded,
+                  title: 'About safety',
+                  onTap: () => _openScreen(
+                    context,
+                    const InformationMessageScreen(
+                      title: 'Safety first',
+                      body:
+                          'Keep your vehicle roadworthy, follow local traffic rules, and use in-app Support whenever a trip feels unsafe.',
+                      icon: Icons.health_and_safety_rounded,
+                    ),
+                  ),
+                ),
+                _MessageStory(
+                  icon: Icons.support_agent_rounded,
+                  title: 'Driver help',
+                  onTap: () => _openScreen(
+                    context,
+                    const SupportConversationScreen(),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 24),
-          const _MessageTile(
+          _MessageTile(
             icon: Icons.support_agent_rounded,
             title: 'Support',
             color: AppColors.primary,
+            onTap: () => _openScreen(
+              context,
+              const SupportConversationScreen(),
+            ),
           ),
-          const _MessageTile(
+          _MessageTile(
             icon: Icons.newspaper_rounded,
             title: 'Alpha Plus news',
             subtitle: 'Welcome to the driver community',
+            onTap: () => _openScreen(
+              context,
+              const InformationMessageScreen(
+                title: 'Welcome to Alpha Plus',
+                body:
+                    'Your driver account is being prepared. Service updates and approval messages will appear here.',
+                icon: Icons.newspaper_rounded,
+              ),
+            ),
           ),
-          const _MessageTile(
+          _MessageTile(
             icon: Icons.notifications_active_rounded,
             title: 'Service notifications',
+            onTap: () => _showComingSoon(context, 'Service notifications'),
           ),
-          const _MessageTile(
+          _MessageTile(
             icon: Icons.warning_amber_rounded,
             title: 'Safety alerts',
+            onTap: () => _openScreen(
+              context,
+              const InformationMessageScreen(
+                title: 'Safety alerts',
+                body:
+                    'Important safety notices for Juba and your active service area will appear here.',
+                icon: Icons.warning_amber_rounded,
+              ),
+            ),
           ),
         ],
       ),
@@ -410,13 +532,13 @@ class _ProfilePage extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  driverName,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
+                child: Text(driverName, style: Theme.of(context).textTheme.headlineMedium),
               ),
               IconButton.filledTonal(
-                onPressed: () {},
+                onPressed: () => _openScreen(
+                  context,
+                  const InviteDriverScreen(),
+                ),
                 icon: const Icon(Icons.person_add_alt_1_rounded),
               ),
             ],
@@ -427,48 +549,185 @@ class _ProfilePage extends StatelessWidget {
               children: <Widget>[
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Driver status'),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
+                  leading: Container(
+                    width: 54,
+                    height: 54,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(20),
+                      color: AppColors.primary.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Text(
-                      'Under review',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                    child: const Icon(Icons.local_taxi_rounded),
+                  ),
+                  title: const Text(
+                    'Driver',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: const Text('Account under review'),
+                  trailing: FilledButton.tonal(
+                    onPressed: () => _openScreen(
+                      context,
+                      const DriverServicesScreen(),
                     ),
+                    child: const Text('My services'),
                   ),
                 ),
-                Divider(color: Theme.of(context).dividerColor),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('My vehicle'),
-                  subtitle: Text('${registration.make} ${registration.model}'),
-                  trailing: Text(registration.plateNumber),
+                const SizedBox(height: 14),
+                const Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _MetricCard(
+                        value: '+100',
+                        label: 'Priority',
+                        icon: Icons.bolt_rounded,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _MetricCard(
+                        value: '5.0',
+                        label: 'Rating',
+                        icon: Icons.star_rounded,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 14),
-          const _ProfileAction(
-            icon: Icons.build_circle_outlined,
-            title: 'Troubleshooting',
+          _DashboardCard(
+            child: Column(
+              children: <Widget>[
+                _ProfileAction(
+                  icon: Icons.business_center_outlined,
+                  title: 'Partner',
+                  value: 'Alpha Plus South Sudan',
+                  onTap: () => _openScreen(context, const PartnerScreen()),
+                ),
+                _ProfileAction(
+                  icon: Icons.apps_rounded,
+                  title: 'Services and options',
+                  value: '1 active',
+                  onTap: () => _openScreen(
+                    context,
+                    const DriverServicesScreen(),
+                  ),
+                ),
+                _ProfileAction(
+                  icon: Icons.payments_outlined,
+                  title: 'Payment',
+                  value: 'Cash',
+                  showDivider: false,
+                  onTap: () => _openScreen(
+                    context,
+                    const PaymentInformationScreen(),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const _ProfileAction(
-            icon: Icons.camera_alt_outlined,
-            title: 'Photo check',
+          const SizedBox(height: 24),
+          Text('My vehicle', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: () => _openScreen(
+              context,
+              DriverVehicleScreen(registration: registration),
+            ),
+            child: _DashboardCard(
+              child: SizedBox(
+                height: 130,
+                child: Stack(
+                  children: <Widget>[
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: Text(
+                        _vehicleName(registration),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const Align(
+                      alignment: Alignment.centerRight,
+                      child: Icon(
+                        Icons.directions_car_filled_rounded,
+                        size: 116,
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomLeft,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(width: 1.5),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          registration.plateNumber.isEmpty
+                              ? 'PLATE PENDING'
+                              : registration.plateNumber,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          const _ProfileAction(
-            icon: Icons.card_giftcard_rounded,
-            title: 'Invite a friend',
+          const SizedBox(height: 14),
+          _DashboardCard(
+            child: Column(
+              children: <Widget>[
+                _ProfileAction(
+                  icon: Icons.build_circle_outlined,
+                  title: 'Troubleshooting',
+                  onTap: () => _openScreen(
+                    context,
+                    const TroubleshootingScreen(),
+                  ),
+                ),
+                _ProfileAction(
+                  icon: Icons.camera_alt_outlined,
+                  title: 'Photo check',
+                  showDivider: false,
+                  onTap: () => _openScreen(
+                    context,
+                    const PhotoCheckScreen(),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const _ProfileAction(
-            icon: Icons.settings_outlined,
-            title: 'Settings',
+          const SizedBox(height: 14),
+          _DashboardCard(
+            child: Column(
+              children: <Widget>[
+                _ProfileAction(
+                  icon: Icons.card_giftcard_rounded,
+                  title: 'Invite a friend',
+                  onTap: () => _openScreen(
+                    context,
+                    const InviteDriverScreen(),
+                  ),
+                ),
+                _ProfileAction(
+                  icon: Icons.settings_outlined,
+                  title: 'Settings',
+                  showDivider: false,
+                  onTap: () => _openScreen(
+                    context,
+                    const DriverSettingsScreen(),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -483,6 +742,7 @@ class _EmptyStatePage extends StatelessWidget {
     required this.headline,
     required this.description,
     required this.buttonLabel,
+    required this.onPressed,
   });
 
   final String title;
@@ -490,6 +750,7 @@ class _EmptyStatePage extends StatelessWidget {
   final String headline;
   final String description;
   final String buttonLabel;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -516,14 +777,10 @@ class _EmptyStatePage extends StatelessWidget {
                   const SizedBox(height: 24),
                   Text(headline, style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 6),
-                  Text(
-                    description,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
+                  Text(description, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
                   const SizedBox(height: 18),
                   FilledButton.tonalIcon(
-                    onPressed: () {},
+                    onPressed: onPressed,
                     icon: const Icon(Icons.refresh_rounded),
                     label: Text(buttonLabel),
                   ),
@@ -561,6 +818,7 @@ class _MessageTile extends StatelessWidget {
   const _MessageTile({
     required this.icon,
     required this.title,
+    required this.onTap,
     this.subtitle,
     this.color,
   });
@@ -569,6 +827,7 @@ class _MessageTile extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Color? color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -582,27 +841,200 @@ class _MessageTile extends StatelessWidget {
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
       subtitle: subtitle == null ? null : Text(subtitle!),
       trailing: const Icon(Icons.keyboard_arrow_right_rounded),
+      onTap: onTap,
     );
   }
 }
 
 class _ProfileAction extends StatelessWidget {
-  const _ProfileAction({required this.icon, required this.title});
+  const _ProfileAction({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.value,
+    this.showDivider = true,
+  });
 
   final IconData icon;
   final String title;
+  final String? value;
+  final VoidCallback onTap;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 5),
-      leading: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        child: Icon(icon),
-      ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      trailing: const Icon(Icons.keyboard_arrow_right_rounded),
-      onTap: () {},
+    return Column(
+      children: <Widget>[
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(vertical: 5),
+          leading: CircleAvatar(
+            backgroundColor: AppColors.primary.withValues(alpha: 0.14),
+            child: Icon(icon),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (value != null)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: Text(
+                    value!,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              const SizedBox(width: 4),
+              const Icon(Icons.keyboard_arrow_right_rounded),
+            ],
+          ),
+          onTap: onTap,
+        ),
+        if (showDivider)
+          Divider(
+            height: 1,
+            indent: 56,
+            color: Theme.of(context).dividerColor,
+          ),
+      ],
     );
   }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.value,
+    required this.label,
+    required this.icon,
+  });
+
+  final String value;
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(label),
+              ],
+            ),
+          ),
+          Icon(icon, color: AppColors.ink),
+        ],
+      ),
+    );
+  }
+}
+
+class _MessageStory extends StatelessWidget {
+  const _MessageStory({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          width: 126,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Align(
+                alignment: Alignment.topRight,
+                child: _NewPill(),
+              ),
+              const Spacer(),
+              Icon(icon, size: 36),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NewPill extends StatelessWidget {
+  const _NewPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Text(
+        'New',
+        style: TextStyle(
+          color: AppColors.primary,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+String _vehicleName(DriverRegistration registration) {
+  final String name = <String>[
+    registration.make,
+    registration.model,
+  ].where((String part) => part.trim().isNotEmpty).join(' ');
+  return name.isEmpty ? 'Vehicle under review' : name;
+}
+
+void _openScreen(BuildContext context, Widget screen) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => screen),
+  );
+}
+
+void _showComingSoon(BuildContext context, String feature) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('$feature will be connected in the backend stage.')),
+  );
 }
