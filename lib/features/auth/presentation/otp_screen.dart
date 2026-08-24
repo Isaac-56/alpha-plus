@@ -5,12 +5,21 @@ import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/onboarding_scaffold.dart';
-import 'driver_name_screen.dart';
+import '../data/driver_auth_service.dart';
 
 class OtpScreen extends StatefulWidget {
-  const OtpScreen({required this.phoneNumber, super.key});
+  const OtpScreen({
+    required this.phoneNumber,
+    required this.verificationId,
+    this.resendToken,
+    this.authService,
+    super.key,
+  });
 
   final String phoneNumber;
+  final String verificationId;
+  final int? resendToken;
+  final DriverAuthService? authService;
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -21,11 +30,19 @@ class _OtpScreenState extends State<OtpScreen> {
   final FocusNode _focusNode = FocusNode();
   Timer? _timer;
   int _remainingSeconds = 30;
-  bool _navigating = false;
+  late final DriverAuthService _authService;
+  late String _verificationId;
+  int? _resendToken;
+  bool _submitting = false;
+  bool _resending = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _authService = widget.authService ?? FirebaseDriverAuthService();
+    _verificationId = widget.verificationId;
+    _resendToken = widget.resendToken;
     _startTimer();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -52,21 +69,78 @@ class _OtpScreenState extends State<OtpScreen> {
     });
   }
 
-  void _handleCode(String code) {
+  Future<void> _handleCode(String code) async {
     setState(() {});
-    if (code.length == 6 && !_navigating) {
-      _navigating = true;
-      FocusScope.of(context).unfocus();
-      Future<void>.delayed(const Duration(milliseconds: 180), () {
-        if (!mounted) {
-          return;
-        }
-        Navigator.of(context)
-            .push(
-              MaterialPageRoute<void>(builder: (_) => const DriverNameScreen()),
-            )
-            .then((_) => _navigating = false);
+    if (code.length != 6 || _submitting) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await _authService.verifyCode(
+        verificationId: _verificationId,
+        smsCode: code,
+      );
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _controller.clear();
+      _focusNode.requestFocus();
+      setState(() {
+        _submitting = false;
+        _errorMessage = readableAuthError(error);
       });
+    }
+  }
+
+  Future<void> _resendCode() async {
+    if (_resending || _remainingSeconds > 0) {
+      return;
+    }
+
+    setState(() {
+      _resending = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final String compactPhone = widget.phoneNumber.replaceAll(' ', '');
+      final PhoneVerificationSession session = await _authService.requestCode(
+        phoneNumber: compactPhone,
+        forceResendingToken: _resendToken,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      if (session.automaticallyVerified) {
+        Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+        return;
+      }
+
+      setState(() {
+        _verificationId = session.verificationId;
+        _resendToken = session.resendToken;
+        _resending = false;
+      });
+      _startTimer();
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() {
+          _resending = false;
+          _errorMessage = readableAuthError(error);
+        });
+      }
     }
   }
 
@@ -156,6 +230,28 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
           ),
           const SizedBox(height: 26),
+          if (_submitting) ...<Widget>[
+            const LinearProgressIndicator(color: AppColors.primary),
+            const SizedBox(height: 18),
+          ],
+          if (_errorMessage != null) ...<Widget>[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                _errorMessage!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+          ],
           Text(
             _remainingSeconds > 0
                 ? 'You can request another code in 00:$seconds'
@@ -164,9 +260,16 @@ class _OtpScreenState extends State<OtpScreen> {
           ),
           const SizedBox(height: 10),
           TextButton.icon(
-            onPressed: _remainingSeconds == 0 ? _startTimer : null,
-            icon: const Icon(Icons.sms_outlined),
-            label: const Text('Resend by SMS'),
+            onPressed: _remainingSeconds == 0 && !_resending
+                ? _resendCode
+                : null,
+            icon: _resending
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sms_outlined),
+            label: Text(_resending ? 'Sending…' : 'Resend by SMS'),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.onSurface,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

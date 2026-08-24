@@ -5,7 +5,14 @@ import 'package:flutter/material.dart';
 import 'phone_login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({
+    this.onFinished,
+    this.automaticallyNavigate = true,
+    super.key,
+  });
+
+  final VoidCallback? onFinished;
+  final bool automaticallyNavigate;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -35,7 +42,14 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _controller.forward();
-    _navigationTimer = Timer(const Duration(milliseconds: 2450), _openLogin);
+    _navigationTimer = Timer(const Duration(milliseconds: 2450), _finish);
+  }
+
+  void _finish() {
+    widget.onFinished?.call();
+    if (widget.automaticallyNavigate) {
+      _openLogin();
+    }
   }
 
   void _openLogin() {

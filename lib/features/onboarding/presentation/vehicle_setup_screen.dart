@@ -286,22 +286,29 @@ class _PickerRow extends StatelessWidget {
     final bool complete = value.isNotEmpty;
     return Column(
       children: <Widget>[
-        ListTile(
-          enabled: onTap != null,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 0,
-            vertical: 3,
+        Material(
+          color: Colors.transparent,
+          child: ListTile(
+            enabled: onTap != null,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 0,
+              vertical: 3,
+            ),
+            leading: _StatusIcon(
+              complete: complete,
+              icon: icon,
+              swatch: swatch,
+            ),
+            title: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+            subtitle: Text(
+              complete ? value : 'Select',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            trailing: const Icon(Icons.keyboard_arrow_right_rounded),
+            onTap: onTap,
           ),
-          leading: _StatusIcon(complete: complete, icon: icon, swatch: swatch),
-          title: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          subtitle: Text(
-            complete ? value : 'Select',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          trailing: const Icon(Icons.keyboard_arrow_right_rounded),
-          onTap: onTap,
         ),
         Divider(height: 1, color: Theme.of(context).dividerColor),
       ],

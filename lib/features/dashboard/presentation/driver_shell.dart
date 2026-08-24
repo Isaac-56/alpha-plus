@@ -8,11 +8,13 @@ class DriverShell extends StatefulWidget {
   const DriverShell({
     required this.driverName,
     required this.registration,
+    this.onSignOut,
     super.key,
   });
 
   final String driverName;
   final DriverRegistration registration;
+  final Future<void> Function()? onSignOut;
 
   @override
   State<DriverShell> createState() => _DriverShellState();
@@ -31,6 +33,7 @@ class _DriverShellState extends State<DriverShell> {
       _ProfilePage(
         driverName: widget.driverName,
         registration: widget.registration,
+        onSignOut: widget.onSignOut,
       ),
     ];
 
@@ -97,7 +100,10 @@ class _RequestsPage extends StatelessWidget {
             child: Column(
               children: <Widget>[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 13,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(18),
@@ -269,7 +275,10 @@ class _ProgressRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                   Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
@@ -293,9 +302,9 @@ class _PoolPage extends StatelessWidget {
       description: 'New requests will appear here as soon as you are approved.',
       buttonLabel: 'Update',
       onPressed: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order pool refreshed.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Order pool refreshed.')));
       },
     );
   }
@@ -319,10 +328,8 @@ class _MoneyPage extends StatelessWidget {
                 ),
               ),
               FilledButton.tonalIcon(
-                onPressed: () => _openScreen(
-                  context,
-                  const SupportConversationScreen(),
-                ),
+                onPressed: () =>
+                    _openScreen(context, const SupportConversationScreen()),
                 icon: const Icon(Icons.support_agent_rounded),
                 label: const Text('Support'),
               ),
@@ -372,10 +379,7 @@ class _MoneyPage extends StatelessWidget {
                       Icon(Icons.keyboard_arrow_right_rounded),
                     ],
                   ),
-                  onTap: () => _openScreen(
-                    context,
-                    const BalanceLimitScreen(),
-                  ),
+                  onTap: () => _openScreen(context, const BalanceLimitScreen()),
                 ),
                 Divider(color: Theme.of(context).dividerColor),
                 const ListTile(
@@ -455,10 +459,8 @@ class _ChatsPage extends StatelessWidget {
                 _MessageStory(
                   icon: Icons.support_agent_rounded,
                   title: 'Driver help',
-                  onTap: () => _openScreen(
-                    context,
-                    const SupportConversationScreen(),
-                  ),
+                  onTap: () =>
+                      _openScreen(context, const SupportConversationScreen()),
                 ),
               ],
             ),
@@ -468,10 +470,8 @@ class _ChatsPage extends StatelessWidget {
             icon: Icons.support_agent_rounded,
             title: 'Support',
             color: AppColors.primary,
-            onTap: () => _openScreen(
-              context,
-              const SupportConversationScreen(),
-            ),
+            onTap: () =>
+                _openScreen(context, const SupportConversationScreen()),
           ),
           _MessageTile(
             icon: Icons.newspaper_rounded,
@@ -512,10 +512,46 @@ class _ChatsPage extends StatelessWidget {
 }
 
 class _ProfilePage extends StatelessWidget {
-  const _ProfilePage({required this.driverName, required this.registration});
+  const _ProfilePage({
+    required this.driverName,
+    required this.registration,
+    this.onSignOut,
+  });
 
   final String driverName;
   final DriverRegistration registration;
+  final Future<void> Function()? onSignOut;
+
+  Future<void> _confirmSignOut(BuildContext context) async {
+    final bool confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              icon: const Icon(Icons.logout_rounded),
+              title: const Text('Log out of Alpha Plus?'),
+              content: const Text(
+                'You will stop receiving driver updates on this device until you sign in again.',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Log out'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (confirmed) {
+      await onSignOut?.call();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -532,13 +568,14 @@ class _ProfilePage extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(driverName, style: Theme.of(context).textTheme.headlineMedium),
+                child: Text(
+                  driverName,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
               ),
               IconButton.filledTonal(
-                onPressed: () => _openScreen(
-                  context,
-                  const InviteDriverScreen(),
-                ),
+                onPressed: () =>
+                    _openScreen(context, const InviteDriverScreen()),
                 icon: const Icon(Icons.person_add_alt_1_rounded),
               ),
             ],
@@ -564,10 +601,8 @@ class _ProfilePage extends StatelessWidget {
                   ),
                   subtitle: const Text('Account under review'),
                   trailing: FilledButton.tonal(
-                    onPressed: () => _openScreen(
-                      context,
-                      const DriverServicesScreen(),
-                    ),
+                    onPressed: () =>
+                        _openScreen(context, const DriverServicesScreen()),
                     child: const Text('My services'),
                   ),
                 ),
@@ -608,20 +643,16 @@ class _ProfilePage extends StatelessWidget {
                   icon: Icons.apps_rounded,
                   title: 'Services and options',
                   value: '1 active',
-                  onTap: () => _openScreen(
-                    context,
-                    const DriverServicesScreen(),
-                  ),
+                  onTap: () =>
+                      _openScreen(context, const DriverServicesScreen()),
                 ),
                 _ProfileAction(
                   icon: Icons.payments_outlined,
                   title: 'Payment',
                   value: 'Cash',
                   showDivider: false,
-                  onTap: () => _openScreen(
-                    context,
-                    const PaymentInformationScreen(),
-                  ),
+                  onTap: () =>
+                      _openScreen(context, const PaymentInformationScreen()),
                 ),
               ],
             ),
@@ -688,19 +719,14 @@ class _ProfilePage extends StatelessWidget {
                 _ProfileAction(
                   icon: Icons.build_circle_outlined,
                   title: 'Troubleshooting',
-                  onTap: () => _openScreen(
-                    context,
-                    const TroubleshootingScreen(),
-                  ),
+                  onTap: () =>
+                      _openScreen(context, const TroubleshootingScreen()),
                 ),
                 _ProfileAction(
                   icon: Icons.camera_alt_outlined,
                   title: 'Photo check',
                   showDivider: false,
-                  onTap: () => _openScreen(
-                    context,
-                    const PhotoCheckScreen(),
-                  ),
+                  onTap: () => _openScreen(context, const PhotoCheckScreen()),
                 ),
               ],
             ),
@@ -712,23 +738,30 @@ class _ProfilePage extends StatelessWidget {
                 _ProfileAction(
                   icon: Icons.card_giftcard_rounded,
                   title: 'Invite a friend',
-                  onTap: () => _openScreen(
-                    context,
-                    const InviteDriverScreen(),
-                  ),
+                  onTap: () => _openScreen(context, const InviteDriverScreen()),
                 ),
                 _ProfileAction(
                   icon: Icons.settings_outlined,
                   title: 'Settings',
                   showDivider: false,
-                  onTap: () => _openScreen(
-                    context,
-                    const DriverSettingsScreen(),
-                  ),
+                  onTap: () =>
+                      _openScreen(context, const DriverSettingsScreen()),
                 ),
               ],
             ),
           ),
+          if (onSignOut != null) ...<Widget>[
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: () => _confirmSignOut(context),
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text('Log out'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -777,7 +810,11 @@ class _EmptyStatePage extends StatelessWidget {
                   const SizedBox(height: 24),
                   Text(headline, style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 6),
-                  Text(description, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
+                  Text(
+                    description,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
                   const SizedBox(height: 18),
                   FilledButton.tonalIcon(
                     onPressed: onPressed,
@@ -802,14 +839,14 @@ class _DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
-      child: child,
+      clipBehavior: Clip.antiAlias,
+      child: Padding(padding: const EdgeInsets.all(18), child: child),
     );
   }
 }
@@ -894,11 +931,7 @@ class _ProfileAction extends StatelessWidget {
           onTap: onTap,
         ),
         if (showDivider)
-          Divider(
-            height: 1,
-            indent: 56,
-            color: Theme.of(context).dividerColor,
-          ),
+          Divider(height: 1, indent: 56, color: Theme.of(context).dividerColor),
       ],
     );
   }
@@ -975,10 +1008,7 @@ class _MessageStory extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Align(
-                alignment: Alignment.topRight,
-                child: _NewPill(),
-              ),
+              const Align(alignment: Alignment.topRight, child: _NewPill()),
               const Spacer(),
               Icon(icon, size: 36),
               const SizedBox(height: 8),
@@ -1028,9 +1058,7 @@ String _vehicleName(DriverRegistration registration) {
 }
 
 void _openScreen(BuildContext context, Widget screen) {
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => screen),
-  );
+  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
 }
 
 void _showComingSoon(BuildContext context, String feature) {

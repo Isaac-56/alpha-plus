@@ -1,25 +1,62 @@
 import 'package:alpha_plus/main.dart';
 import 'package:alpha_plus/core/theme/app_theme.dart';
+import 'package:alpha_plus/features/auth/data/driver_auth_service.dart';
 import 'package:alpha_plus/features/auth/presentation/phone_login_screen.dart';
+import 'package:alpha_plus/features/auth/presentation/splash_screen.dart';
 import 'package:alpha_plus/features/dashboard/presentation/driver_shell.dart';
 import 'package:alpha_plus/features/onboarding/models/driver_registration.dart';
 import 'package:alpha_plus/features/onboarding/presentation/stage_one_complete_screen.dart';
+import 'package:alpha_plus/features/profile/models/driver_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('splash runs once and opens the phone screen', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const AlphaPlusApp());
+  test('driver profile restores UID-owned onboarding data', () {
+    final DriverProfile profile = DriverProfile.fromMap(
+      uid: 'driver-uid-123',
+      data: <String, dynamic>{
+        'phoneNumber': '+211912345678',
+        'firstName': 'Test',
+        'lastName': 'Driver',
+        'onboardingCompleted': true,
+        'reviewStatus': 'pending',
+        'registration': <String, dynamic>{
+          'vehicleType': 'Car',
+          'make': 'Toyota',
+          'model': 'Corolla',
+          'color': 'White',
+          'manufactureYear': '2020',
+          'plateNumber': 'SSD 123 A',
+          'licenceCountry': 'South Sudan',
+          'licenceFirstName': 'Test',
+          'licenceLastName': 'Driver',
+          'licenceNumber': 'DL-123',
+          'licenceIssueDate': '2026-08-24',
+        },
+      },
+    );
+
+    expect(profile.uid, 'driver-uid-123');
+    expect(profile.fullName, 'Test Driver');
+    expect(profile.onboardingCompleted, isTrue);
+    expect(profile.registration.plateNumber, 'SSD 123 A');
+  });
+
+  testWidgets('splash animation completes once', (WidgetTester tester) async {
+    bool animationFinished = false;
+    await tester.pumpWidget(
+      AlphaPlusApp(
+        home: SplashScreen(
+          automaticallyNavigate: false,
+          onFinished: () => animationFinished = true,
+        ),
+      ),
+    );
 
     expect(find.bySemanticsLabel('Alpha Plus'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 2900));
-    await tester.pump(const Duration(milliseconds: 600));
-
-    expect(find.text('Enter your phone number'), findsOneWidget);
-    expect(find.byKey(const Key('phoneField')), findsOneWidget);
+    expect(animationFinished, isTrue);
   });
 
   testWidgets('valid South Sudan phone number opens OTP', (
@@ -28,7 +65,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: const PhoneLoginScreen(),
+        home: PhoneLoginScreen(authService: _FakeDriverAuthService()),
       ),
     );
 
@@ -124,4 +161,35 @@ void main() {
     expect(find.text('Check your account\nbalance limit'), findsOneWidget);
     expect(find.text('Got it'), findsOneWidget);
   });
+}
+
+class _FakeDriverAuthService implements DriverAuthService {
+  @override
+  String? get currentPhoneNumber => null;
+
+  @override
+  String? get currentUserId => null;
+
+  @override
+  Stream<String?> get userIdChanges => const Stream<String?>.empty();
+
+  @override
+  Future<PhoneVerificationSession> requestCode({
+    required String phoneNumber,
+    int? forceResendingToken,
+  }) async {
+    return const PhoneVerificationSession(
+      verificationId: 'test-verification-id',
+      resendToken: 1,
+    );
+  }
+
+  @override
+  Future<void> signOut() async {}
+
+  @override
+  Future<void> verifyCode({
+    required String verificationId,
+    required String smsCode,
+  }) async {}
 }

@@ -1,18 +1,23 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../dashboard/presentation/driver_shell.dart';
+import '../../profile/data/driver_profile_repository.dart';
 import '../models/driver_registration.dart';
 
 class DeviceSetupScreen extends StatefulWidget {
   const DeviceSetupScreen({
     required this.driverName,
     required this.registration,
+    this.userId,
+    this.profileStore,
     super.key,
   });
 
   final String driverName;
   final DriverRegistration registration;
+  final String? userId;
+  final DriverProfileStore? profileStore;
 
   @override
   State<DeviceSetupScreen> createState() => _DeviceSetupScreenState();
@@ -21,6 +26,15 @@ class DeviceSetupScreen extends StatefulWidget {
 class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
   bool _overlayReady = false;
   bool _backgroundLocationReady = false;
+  late final DriverProfileStore _profileStore;
+  bool _saving = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileStore = widget.profileStore ?? FirebaseDriverProfileStore();
+  }
 
   Future<void> _explainPermission({required bool overlay}) async {
     final bool? enabled = await showModalBottomSheet<bool>(
@@ -83,16 +97,43 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
     }
   }
 
-  void _finish() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => DriverShell(
-          driverName: widget.driverName,
-          registration: widget.registration,
-        ),
-      ),
-      (Route<dynamic> route) => false,
-    );
+  Future<void> _finish() async {
+    if (_saving) {
+      return;
+    }
+
+    final String? userId =
+        widget.userId ?? FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null || userId.isEmpty) {
+      setState(() {
+        _errorMessage = 'Your sign-in session expired. Please sign in again.';
+      });
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await _profileStore.completeOnboarding(
+        uid: userId,
+        registration: widget.registration,
+      );
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _errorMessage =
+              'We could not finish setup. Check your connection and try again.';
+        });
+      }
+    }
   }
 
   @override
@@ -161,11 +202,38 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                         onTap: () => _explainPermission(overlay: false),
                       ),
                       const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: ready ? _finish : null,
-                        child: Text(
-                          ready ? 'Open Alpha Plus' : 'Complete setup',
+                      if (_errorMessage != null) ...<Widget>[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            _errorMessage!,
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onErrorContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
+                        const SizedBox(height: 14),
+                      ],
+                      ElevatedButton(
+                        onPressed: ready && !_saving ? _finish : null,
+                        child: _saving
+                            ? const SizedBox.square(
+                                dimension: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                ),
+                              )
+                            : Text(
+                                ready ? 'Open Alpha Plus' : 'Complete setup',
+                              ),
                       ),
                     ],
                   ),

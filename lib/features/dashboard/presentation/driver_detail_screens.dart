@@ -121,7 +121,10 @@ class DriverVehicleScreen extends StatelessWidget {
             child: const Icon(Icons.directions_car_filled_rounded, size: 150),
           ),
           const SizedBox(height: 18),
-          _DataRow(label: 'Vehicle', value: vehicle.isEmpty ? 'Not provided' : vehicle),
+          _DataRow(
+            label: 'Vehicle',
+            value: vehicle.isEmpty ? 'Not provided' : vehicle,
+          ),
           _DataRow(
             label: 'Type',
             value: registration.vehicleType.isEmpty
@@ -130,7 +133,9 @@ class DriverVehicleScreen extends StatelessWidget {
           ),
           _DataRow(
             label: 'Color',
-            value: registration.color.isEmpty ? 'Not provided' : registration.color,
+            value: registration.color.isEmpty
+                ? 'Not provided'
+                : registration.color,
           ),
           _DataRow(
             label: 'Manufacture year',
@@ -317,7 +322,11 @@ class InviteDriverScreen extends StatelessWidget {
       bottom: ElevatedButton.icon(
         onPressed: () {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Referral sharing will be connected in the backend stage.')),
+            const SnackBar(
+              content: Text(
+                'Referral sharing will be connected in the backend stage.',
+              ),
+            ),
           );
         },
         icon: const Icon(Icons.ios_share_rounded),
@@ -357,7 +366,10 @@ class InviteDriverScreen extends StatelessWidget {
                     children: <Widget>[
                       Text('Referral code'),
                       SizedBox(height: 4),
-                      Text('AVAILABLE SOON', style: TextStyle(fontWeight: FontWeight.w900)),
+                      Text(
+                        'AVAILABLE SOON',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
                     ],
                   ),
                 ),
@@ -490,7 +502,10 @@ class _SupportConversationScreenState extends State<SupportConversationScreen> {
                             const CircleAvatar(
                               radius: 42,
                               backgroundColor: AppColors.primary,
-                              child: Icon(Icons.support_agent_rounded, size: 44),
+                              child: Icon(
+                                Icons.support_agent_rounded,
+                                size: 44,
+                              ),
                             ),
                             const SizedBox(height: 18),
                             Text(
@@ -515,7 +530,10 @@ class _SupportConversationScreenState extends State<SupportConversationScreen> {
                           alignment: Alignment.centerRight,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 10, left: 54),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.primary,
                               borderRadius: BorderRadius.circular(18),
@@ -543,13 +561,17 @@ class _SupportConversationScreenState extends State<SupportConversationScreen> {
                       controller: _controller,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
-                      decoration: const InputDecoration(hintText: 'Message Support'),
+                      decoration: const InputDecoration(
+                        hintText: 'Message Support',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   IconButton.filled(
                     onPressed: _send,
-                    style: IconButton.styleFrom(backgroundColor: AppColors.primary),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                    ),
                     icon: const Icon(Icons.send_rounded, color: AppColors.ink),
                   ),
                 ],
@@ -607,7 +629,11 @@ class InformationMessageScreen extends StatelessWidget {
 }
 
 class _DetailScaffold extends StatelessWidget {
-  const _DetailScaffold({required this.title, required this.child, this.bottom});
+  const _DetailScaffold({
+    required this.title,
+    required this.child,
+    this.bottom,
+  });
 
   final String title;
   final Widget child;
@@ -627,7 +653,10 @@ class _DetailScaffold extends StatelessWidget {
                   children: <Widget>[
                     const AlphaBackButton(),
                     const SizedBox(height: 34),
-                    Text(title, style: Theme.of(context).textTheme.displaySmall),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.displaySmall,
+                    ),
                     const SizedBox(height: 32),
                     child,
                   ],
@@ -676,7 +705,8 @@ class _InformationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color muted = Theme.of(context).textTheme.bodyMedium?.color ?? AppColors.muted;
+    final Color muted =
+        Theme.of(context).textTheme.bodyMedium?.color ?? AppColors.muted;
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 180),
       opacity: enabled ? 1 : 0.52,
@@ -700,13 +730,19 @@ class _InformationCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
                   const SizedBox(height: 3),
                   Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
             ),
-            if (trailing != null) trailing!,
+            ?trailing,
           ],
         ),
       ),
@@ -755,7 +791,9 @@ class _NoticeCard extends StatelessWidget {
         children: <Widget>[
           Icon(icon),
           const SizedBox(width: 12),
-          Expanded(child: Text(text, style: Theme.of(context).textTheme.bodyLarge)),
+          Expanded(
+            child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
+          ),
         ],
       ),
     );
@@ -763,7 +801,11 @@ class _NoticeCard extends StatelessWidget {
 }
 
 class _DataRow extends StatelessWidget {
-  const _DataRow({required this.label, required this.value, this.showDivider = true});
+  const _DataRow({
+    required this.label,
+    required this.value,
+    this.showDivider = true,
+  });
 
   final String label;
   final String value;
@@ -778,19 +820,28 @@ class _DataRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium)),
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
               const SizedBox(width: 18),
               Flexible(
                 child: Text(
                   value,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        if (showDivider) Divider(height: 1, color: Theme.of(context).dividerColor),
+        if (showDivider)
+          Divider(height: 1, color: Theme.of(context).dividerColor),
       ],
     );
   }
@@ -813,17 +864,23 @@ class _ActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(vertical: 7),
-          leading: CircleAvatar(
-            radius: 25,
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            child: Icon(icon),
+        Material(
+          color: Colors.transparent,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(vertical: 7),
+            leading: CircleAvatar(
+              radius: 25,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              child: Icon(icon),
+            ),
+            title: Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text(subtitle),
+            trailing: const Icon(Icons.keyboard_arrow_right_rounded),
+            onTap: onTap,
           ),
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: Text(subtitle),
-          trailing: const Icon(Icons.keyboard_arrow_right_rounded),
-          onTap: onTap,
         ),
         Divider(height: 1, indent: 66, color: Theme.of(context).dividerColor),
       ],
@@ -848,7 +905,9 @@ class _ChecklistRow extends StatelessWidget {
             child: Icon(Icons.check_rounded, size: 18),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(text, style: Theme.of(context).textTheme.bodyLarge)),
+          Expanded(
+            child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
+          ),
         ],
       ),
     );

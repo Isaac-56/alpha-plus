@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/onboarding_scaffold.dart';
+import '../data/driver_auth_service.dart';
 import 'otp_screen.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
-  const PhoneLoginScreen({super.key});
+  const PhoneLoginScreen({this.authService, super.key});
+
+  final DriverAuthService? authService;
 
   @override
   State<PhoneLoginScreen> createState() => _PhoneLoginScreenState();
@@ -15,8 +18,17 @@ class PhoneLoginScreen extends StatefulWidget {
 class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final FocusNode _phoneFocus = FocusNode();
+  late final DriverAuthService _authService;
+  bool _submitting = false;
+  String? _errorMessage;
 
   bool get _isValid => _phoneController.text.length == 9;
+
+  @override
+  void initState() {
+    super.initState();
+    _authService = widget.authService ?? FirebaseDriverAuthService();
+  }
 
   @override
   void dispose() {
@@ -25,18 +37,50 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     super.dispose();
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     if (!_isValid) {
       _phoneFocus.requestFocus();
       return;
     }
 
     final String number = _phoneController.text.replaceAll(' ', '');
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => OtpScreen(phoneNumber: '+211 $number'),
-      ),
-    );
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final PhoneVerificationSession session = await _authService.requestCode(
+        phoneNumber: '+211$number',
+      );
+      if (!mounted) {
+        return;
+      }
+
+      if (session.automaticallyVerified) {
+        Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+        return;
+      }
+
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => OtpScreen(
+            phoneNumber: '+211 $number',
+            verificationId: session.verificationId,
+            resendToken: session.resendToken,
+            authService: _authService,
+          ),
+        ),
+      );
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() => _errorMessage = readableAuthError(error));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
   }
 
   @override
@@ -71,8 +115,13 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       subtitle:
           'We’ll send you a verification code by SMS to confirm your number.',
       bottom: ElevatedButton(
-        onPressed: _isValid ? _continue : null,
-        child: const Text('Continue'),
+        onPressed: _isValid && !_submitting ? _continue : null,
+        child: _submitting
+            ? const SizedBox.square(
+                dimension: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.4),
+              )
+            : const Text('Continue'),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,6 +179,24 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
             onSubmitted: (_) => _continue(),
           ),
           const SizedBox(height: 20),
+          if (_errorMessage != null) ...<Widget>[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                _errorMessage!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           Text(
             'By continuing, you accept the Alpha Plus User Agreement and Privacy Policy.',
             style: Theme.of(context).textTheme.bodyMedium,

@@ -1,4 +1,6 @@
 class DriverRegistration {
+  DriverRegistration();
+
   String vehicleType = '';
   String make = '';
   String model = '';
@@ -26,4 +28,37 @@ class DriverRegistration {
       licenceLastName.trim().isNotEmpty &&
       licenceNumber.trim().isNotEmpty &&
       licenceIssueDate.trim().isNotEmpty;
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'vehicleType': vehicleType,
+      'make': make,
+      'model': model,
+      'color': color,
+      'manufactureYear': manufactureYear,
+      'plateNumber': plateNumber,
+      'licenceCountry': licenceCountry,
+      'licenceFirstName': licenceFirstName,
+      'licenceLastName': licenceLastName,
+      'licenceNumber': licenceNumber,
+      'licenceIssueDate': licenceIssueDate,
+    };
+  }
+
+  factory DriverRegistration.fromMap(Map<String, dynamic>? data) {
+    final Map<String, dynamic> values = data ?? <String, dynamic>{};
+
+    return DriverRegistration()
+      ..vehicleType = values['vehicleType'] as String? ?? ''
+      ..make = values['make'] as String? ?? ''
+      ..model = values['model'] as String? ?? ''
+      ..color = values['color'] as String? ?? ''
+      ..manufactureYear = values['manufactureYear'] as String? ?? ''
+      ..plateNumber = values['plateNumber'] as String? ?? ''
+      ..licenceCountry = values['licenceCountry'] as String? ?? 'South Sudan'
+      ..licenceFirstName = values['licenceFirstName'] as String? ?? ''
+      ..licenceLastName = values['licenceLastName'] as String? ?? ''
+      ..licenceNumber = values['licenceNumber'] as String? ?? ''
+      ..licenceIssueDate = values['licenceIssueDate'] as String? ?? '';
+  }
 }
