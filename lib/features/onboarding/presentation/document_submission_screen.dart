@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../models/driver_registration.dart';
@@ -20,11 +24,17 @@ class DocumentSubmissionScreen extends StatefulWidget {
 }
 
 class _DocumentSubmissionScreenState extends State<DocumentSubmissionScreen> {
-  bool _frontAdded = false;
-  bool _backAdded = false;
+  final ImagePicker _imagePicker = ImagePicker();
+  XFile? _frontImage;
+  XFile? _backImage;
+  bool _isPicking = false;
 
   Future<void> _capture(String side) async {
-    final bool? confirmed = await showModalBottomSheet<bool>(
+    if (_isPicking) {
+      return;
+    }
+
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
       context: context,
       showDragHandle: true,
       builder: (BuildContext context) {
@@ -46,13 +56,15 @@ class _DocumentSubmissionScreenState extends State<DocumentSubmissionScreen> {
                 ),
                 const SizedBox(height: 22),
                 ElevatedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(true),
+                  onPressed: () =>
+                      Navigator.of(context).pop(ImageSource.camera),
                   icon: const Icon(Icons.camera_alt_outlined),
                   label: const Text('Open camera'),
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(true),
+                  onPressed: () =>
+                      Navigator.of(context).pop(ImageSource.gallery),
                   icon: const Icon(Icons.photo_library_outlined),
                   label: const Text('Choose from gallery'),
                 ),
@@ -63,14 +75,60 @@ class _DocumentSubmissionScreenState extends State<DocumentSubmissionScreen> {
       },
     );
 
-    if (confirmed == true && mounted) {
+    if (source == null || !mounted) {
+      return;
+    }
+
+    setState(() => _isPicking = true);
+
+    try {
+      final XFile? selectedImage = await _imagePicker.pickImage(
+        source: source,
+        preferredCameraDevice: CameraDevice.rear,
+        imageQuality: 88,
+        maxWidth: 2400,
+        maxHeight: 2400,
+        requestFullMetadata: false,
+      );
+
+      if (selectedImage == null || !mounted) {
+        return;
+      }
+
       setState(() {
         if (side == 'front') {
-          _frontAdded = true;
+          _frontImage = selectedImage;
         } else {
-          _backAdded = true;
+          _backImage = selectedImage;
         }
       });
+    } on PlatformException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final String message = switch (error.code) {
+        'camera_access_denied' =>
+          'Camera access is disabled. Allow it in device settings and try again.',
+        'photo_access_denied' =>
+          'Photo access is disabled. Allow it in device settings and try again.',
+        _ => 'The image could not be opened. Please try again.',
+      };
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The image could not be opened. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isPicking = false);
+      }
     }
   }
 
@@ -141,13 +199,15 @@ class _DocumentSubmissionScreenState extends State<DocumentSubmissionScreen> {
                     const SizedBox(height: 26),
                     _DocumentTile(
                       title: 'Front of driver’s licence',
-                      complete: _frontAdded,
+                      imagePath: _frontImage?.path,
+                      enabled: !_isPicking,
                       onTap: () => _capture('front'),
                     ),
                     const SizedBox(height: 12),
                     _DocumentTile(
                       title: 'Back of driver’s licence',
-                      complete: _backAdded,
+                      imagePath: _backImage?.path,
+                      enabled: !_isPicking,
                       onTap: () => _capture('back'),
                     ),
                   ],
@@ -158,8 +218,16 @@ class _DocumentSubmissionScreenState extends State<DocumentSubmissionScreen> {
               top: false,
               minimum: const EdgeInsets.fromLTRB(24, 14, 24, 18),
               child: ElevatedButton(
-                onPressed: _frontAdded && _backAdded ? _continue : null,
-                child: const Text('Submit for verification'),
+                onPressed:
+                    _frontImage != null && _backImage != null && !_isPicking
+                    ? _continue
+                    : null,
+                child: _isPicking
+                    ? const SizedBox.square(
+                        dimension: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.4),
+                      )
+                    : const Text('Submit for verification'),
               ),
             ),
           ],
@@ -172,40 +240,68 @@ class _DocumentSubmissionScreenState extends State<DocumentSubmissionScreen> {
 class _DocumentTile extends StatelessWidget {
   const _DocumentTile({
     required this.title,
-    required this.complete,
+    required this.imagePath,
+    required this.enabled,
     required this.onTap,
   });
 
   final String title;
-  final bool complete;
+  final String? imagePath;
+  final bool enabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final bool complete = imagePath != null;
+
     return Material(
       color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
+        onTap: enabled ? onTap : null,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: <Widget>[
-              AnimatedContainer(
+              AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: complete
-                      ? AppColors.primary
-                      : Theme.of(context).scaffoldBackgroundColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  complete ? Icons.check_rounded : Icons.camera_alt_outlined,
-                  color: complete ? AppColors.ink : null,
-                ),
+                child: complete
+                    ? Stack(
+                        key: ValueKey<String>(imagePath!),
+                        clipBehavior: Clip.none,
+                        children: <Widget>[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.file(
+                              File(imagePath!),
+                              width: 52,
+                              height: 52,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const _DocumentIcon(
+                                complete: true,
+                              ),
+                            ),
+                          ),
+                          const Positioned(
+                            right: -5,
+                            bottom: -5,
+                            child: CircleAvatar(
+                              radius: 11,
+                              backgroundColor: AppColors.primary,
+                              child: Icon(
+                                Icons.check_rounded,
+                                size: 15,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : const _DocumentIcon(
+                        key: ValueKey<String>('empty'),
+                        complete: false,
+                      ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -225,6 +321,30 @@ class _DocumentTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DocumentIcon extends StatelessWidget {
+  const _DocumentIcon({required this.complete, super.key});
+
+  final bool complete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: complete
+            ? AppColors.primary
+            : Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(
+        complete ? Icons.check_rounded : Icons.camera_alt_outlined,
+        color: complete ? AppColors.ink : null,
       ),
     );
   }

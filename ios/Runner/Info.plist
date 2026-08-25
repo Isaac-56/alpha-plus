@@ -49,6 +49,14 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Alpha Plus uses the camera to capture driver verification documents.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Alpha Plus uses selected photos for driver document verification.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Alpha Plus uses your location to show nearby trips and your position on the map.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Alpha Plus uses background location while you are online so trip requests remain accurate.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../onboarding/models/driver_registration.dart';
@@ -9,12 +13,14 @@ class DriverShell extends StatefulWidget {
     required this.driverName,
     required this.registration,
     this.onSignOut,
+    this.mapBuilder,
     super.key,
   });
 
   final String driverName;
   final DriverRegistration registration;
   final Future<void> Function()? onSignOut;
+  final WidgetBuilder? mapBuilder;
 
   @override
   State<DriverShell> createState() => _DriverShellState();
@@ -26,7 +32,10 @@ class _DriverShellState extends State<DriverShell> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = <Widget>[
-      _RequestsPage(driverName: widget.driverName),
+      _RequestsPage(
+        driverName: widget.driverName,
+        mapBuilder: widget.mapBuilder,
+      ),
       const _PoolPage(),
       const _MoneyPage(),
       const _ChatsPage(),
@@ -84,16 +93,17 @@ class _DriverShellState extends State<DriverShell> {
 }
 
 class _RequestsPage extends StatelessWidget {
-  const _RequestsPage({required this.driverName});
+  const _RequestsPage({required this.driverName, this.mapBuilder});
 
   final String driverName;
+  final WidgetBuilder? mapBuilder;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        const _MapCanvas(),
+        mapBuilder?.call(context) ?? const _DriverMap(),
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
@@ -178,49 +188,189 @@ class _RequestsPage extends StatelessWidget {
   }
 }
 
-class _MapCanvas extends StatelessWidget {
-  const _MapCanvas();
+class _DriverMap extends StatefulWidget {
+  const _DriverMap();
+
+  @override
+  State<_DriverMap> createState() => _DriverMapState();
+}
+
+class _DriverMapState extends State<_DriverMap> {
+  static const LatLng _jubaCenter = LatLng(4.8517, 31.5825);
+
+  GoogleMapController? _mapController;
+  LatLng _driverLocation = _jubaCenter;
+  bool _locationGranted = false;
+  bool _findingLocation = true;
+
+  bool get _supportsGoogleMap =>
+      kIsWeb ||
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_supportsGoogleMap) {
+      _locateDriver(requestPermission: false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _locateDriver({required bool requestPermission}) async {
+    if (mounted) {
+      setState(() => _findingLocation = true);
+    }
+
+    try {
+      PermissionStatus status = await Permission.locationWhenInUse.status;
+      if (requestPermission && status.isDenied) {
+        status = await Permission.locationWhenInUse.request();
+      }
+
+      if (!status.isGranted) {
+        if (requestPermission && status.isPermanentlyDenied) {
+          await openAppSettings();
+        }
+        if (mounted) {
+          setState(() {
+            _locationGranted = false;
+            _findingLocation = false;
+          });
+        }
+        return;
+      }
+
+      final bool serviceEnabled =
+          await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (requestPermission) {
+          await Geolocator.openLocationSettings();
+        }
+        if (mounted) {
+          setState(() {
+            _locationGranted = true;
+            _findingLocation = false;
+          });
+        }
+        return;
+      }
+
+      final Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 12),
+        ),
+      );
+      final LatLng location = LatLng(position.latitude, position.longitude);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _driverLocation = location;
+        _locationGranted = true;
+        _findingLocation = false;
+      });
+      await _mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: location, zoom: 16),
+        ),
+      );
+    } on Object {
+      if (mounted) {
+        setState(() => _findingLocation = false);
+        if (requestPermission) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Your location is unavailable. Check Location in device settings.',
+              ),
+            ),
+          );
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(painter: _MapPainter());
-  }
-}
-
-class _MapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint background = Paint()..color = const Color(0xFFE9F7E7);
-    final Paint secondary = Paint()
-      ..color = const Color(0xFFCAE8C5)
-      ..strokeWidth = 9
-      ..style = PaintingStyle.stroke;
-    final Paint road = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 16
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    canvas.drawRect(Offset.zero & size, background);
-    for (int i = -1; i < 7; i++) {
-      final double y = i * 140.0;
-      canvas.drawLine(Offset(-30, y), Offset(size.width + 60, y + 190), road);
-      canvas.drawLine(
-        Offset(size.width - (i * 62), -30),
-        Offset(size.width - 160 - (i * 40), size.height + 40),
-        secondary,
+    if (!_supportsGoogleMap) {
+      return const ColoredBox(
+        color: Color(0xFFE9F7E7),
+        child: Center(
+          child: Icon(Icons.map_outlined, size: 74, color: AppColors.ink),
+        ),
       );
     }
-    final Paint pin = Paint()..color = AppColors.ink;
-    canvas.drawCircle(Offset(size.width * 0.55, size.height * 0.42), 12, pin);
-    canvas.drawCircle(
-      Offset(size.width * 0.55, size.height * 0.42),
-      5,
-      Paint()..color = AppColors.primary,
+
+    return Stack(
+      children: <Widget>[
+        GoogleMap(
+          initialCameraPosition: const CameraPosition(
+            target: _jubaCenter,
+            zoom: 15,
+          ),
+          onMapCreated: (GoogleMapController controller) {
+            _mapController = controller;
+            if (_locationGranted) {
+              controller.animateCamera(
+                CameraUpdate.newCameraPosition(
+                  CameraPosition(target: _driverLocation, zoom: 16),
+                ),
+              );
+            }
+          },
+          myLocationEnabled: _locationGranted,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: false,
+          compassEnabled: true,
+          mapToolbarEnabled: false,
+          trafficEnabled: false,
+          buildingsEnabled: true,
+          indoorViewEnabled: false,
+          rotateGesturesEnabled: true,
+          tiltGesturesEnabled: false,
+          zoomGesturesEnabled: true,
+          mapType: MapType.normal,
+          markers: const <Marker>{},
+          polylines: const <Polyline>{},
+        ),
+        Positioned(
+          top: 104,
+          right: 16,
+          child: Material(
+            color: Theme.of(context).colorScheme.surface,
+            elevation: 5,
+            shadowColor: Colors.black26,
+            shape: const CircleBorder(),
+            child: IconButton(
+              tooltip: 'Center on my location',
+              onPressed: _findingLocation
+                  ? null
+                  : () => _locateDriver(requestPermission: true),
+              icon: _findingLocation
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.3),
+                    )
+                  : Icon(
+                      _locationGranted
+                          ? Icons.my_location_rounded
+                          : Icons.location_disabled_rounded,
+                    ),
+            ),
+          ),
+        ),
+      ],
     );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ProgressRow extends StatelessWidget {

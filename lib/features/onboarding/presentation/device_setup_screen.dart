@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../profile/data/driver_profile_repository.dart';
@@ -23,9 +24,11 @@ class DeviceSetupScreen extends StatefulWidget {
   State<DeviceSetupScreen> createState() => _DeviceSetupScreenState();
 }
 
-class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
+class _DeviceSetupScreenState extends State<DeviceSetupScreen>
+    with WidgetsBindingObserver {
   bool _overlayReady = false;
   bool _backgroundLocationReady = false;
+  bool _openingSettings = false;
   late final DriverProfileStore _profileStore;
   bool _saving = false;
   String? _errorMessage;
@@ -33,11 +36,51 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _profileStore = widget.profileStore ?? FirebaseDriverProfileStore();
+    _refreshPermissionState();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshPermissionState();
+    }
+  }
+
+  Future<void> _refreshPermissionState() async {
+    try {
+      final PermissionStatus overlayStatus =
+          await Permission.systemAlertWindow.status;
+      final PermissionStatus backgroundStatus =
+          await Permission.locationAlways.status;
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _overlayReady = overlayStatus.isGranted;
+        _backgroundLocationReady = backgroundStatus.isGranted;
+      });
+    } on Object {
+      // Permission plugins are unavailable in widget tests and unsupported
+      // desktop previews. Android devices continue through the native flow.
+    }
   }
 
   Future<void> _explainPermission({required bool overlay}) async {
-    final bool? enabled = await showModalBottomSheet<bool>(
+    if (_openingSettings) {
+      return;
+    }
+
+    final bool? openSettings = await showModalBottomSheet<bool>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -86,14 +129,71 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
       },
     );
 
-    if (enabled == true && mounted) {
-      setState(() {
-        if (overlay) {
-          _overlayReady = true;
-        } else {
-          _backgroundLocationReady = true;
+    if (openSettings != true || !mounted) {
+      return;
+    }
+
+    setState(() => _openingSettings = true);
+
+    try {
+      if (overlay) {
+        await Permission.systemAlertWindow.request();
+      } else {
+        PermissionStatus foregroundStatus =
+            await Permission.locationWhenInUse.status;
+        if (!foregroundStatus.isGranted) {
+          foregroundStatus = await Permission.locationWhenInUse.request();
         }
-      });
+
+        if (foregroundStatus.isGranted) {
+          final PermissionStatus backgroundStatus =
+              await Permission.locationAlways.request();
+          if (!backgroundStatus.isGranted) {
+            await openAppSettings();
+          }
+        } else {
+          await openAppSettings();
+        }
+      }
+
+      await _refreshPermissionState();
+
+      if (!mounted) {
+        return;
+      }
+
+      final bool granted = overlay
+          ? _overlayReady
+          : _backgroundLocationReady;
+      if (!granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              overlay
+                  ? 'Enable “Display over other apps”, then return to Alpha Plus.'
+                  : 'Choose “Allow all the time” for location, then return to Alpha Plus.',
+            ),
+            action: SnackBarAction(
+              label: 'Settings',
+              onPressed: () async {
+                await openAppSettings();
+              },
+            ),
+          ),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Device settings could not be opened. Try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _openingSettings = false);
+      }
     }
   }
 
@@ -191,7 +291,9 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                         title: 'Screen overlay',
                         subtitle: 'Show new trip requests over other apps',
                         complete: _overlayReady,
-                        onTap: () => _explainPermission(overlay: true),
+                        onTap: _openingSettings
+                            ? null
+                            : () => _explainPermission(overlay: true),
                       ),
                       Divider(height: 1, color: Theme.of(context).dividerColor),
                       _PermissionTile(
@@ -199,7 +301,9 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen> {
                         subtitle:
                             'Keep your availability and position accurate',
                         complete: _backgroundLocationReady,
-                        onTap: () => _explainPermission(overlay: false),
+                        onTap: _openingSettings
+                            ? null
+                            : () => _explainPermission(overlay: false),
                       ),
                       const SizedBox(height: 20),
                       if (_errorMessage != null) ...<Widget>[
@@ -316,7 +420,7 @@ class _PermissionTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool complete;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

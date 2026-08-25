@@ -121,6 +121,7 @@ void main() {
         home: DriverShell(
           driverName: 'Test Driver',
           registration: registration,
+          mapBuilder: (_) => const ColoredBox(color: Colors.white),
         ),
       ),
     );
@@ -149,6 +150,7 @@ void main() {
         home: DriverShell(
           driverName: 'Test Driver',
           registration: DriverRegistration(),
+          mapBuilder: (_) => const ColoredBox(color: Colors.white),
         ),
       ),
     );
