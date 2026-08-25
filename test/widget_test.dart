@@ -70,6 +70,8 @@ void main() {
     );
 
     await tester.enterText(find.byKey(const Key('phoneField')), '912345678');
+    await tester.ensureVisible(find.byKey(const Key('legalConsentCheckbox')));
+    await tester.tap(find.byKey(const Key('legalConsentCheckbox')));
     await tester.pump();
 
     final ElevatedButton button = tester.widget<ElevatedButton>(
@@ -82,6 +84,30 @@ void main() {
 
     expect(find.text('Verify your number'), findsOneWidget);
     expect(find.byKey(const Key('otpField')), findsOneWidget);
+  });
+
+  testWidgets('phone verification requires legal consent', (
+    WidgetTester tester,
+  ) async {
+    final _FakeDriverAuthService authService = _FakeDriverAuthService();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: PhoneLoginScreen(authService: authService),
+      ),
+    );
+
+    await tester.enterText(find.byKey(const Key('phoneField')), '912345678');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Continue'));
+    await tester.pump();
+
+    expect(
+      find.text('Please accept the User Agreement and Privacy Policy.'),
+      findsOneWidget,
+    );
+    expect(authService.requestCount, 0);
+    expect(find.text('Verify your number'), findsNothing);
   });
 
   testWidgets('stage one continues to vehicle registration', (
@@ -166,6 +192,8 @@ void main() {
 }
 
 class _FakeDriverAuthService implements DriverAuthService {
+  int requestCount = 0;
+
   @override
   String? get currentPhoneNumber => null;
 
@@ -180,6 +208,7 @@ class _FakeDriverAuthService implements DriverAuthService {
     required String phoneNumber,
     int? forceResendingToken,
   }) async {
+    requestCount += 1;
     return const PhoneVerificationSession(
       verificationId: 'test-verification-id',
       resendToken: 1,
