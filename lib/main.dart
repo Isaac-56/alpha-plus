@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/data/driver_auth_service.dart';
+import 'features/auth/data/driver_session_service.dart';
 import 'features/auth/presentation/biometric_opt_in_screen.dart';
 import 'features/auth/presentation/driver_name_screen.dart';
 import 'features/auth/presentation/phone_login_screen.dart';
@@ -111,15 +114,169 @@ class _AppBootstrapState extends State<AppBootstrap> {
               return PhoneLoginScreen(authService: _authService!);
             }
 
-            return _DriverProfileGate(
+            final String phoneNumber = _authService!.currentPhoneNumber ?? '';
+
+            return _DriverSessionGate(
+              key: ValueKey<String>('driver-session-$userId'),
               userId: userId,
-              phoneNumber: _authService!.currentPhoneNumber ?? '',
-              authService: _authService!,
-              profileStore: _profileStore!,
+              phoneNumber: phoneNumber,
+              child: _DriverProfileGate(
+                userId: userId,
+                phoneNumber: phoneNumber,
+                authService: _authService!,
+                profileStore: _profileStore!,
+              ),
             );
           },
         );
       },
+    );
+  }
+}
+
+class _DriverSessionGate extends StatefulWidget {
+  const _DriverSessionGate({
+    required this.userId,
+    required this.phoneNumber,
+    required this.child,
+    super.key,
+  });
+
+  final String userId;
+  final String phoneNumber;
+  final Widget child;
+
+  @override
+  State<_DriverSessionGate> createState() => _DriverSessionGateState();
+}
+
+class _DriverSessionGateState extends State<_DriverSessionGate>
+    with WidgetsBindingObserver {
+  late final Future<bool> _initialValidation;
+  bool _signOutScheduled = false;
+  bool _resumeCheckInProgress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initialValidation = DriverSessionService.instance.validateExistingSession(
+      uid: widget.userId,
+      phoneNumber: widget.phoneNumber,
+      forceServer: true,
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_validateAfterResume());
+    }
+  }
+
+  Future<void> _validateAfterResume() async {
+    if (_resumeCheckInProgress || _signOutScheduled) {
+      return;
+    }
+
+    _resumeCheckInProgress = true;
+
+    try {
+      final bool isCurrent = await DriverSessionService.instance
+          .validateExistingSession(
+            uid: widget.userId,
+            phoneNumber: widget.phoneNumber,
+            forceServer: true,
+          );
+
+      if (!isCurrent && mounted) {
+        _scheduleForcedSignOut();
+      }
+    } finally {
+      _resumeCheckInProgress = false;
+    }
+  }
+
+  void _scheduleForcedSignOut() {
+    if (_signOutScheduled) {
+      return;
+    }
+
+    _signOutScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await DriverSessionService.instance.forceLocalSignOut(widget.userId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _initialValidation,
+      builder: (BuildContext context, AsyncSnapshot<bool> validationSnapshot) {
+        if (validationSnapshot.connectionState != ConnectionState.done) {
+          return const _SessionStatusScreen();
+        }
+
+        if (validationSnapshot.data != true) {
+          _scheduleForcedSignOut();
+          return const _SessionStatusScreen(
+            message: 'This account is active on another device.',
+          );
+        }
+
+        return StreamBuilder<bool>(
+          stream: DriverSessionService.instance.watchSession(
+            uid: widget.userId,
+          ),
+          builder: (BuildContext context, AsyncSnapshot<bool> sessionSnapshot) {
+            if (sessionSnapshot.hasData && sessionSnapshot.data == false) {
+              _scheduleForcedSignOut();
+              return const _SessionStatusScreen(
+                message: 'Signing out this older device…',
+              );
+            }
+
+            return widget.child;
+          },
+        );
+      },
+    );
+  }
+}
+
+class _SessionStatusScreen extends StatelessWidget {
+  const _SessionStatusScreen({this.message});
+
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const CircularProgressIndicator(color: AppColors.primary),
+              if (message != null) ...<Widget>[
+                const SizedBox(height: 18),
+                Text(
+                  message!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -211,22 +368,16 @@ class _FirebaseSetupScreen extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               Text(
-                'Connect Alpha Plus to Firebase',
+                'Alpha Plus could not connect',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineLarge,
               ),
               const SizedBox(height: 12),
               Text(
-                'Run flutterfire configure, enable Phone Authentication, and '
-                'create Firestore before testing sign-in.',
+                'Check your internet connection, close the app, and try '
+                'again. If the problem continues, contact Alpha Plus support.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 18),
-              const SelectableText(
-                'See FIREBASE_SETUP.md',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w800),
               ),
             ],
           ),

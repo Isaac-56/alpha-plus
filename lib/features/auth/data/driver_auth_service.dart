@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'driver_session_service.dart';
+
 class PhoneVerificationSession {
   const PhoneVerificationSession({
     required this.verificationId,
@@ -35,10 +37,14 @@ abstract class DriverAuthService {
 }
 
 class FirebaseDriverAuthService implements DriverAuthService {
-  FirebaseDriverAuthService({FirebaseAuth? auth})
-    : _auth = auth ?? FirebaseAuth.instance;
+  FirebaseDriverAuthService({
+    FirebaseAuth? auth,
+    DriverSessionService? sessionService,
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _sessionService = sessionService ?? DriverSessionService.instance;
 
   final FirebaseAuth _auth;
+  final DriverSessionService _sessionService;
 
   @override
   String? get currentUserId => _auth.currentUser?.uid;
@@ -64,7 +70,7 @@ class FirebaseDriverAuthService implements DriverAuthService {
       timeout: const Duration(seconds: 60),
       verificationCompleted: (PhoneAuthCredential credential) async {
         try {
-          await _auth.signInWithCredential(credential);
+          await _signInAndActivateSession(credential);
           if (!completer.isCompleted) {
             completer.complete(
               const PhoneVerificationSession(
@@ -118,11 +124,32 @@ class FirebaseDriverAuthService implements DriverAuthService {
       verificationId: verificationId,
       smsCode: smsCode,
     );
-    await _auth.signInWithCredential(credential);
+    await _signInAndActivateSession(credential);
   }
 
   @override
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() => _sessionService.signOutCurrentDevice();
+
+  Future<void> _signInAndActivateSession(PhoneAuthCredential credential) async {
+    _sessionService.beginSignIn();
+
+    try {
+      final UserCredential result = await _auth.signInWithCredential(
+        credential,
+      );
+      final User? user = result.user;
+
+      if (user == null) {
+        throw StateError('Firebase did not return a signed-in driver.');
+      }
+
+      await _sessionService.activateSession(user);
+    } on Object {
+      _sessionService.cancelSignIn();
+      await _auth.signOut();
+      rethrow;
+    }
+  }
 }
 
 String readableAuthError(Object error) {

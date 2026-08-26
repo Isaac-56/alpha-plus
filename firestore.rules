@@ -53,6 +53,13 @@ service cloud.firestore {
           if signedIn() && request.auth.uid == uid;
     }
 
+    // Alpha Plus driver single-device session control. This is kept separate
+    // from passenger sessions so the same person can use both apps safely.
+    match /driver_sessions/{uid} {
+      allow read, create, update, delete:
+          if signedIn() && request.auth.uid == uid;
+    }
+
     // Feedback can be submitted but not read from the app.
     match /app_feedback/{feedbackId} {
       allow create:
