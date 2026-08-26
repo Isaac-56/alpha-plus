@@ -50,7 +50,7 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Alpha Plus uses the camera to capture driver verification documents.</string>
+	<string>Alpha Plus uses the camera to capture driver documents and a fresh identity photo for verification.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Alpha Plus uses selected photos for driver document verification.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

@@ -1,8 +1,17 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/alpha_back_button.dart';
 import '../../onboarding/models/driver_registration.dart';
+import '../data/driver_photo_check_service.dart';
+
+typedef DriverPhotoCapture = Future<XFile?> Function();
 
 class BalanceLimitScreen extends StatelessWidget {
   const BalanceLimitScreen({super.key});
@@ -274,38 +283,518 @@ class TroubleshootingScreen extends StatelessWidget {
   }
 }
 
-class PhotoCheckScreen extends StatelessWidget {
-  const PhotoCheckScreen({super.key});
+class PhotoCheckScreen extends StatefulWidget {
+  const PhotoCheckScreen({
+    this.photoCheckAnalyzer,
+    this.photoCheckRepository,
+    this.photoCapture,
+    this.driverId,
+    super.key,
+  });
+
+  final DriverPhotoCheckAnalyzer? photoCheckAnalyzer;
+  final DriverPhotoCheckRepository? photoCheckRepository;
+  final DriverPhotoCapture? photoCapture;
+  final String? driverId;
+
+  @override
+  State<PhotoCheckScreen> createState() => _PhotoCheckScreenState();
+}
+
+class _PhotoCheckScreenState extends State<PhotoCheckScreen> {
+  final ImagePicker _imagePicker = ImagePicker();
+  late final DriverPhotoCheckAnalyzer _photoCheckAnalyzer;
+  late final DriverPhotoCheckRepository _photoCheckRepository;
+  late final bool _ownsAnalyzer;
+
+  DriverPhotoCheckSubmission? _submission;
+  DriverPhotoCheckResult? _result;
+  XFile? _capturedPhoto;
+  bool _isLoadingStatus = true;
+  bool _isCapturing = false;
+  bool _isAnalyzing = false;
+  bool _isSubmitting = false;
+  String? _errorMessage;
+
+  String? get _driverId =>
+      widget.driverId ?? FirebaseAuth.instance.currentUser?.uid;
+
+  bool get _isBusy =>
+      _isCapturing || _isAnalyzing || _isSubmitting || _isLoadingStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownsAnalyzer = widget.photoCheckAnalyzer == null;
+    _photoCheckAnalyzer =
+        widget.photoCheckAnalyzer ?? MlKitDriverPhotoCheckAnalyzer();
+    _photoCheckRepository =
+        widget.photoCheckRepository ?? FirebaseDriverPhotoCheckRepository();
+    unawaited(_loadExistingSubmission());
+  }
+
+  @override
+  void dispose() {
+    if (_ownsAnalyzer) {
+      unawaited(_photoCheckAnalyzer.close());
+    }
+    super.dispose();
+  }
+
+  Future<void> _loadExistingSubmission() async {
+    final String? driverId = _driverId;
+    if (driverId == null) {
+      if (mounted) {
+        setState(() {
+          _isLoadingStatus = false;
+          _errorMessage = 'Sign in again before starting a photo check.';
+        });
+      }
+      return;
+    }
+
+    try {
+      final DriverPhotoCheckSubmission? submission = await _photoCheckRepository
+          .loadLatest(driverId);
+      if (mounted) {
+        setState(() {
+          _submission = submission;
+          _isLoadingStatus = false;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _isLoadingStatus = false;
+          _errorMessage =
+              'Previous photo-check status could not be loaded. You can still take a new photo.';
+        });
+      }
+    }
+  }
+
+  Future<XFile?> _openFrontCamera() {
+    return _imagePicker.pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+      imageQuality: 92,
+      maxWidth: 2400,
+      maxHeight: 2400,
+      requestFullMetadata: false,
+    );
+  }
+
+  Future<void> _capturePhoto() async {
+    if (_isBusy) {
+      return;
+    }
+
+    setState(() {
+      _isCapturing = true;
+      _errorMessage = null;
+      _result = null;
+    });
+
+    XFile? photo;
+    try {
+      final DriverPhotoCapture capture =
+          widget.photoCapture ?? _openFrontCamera;
+      photo = await capture();
+    } on PlatformException catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = switch (error.code) {
+            'camera_access_denied' =>
+              'Camera access is disabled. Allow Camera in device settings and try again.',
+            _ => 'The camera could not be opened. Please try again.',
+          };
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'The camera could not be opened. Please try again.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCapturing = false);
+      }
+    }
+
+    if (photo == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _capturedPhoto = photo;
+      _isAnalyzing = true;
+    });
+
+    final DriverPhotoCheckResult result = await _photoCheckAnalyzer.analyze(
+      photo.path,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _result = result;
+      _isAnalyzing = false;
+    });
+
+    if (result.accepted) {
+      HapticFeedback.mediumImpact();
+      _showMessage(
+        'Photo passed the automatic checks. Review it, then submit.',
+      );
+    } else {
+      await _showPhotoIssues(result.issues);
+    }
+  }
+
+  Future<void> _submitPhoto() async {
+    final String? driverId = _driverId;
+    final XFile? photo = _capturedPhoto;
+    if (_isBusy ||
+        driverId == null ||
+        photo == null ||
+        _result?.accepted != true) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final DriverPhotoCheckSubmission submission = await _photoCheckRepository
+          .submit(driverId: driverId, imagePath: photo.path);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _submission = submission;
+        _isSubmitting = false;
+      });
+      HapticFeedback.mediumImpact();
+      _showMessage('Photo check submitted securely for review.');
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _errorMessage =
+              'The photo could not be submitted. Check your connection and try again.';
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _showPhotoIssues(List<String> issues) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Retake your photo',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 14),
+                ...issues.map(
+                  (String issue) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Padding(
+                          padding: EdgeInsets.only(top: 7),
+                          child: CircleAvatar(
+                            radius: 3,
+                            backgroundColor: Colors.orange,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            issue,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    unawaited(_capturePhoto());
+                  },
+                  icon: const Icon(Icons.camera_alt_rounded),
+                  label: const Text('Retake photo'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionButton() {
+    if (_isBusy) {
+      final String label = _isLoadingStatus
+          ? 'Checking status…'
+          : _isCapturing
+          ? 'Opening camera…'
+          : _isAnalyzing
+          ? 'Checking photo…'
+          : 'Submitting securely…';
+      return ElevatedButton(
+        onPressed: null,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            const SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(width: 12),
+            Text(label),
+          ],
+        ),
+      );
+    }
+
+    if (_submission?.isApproved == true) {
+      return ElevatedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.verified_rounded),
+        label: const Text('Photo check approved'),
+      );
+    }
+
+    if (_submission?.isPending == true) {
+      return ElevatedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.schedule_rounded),
+        label: const Text('Review in progress'),
+      );
+    }
+
+    if (_result?.accepted == true && _capturedPhoto != null) {
+      return ElevatedButton.icon(
+        onPressed: _submitPhoto,
+        icon: const Icon(Icons.cloud_upload_rounded),
+        label: const Text('Submit photo check'),
+      );
+    }
+
+    return ElevatedButton.icon(
+      onPressed: _driverId == null ? null : _capturePhoto,
+      icon: const Icon(Icons.camera_alt_rounded),
+      label: Text(
+        _submission?.isRejected == true ? 'Retake photo' : 'Open camera',
+      ),
+    );
+  }
+
+  Widget _buildPhotoPanel() {
+    final XFile? photo = _capturedPhoto;
+    final DriverPhotoCheckResult? result = _result;
+    final Color borderColor = result == null
+        ? Colors.transparent
+        : result.accepted
+        ? const Color(0xFF0E9F6E)
+        : Colors.orange;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      height: 250,
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: borderColor, width: result == null ? 0 : 3),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          if (photo == null)
+            const Icon(Icons.face_retouching_natural_rounded, size: 128)
+          else
+            Image.file(File(photo.path), fit: BoxFit.cover),
+          if (_isAnalyzing)
+            ColoredBox(
+              color: Colors.black.withValues(alpha: 0.48),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 14),
+                    Text(
+                      'Checking face and photo quality…',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (result != null && !_isAnalyzing)
+            Positioned(
+              top: 14,
+              right: 14,
+              child: CircleAvatar(
+                radius: 24,
+                backgroundColor: result.accepted
+                    ? const Color(0xFF0E9F6E)
+                    : Colors.orange,
+                child: Icon(
+                  result.accepted ? Icons.check_rounded : Icons.replay_rounded,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget? _buildSubmissionStatus(BuildContext context) {
+    final DriverPhotoCheckSubmission? submission = _submission;
+    if (submission == null) {
+      return null;
+    }
+
+    final (IconData, Color, String, String) presentation = submission.isApproved
+        ? (
+            Icons.verified_rounded,
+            const Color(0xFF0E9F6E),
+            'Photo check approved',
+            'Your identity photo has been reviewed and approved.',
+          )
+        : submission.isRejected
+        ? (
+            Icons.error_outline_rounded,
+            Colors.orange,
+            'A new photo is needed',
+            submission.reviewerMessage ??
+                'The previous photo could not be approved. Retake it using the instructions below.',
+          )
+        : (
+            Icons.schedule_rounded,
+            const Color(0xFF2563EB),
+            'Review in progress',
+            'Your photo passed automatic screening and is waiting for final review.',
+          );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: presentation.$2.withValues(alpha: 0.11),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: presentation.$2.withValues(alpha: 0.32)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(presentation.$1, color: presentation.$2),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  presentation.$3,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 4),
+                Text(presentation.$4),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final Widget? submissionStatus = _buildSubmissionStatus(context);
     return _DetailScaffold(
       title: 'Photo check',
-      bottom: ElevatedButton.icon(
-        onPressed: () => _comingSoon(context, 'Camera verification'),
-        icon: const Icon(Icons.camera_alt_rounded),
-        label: const Text('Start photo check'),
-      ),
+      bottom: _buildActionButton(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Container(
-            height: 230,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: const Icon(Icons.face_retouching_natural_rounded, size: 128),
-          ),
-          const SizedBox(height: 26),
+          if (submissionStatus != null) ...<Widget>[
+            submissionStatus,
+            const SizedBox(height: 18),
+          ],
+          _buildPhotoPanel(),
+          const SizedBox(height: 24),
           Text(
-            'Make sure your face is clearly visible and your vehicle is parked safely before starting.',
+            'Take a fresh photo with the in-app camera. Your face must be clearly visible and your vehicle must be parked safely.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 18),
+          const _ChecklistRow(text: 'Only the driver is visible'),
           const _ChecklistRow(text: 'Use good, even lighting'),
           const _ChecklistRow(text: 'Remove hats and sunglasses'),
-          const _ChecklistRow(text: 'Follow the on-screen instructions'),
+          const _ChecklistRow(text: 'Look straight at the camera'),
+          if (_result != null && _result!.issues.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 18),
+            ..._result!.issues.map(
+              (String issue) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(issue)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (_errorMessage != null) ...<Widget>[
+            const SizedBox(height: 18),
+            _NoticeCard(
+              icon: Icons.error_outline_rounded,
+              text: _errorMessage!,
+            ),
+          ],
+          const SizedBox(height: 20),
+          _NoticeCard(
+            icon: Icons.shield_outlined,
+            text:
+                'Automatic screening checks image quality, framing, and that one usable face is present. Final approval is completed by the Alpha Plus review team.',
+          ),
         ],
       ),
     );

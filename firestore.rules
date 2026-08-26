@@ -60,6 +60,43 @@ service cloud.firestore {
           if signedIn() && request.auth.uid == uid;
     }
 
+    // Drivers can submit only their own camera photo for automatic screening
+    // and staff review. Review decisions are written by trusted backend/admin
+    // code, not by the mobile app.
+    match /driver_photo_checks/{driverId} {
+      allow read:
+          if ownsDriverProfile(driverId);
+
+      allow create:
+          if ownsDriverProfile(driverId) &&
+             request.resource.data.keys().hasOnly([
+               'driverId',
+               'storagePath',
+               'status',
+               'automatedScreeningPassed',
+               'submittedAt',
+               'updatedAt'
+             ]) &&
+             request.resource.data.driverId == driverId &&
+             request.resource.data.status == 'pending' &&
+             request.resource.data.automatedScreeningPassed == true;
+
+      allow update:
+          if ownsDriverProfile(driverId) &&
+             request.resource.data.driverId == driverId &&
+             request.resource.data.status == 'pending' &&
+             request.resource.data.automatedScreeningPassed == true &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               'storagePath',
+               'status',
+               'automatedScreeningPassed',
+               'submittedAt',
+               'updatedAt'
+             ]);
+
+      allow delete: if false;
+    }
+
     // Feedback can be submitted but not read from the app.
     match /app_feedback/{feedbackId} {
       allow create:

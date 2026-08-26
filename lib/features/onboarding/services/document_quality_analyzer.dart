@@ -74,9 +74,7 @@ class DocumentQualityPolicy {
     if (metrics.brightness < 42 || metrics.darkPixelRatio > 0.58) {
       issues.add('The photo is too dark. Move to a brighter place.');
     } else if (metrics.brightness > 220 || metrics.brightPixelRatio > 0.62) {
-      issues.add(
-        'The photo is too bright. Avoid flash glare and direct light.',
-      );
+      issues.add('The photo is too bright. Avoid flash glare and direct light.');
     }
 
     if (metrics.contrast < 17) {
@@ -86,9 +84,7 @@ class DocumentQualityPolicy {
     }
 
     if (metrics.sharpness < 4.2) {
-      issues.add(
-        'The photo looks blurry. Hold the phone steady and retake it.',
-      );
+      issues.add('The photo looks blurry. Hold the phone steady and retake it.');
     }
 
     return DocumentQualityResult(
