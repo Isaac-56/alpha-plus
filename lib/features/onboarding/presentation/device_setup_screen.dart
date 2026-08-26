@@ -146,8 +146,9 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
         }
 
         if (foregroundStatus.isGranted) {
-          final PermissionStatus backgroundStatus =
-              await Permission.locationAlways.request();
+          final PermissionStatus backgroundStatus = await Permission
+              .locationAlways
+              .request();
           if (!backgroundStatus.isGranted) {
             await openAppSettings();
           }
@@ -162,9 +163,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
         return;
       }
 
-      final bool granted = overlay
-          ? _overlayReady
-          : _backgroundLocationReady;
+      final bool granted = overlay ? _overlayReady : _backgroundLocationReady;
       if (!granted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -246,8 +246,7 @@ class _DriverMapState extends State<_DriverMap> {
         return;
       }
 
-      final bool serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (requestPermission) {
           await Geolocator.openLocationSettings();
