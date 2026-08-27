@@ -74,5 +74,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID to unlock your Alpha Plus driver account on this device.</string>
 </dict>
 </plist>

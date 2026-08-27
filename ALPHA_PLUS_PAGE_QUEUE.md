@@ -1,35 +1,53 @@
 # Alpha Plus work queue
 
-Updated 27 August 2026. Finish the pages first. Database setup is paused at the
-user's request and must not resume without their instruction.
+Updated 27 August 2026. Finish the pages first. Realtime Database setup remains
+paused at the user's request. The user handles Git commits and pushes manually
+after each tested update.
 
-## Current page pass: phone, OTP, name
+## Confirmed checkpoints
 
-Source changes prepared. Local Flutter checks and a real-device visual check
-are required before calling this pass verified.
+- Live-presence repair: the user reported analysis clean and all 16 tests passed.
+  Cloud configuration and real presence behavior remain unverified.
+- Phone, OTP, and name page pass: the user reported analysis clean and all 20
+  tests passed. Consent/SMS gating, OTP retry/resend, and name validation retained.
+- Maps build repair: the user's Android debug build succeeded; key loading
+  restored without changing or printing the local key file.
+- Map-logo positioning: the user confirmed it worked. Preserve this layout
+  and native attribution clearance in later page changes.
 
-- Match Alpha Ride's authentication typography: 29 px headings, 15.5 px
-  supporting copy, and 17 px primary-button labels.
-- Keep the legal checkbox and real phone verification behavior.
-- Add a visible OTP verification action and an SMS autofill hint.
-- Prevent overlapping resend/verification requests and reset stale digits.
-- Keep six OTP slots within narrow screens; preserve light/dark support.
-- Hide decorative header artwork when the keyboard opens.
-- Allow international names while retaining first/last name fields and the
-  existing minimum-length validation.
-- Prevent name editing and repeat submissions during a profile save.
+## Previous update: agreement page and shared legal reader
 
-## Next: agreement and biometric pages
+Source and regression tests prepared. Syntax/scope/package checks completed;
+local Flutter analysis/tests and real-device/Firestore checks are still required.
 
-- Driver agreement: make Read details open actual content; it currently does
-  nothing. Obtain the final driver agreement and privacy text before release.
-- Keep required agreement consent separate from optional product updates.
-- Persist consent and notification preferences with the appropriate versions.
-- Biometric opt-in: Enable quick login currently only navigates onward. Add
-  real device capability checks, OS authentication, saved user choice, and
-  enforcement when reopening the app. Do not claim biometrics are enabled yet.
-- Add cancellation, unavailable-hardware, failure, and retry behavior without
-  weakening phone authentication or the existing session check.
+- Match the approved authentication typography, spacing, and buttons.
+- Open shared agreement/privacy summaries from both login and onboarding.
+- Keep required acknowledgement separate from optional product updates.
+- Start both choices unchecked; reading details does not select them.
+- Save summary version/timestamp and updates preference to the existing
+  signed-in driver's profile before advancing; support failure and retry.
+- Do not represent summaries or a mutable profile field as finalized legal
+  policies, a tamper-proof audit, or a completed legal compliance system.
+
+## Current update: biometric quick unlock
+
+Source, installer, and tests prepared; local Flutter/Android and real-device
+checks are required before this feature is considered verified.
+
+- Real on-device biometrics, optional per-UID local opt-in, and cancellation.
+- Lock above all routes when the app reopens; invalidate late native results.
+- Reset navigation on account changes/logout so old private pages are removed.
+- Actual local sign-out for SMS recovery, with a fresh phone/session grant.
+- Profile > Settings > Quick unlock with confirmed enable/disable.
+- Additive native setup preserving the Maps loader and photo/camera code.
+- Android 7/API 24 minimum; iOS permission alone does not configure iOS Firebase.
+- This is a local UI lock, not encrypted storage or a backend authorization check.
+
+## Next: service and registration pages
+
+Review the service selector and stage-one screen, then vehicle and licence
+forms, keeping server/data setup paused unless the user asks to resume it.
+Do not turn disabled delivery or placeholder city choices into fake features.
 
 ## Remaining page review
 
@@ -37,28 +55,38 @@ are required before calling this pass verified.
 - Vehicle details and licence information.
 - Document capture, quality feedback, upload and review status.
 - Device permissions and completion screen.
-- Profile, account settings and support.
+- Profile, account settings, privacy/preferences, and support.
 - Money, payment availability and other placeholder actions.
-- Dashboard typography and navigation, without changing the paused database work.
+- Dashboard typography and navigation, preserving the map fix.
+
+## Before public launch
+
+- Obtain approved full driver terms and privacy notices, publish/version them,
+  and implement the correct acceptance flow and trusted backend enforcement.
+- Define the product-updates channel and allow drivers to change/withdraw the
+  optional preference. Do not send product messages merely because the UI exists.
+- Verify deployed Firestore/Storage rules, review permissions, session behavior,
+  photo uploads, document review, and account deletion end to end.
+- Rotate the previously shared Maps key before release and retain restrictions.
 
 ## Paused: shared Realtime Database and live-driver work
 
-Verified from the user's Firebase screenshots:
+Last verified from the user's console screenshots:
 
 - Project: alpha-ride-29708.
 - Database created in Belgium (europe-west1).
-- The database is empty, with default read=false/write=false rules.
-- Exact endpoint: https://alpha-ride-29708-default-rtdb.europe-west1.firebasedatabase.app
+- Empty database; default read=false/write=false rules shown.
+- Endpoint: https://alpha-ride-29708-default-rtdb.europe-west1.firebasedatabase.app
 
 Not completed:
 
 - Configure both apps to use that exact endpoint. No URL patch was applied.
-- Deploy the shared Realtime Database rules. No deployment was performed.
+- Review and deploy shared Realtime Database rules. Deployment was not confirmed.
 - Enforce driver approval and active driver sessions on the server; the current
-  location rules only check UID ownership and data shape.
+  local location rules only check UID ownership and data shape.
 - Test online/offline, stationary-driver freshness, reconnection, background
-  behavior, and location sharing between passenger and driver devices.
-- Implement real trip dispatch, acceptance, and trip-state synchronization.
+  behavior, onDisconnect races, and visibility between passenger/driver devices.
+- Implement real dispatch, safe acceptance, and synchronized trip states.
 
-The earlier live-presence repair passed the user's analysis and all 16 tests.
-That confirms those local checks, not the remaining cloud or device behavior.
+Do not resume deployment or present live dispatch as working without the user's
+instruction and the required backend/device verification.

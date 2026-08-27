@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'driver_session_service.dart';
+import 'driver_biometric_controller.dart';
 
 class PhoneVerificationSession {
   const PhoneVerificationSession({
@@ -40,11 +41,15 @@ class FirebaseDriverAuthService implements DriverAuthService {
   FirebaseDriverAuthService({
     FirebaseAuth? auth,
     DriverSessionService? sessionService,
+    DriverBiometricController? biometricController,
   }) : _auth = auth ?? FirebaseAuth.instance,
-       _sessionService = sessionService ?? DriverSessionService.instance;
+       _sessionService = sessionService ?? DriverSessionService.instance,
+       _biometricController =
+           biometricController ?? DriverBiometricController.instance;
 
   final FirebaseAuth _auth;
   final DriverSessionService _sessionService;
+  final DriverBiometricController _biometricController;
 
   @override
   String? get currentUserId => _auth.currentUser?.uid;
@@ -144,6 +149,7 @@ class FirebaseDriverAuthService implements DriverAuthService {
       }
 
       await _sessionService.activateSession(user);
+      _biometricController.confirmPhoneSignIn(user.uid);
     } on Object {
       _sessionService.cancelSignIn();
       await _auth.signOut();

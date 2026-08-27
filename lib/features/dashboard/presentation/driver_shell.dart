@@ -1090,27 +1090,83 @@ class _ProfilePage extends StatelessWidget {
           _DashboardCard(
             child: Column(
               children: <Widget>[
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.local_taxi_rounded),
-                  ),
-                  title: const Text(
-                    'Driver',
-                    style: TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  subtitle: const Text('Account under review'),
-                  trailing: FilledButton.tonal(
-                    onPressed: () =>
-                        _openScreen(context, const DriverServicesScreen()),
-                    child: const Text('My services'),
-                  ),
+                LayoutBuilder(
+                  key: const Key('driverServicesSummary'),
+                  builder: (BuildContext context, BoxConstraints constraints) {
+                    // Keep the action out of ListTile.trailing. On small
+                    // screens or with enlarged text it needs its own row.
+                    final bool stackButton =
+                        constraints.maxWidth < 380 ||
+                        MediaQuery.textScalerOf(context).scale(16) > 20;
+                    final Widget details = Row(
+                      key: const Key('driverServicesDetails'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Container(
+                          width: 54,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(Icons.local_taxi_rounded),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'Driver',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w900),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Account under review',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                    final Widget button = FilledButton.tonal(
+                      key: const Key('driverMyServicesButton'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                      onPressed: () =>
+                          _openScreen(context, const DriverServicesScreen()),
+                      child: const Text(
+                        'My services',
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                    if (stackButton) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          details,
+                          const SizedBox(height: 12),
+                          button,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: <Widget>[
+                        Expanded(child: details),
+                        const SizedBox(width: 16),
+                        button,
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 14),
                 const Row(

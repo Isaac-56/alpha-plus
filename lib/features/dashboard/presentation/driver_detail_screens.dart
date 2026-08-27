@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/alpha_back_button.dart';
+import '../../auth/presentation/driver_biometric_settings_screen.dart';
 import '../../onboarding/models/driver_registration.dart';
 import '../data/driver_photo_check_service.dart';
 
@@ -889,6 +890,9 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
       title: 'Settings',
       child: Column(
         children: <Widget>[
+          // ALPHA PLUS QUICK UNLOCK SETTINGS v1
+          const DriverBiometricSettingsTile(),
+          Divider(color: Theme.of(context).dividerColor),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.notifications_active_outlined),
@@ -1207,32 +1211,71 @@ class _InformationCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
-        child: Row(
-          children: <Widget>[
-            CircleAvatar(
-              radius: 25,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.18),
-              child: Icon(icon, color: enabled ? null : muted),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final Widget details = Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                CircleAvatar(
+                  radius: 25,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.18),
+                  child: Icon(icon, color: enabled ? null : muted),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 3),
-                  Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+                ),
+              ],
+            );
+            final Widget? status = trailing;
+            if (status == null) {
+              return details;
+            }
+
+            // Give status badges their own bounded row when space is tight.
+            // Do not shrink text or let the badge consume the text column.
+            final bool stackStatus =
+                constraints.maxWidth < 360 ||
+                MediaQuery.textScalerOf(context).scale(16) > 20;
+            if (stackStatus) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  details,
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: status,
+                  ),
                 ],
-              ),
-            ),
-            ?trailing,
-          ],
+              );
+            }
+            return Row(
+              children: <Widget>[
+                Expanded(child: details),
+                const SizedBox(width: 16),
+                status,
+              ],
+            );
+          },
         ),
       ),
     );

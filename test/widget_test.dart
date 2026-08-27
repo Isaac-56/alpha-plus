@@ -4,6 +4,14 @@ import 'dart:math' as math;
 import 'package:alpha_plus/main.dart';
 import 'package:alpha_plus/core/theme/app_theme.dart';
 import 'package:alpha_plus/features/auth/data/driver_auth_service.dart';
+import 'package:alpha_plus/features/auth/data/driver_biometric_controller.dart';
+import 'package:alpha_plus/features/auth/presentation/biometric_opt_in_screen.dart';
+import 'package:alpha_plus/features/auth/presentation/driver_biometric_gate.dart';
+import 'package:alpha_plus/features/auth/presentation/driver_biometric_settings_screen.dart';
+import 'package:alpha_plus/features/auth/data/driver_agreement_store.dart';
+import 'package:alpha_plus/features/auth/data/driver_legal_content.dart';
+import 'package:alpha_plus/features/auth/presentation/agreements_screen.dart';
+import 'package:alpha_plus/features/auth/presentation/driver_legal_details_screen.dart';
 import 'package:alpha_plus/features/auth/presentation/phone_login_screen.dart';
 import 'package:alpha_plus/features/auth/presentation/otp_screen.dart';
 import 'package:alpha_plus/features/auth/presentation/driver_name_screen.dart';
@@ -17,6 +25,8 @@ import 'package:alpha_plus/features/profile/models/driver_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+import 'support/driver_biometric_fakes.dart';
 
 void main() {
   test('driver profile restores UID-owned onboarding data', () {
@@ -336,6 +346,523 @@ void main() {
     },
   );
 
+  test(
+    'agreement store rejects an unchecked acknowledgement before Firebase access',
+    () async {
+      await expectLater(
+        FirebaseDriverAgreementStore().saveAcknowledgement(
+          accepted: false,
+          productUpdates: true,
+        ),
+        throwsArgumentError,
+      );
+    },
+  );
+
+  testWidgets('agreement details never select consent or save choices', (
+    WidgetTester tester,
+  ) async {
+    final _FakeDriverAgreementStore store = _FakeDriverAgreementStore();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AgreementsScreen(
+          driverName: 'Test Driver',
+          agreementStore: store,
+        ),
+      ),
+    );
+
+    for (final (String link, DriverLegalDocument document)
+        in <(String, DriverLegalDocument)>[
+          ('readDriverAgreement', DriverLegalDocument.service),
+          ('readDriverPrivacy', DriverLegalDocument.privacy),
+          ('readDriverUpdates', DriverLegalDocument.updates),
+        ]) {
+      await tester.ensureVisible(find.byKey(Key(link)));
+      await tester.tap(find.byKey(Key(link)));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<DriverLegalDetailsScreen>(
+              find.byType(DriverLegalDetailsScreen),
+            )
+            .document,
+        document,
+      );
+      expect(find.byKey(const Key('legalSummaryNotice')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('closeLegalDetails')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Checkbox>(find.byKey(const Key('driverAgreementCheckbox')))
+            .value,
+        isFalse,
+      );
+      expect(
+        tester
+            .widget<Checkbox>(find.byKey(const Key('driverUpdatesCheckbox')))
+            .value,
+        isFalse,
+      );
+    }
+    expect(store.saveCount, 0);
+    expect(
+      tester
+          .widget<ElevatedButton>(
+            find.byKey(const Key('continueDriverAgreements')),
+          )
+          .onPressed,
+      isNull,
+    );
+  });
+
+  testWidgets('agreements save once and wait before advancing', (
+    WidgetTester tester,
+  ) async {
+    final _FakeDriverAgreementStore store = _FakeDriverAgreementStore()
+      ..saveCompleter = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AgreementsScreen(
+          driverName: 'Test Driver',
+          agreementStore: store,
+        ),
+      ),
+    );
+    final Finder button = find.byKey(const Key('continueDriverAgreements'));
+    await tester.ensureVisible(find.byKey(const Key('driverUpdatesCheckbox')));
+    await tester.tap(find.byKey(const Key('driverUpdatesCheckbox')));
+    await tester.pump();
+    expect(tester.widget<ElevatedButton>(button).onPressed, isNull);
+
+    await tester.ensureVisible(
+      find.byKey(const Key('driverAgreementCheckbox')),
+    );
+    await tester.tap(find.byKey(const Key('driverAgreementCheckbox')));
+    await tester.pump();
+    await tester.tap(button);
+    await tester.pump();
+    expect(store.saveCount, 1);
+    expect(store.lastAccepted, isTrue);
+    expect(store.lastProductUpdates, isTrue);
+    expect(tester.widget<ElevatedButton>(button).onPressed, isNull);
+    expect(
+      tester
+          .widget<Checkbox>(find.byKey(const Key('driverAgreementCheckbox')))
+          .onChanged,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<Checkbox>(find.byKey(const Key('driverUpdatesCheckbox')))
+          .onChanged,
+      isNull,
+    );
+    expect(find.text('Choose how you’ll earn'), findsNothing);
+    await tester.tap(button);
+    await tester.pump();
+    expect(store.saveCount, 1);
+
+    store.saveCompleter!.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Choose how you’ll earn'), findsOneWidget);
+    Navigator.of(tester.element(find.text('Choose how you’ll earn'))).pop();
+    await tester.pumpAndSettle();
+    expect(tester.widget<ElevatedButton>(button).onPressed, isNotNull);
+    expect(
+      tester
+          .widget<Checkbox>(find.byKey(const Key('driverAgreementCheckbox')))
+          .value,
+      isTrue,
+    );
+    expect(store.saveCount, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets(
+    'agreement save failure preserves choices and allows retry without updates',
+    (WidgetTester tester) async {
+      final _FakeDriverAgreementStore store = _FakeDriverAgreementStore()
+        ..saveCompleter = Completer<void>();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AgreementsScreen(
+            driverName: 'Test Driver',
+            agreementStore: store,
+          ),
+        ),
+      );
+      await tester.ensureVisible(
+        find.byKey(const Key('driverAgreementCheckbox')),
+      );
+      await tester.tap(find.byKey(const Key('driverAgreementCheckbox')));
+      await tester.pump();
+      final Finder button = find.byKey(const Key('continueDriverAgreements'));
+      await tester.tap(button);
+      await tester.pump();
+      store.saveCompleter!.completeError(StateError('Save failed'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('driverAgreementError')), findsOneWidget);
+      expect(
+        tester
+            .getRect(find.byKey(const Key('driverAgreementError')))
+            .overlaps(tester.getRect(find.byType(SingleChildScrollView))),
+        isTrue,
+      );
+      expect(find.text('Choose how you’ll earn'), findsNothing);
+      expect(
+        tester
+            .widget<Checkbox>(find.byKey(const Key('driverAgreementCheckbox')))
+            .value,
+        isTrue,
+      );
+      expect(
+        tester
+            .widget<Checkbox>(find.byKey(const Key('driverUpdatesCheckbox')))
+            .value,
+        isFalse,
+      );
+      expect(tester.widget<ElevatedButton>(button).onPressed, isNotNull);
+
+      store.saveCompleter = null;
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(store.saveCount, 2);
+      expect(store.lastProductUpdates, isFalse);
+      expect(find.text('Choose how you’ll earn'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets('phone legal reader leaves SMS and consent unchanged', (
+    WidgetTester tester,
+  ) async {
+    final _FakeDriverAuthService auth = _FakeDriverAuthService();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: PhoneLoginScreen(authService: auth),
+      ),
+    );
+    await tester.ensureVisible(find.byKey(const Key('phoneLegalDetails')));
+    await tester.tap(find.byKey(const Key('phoneLegalDetails')));
+    await tester.pumpAndSettle();
+    expect(find.text('User Agreement & Privacy'), findsOneWidget);
+    expect(find.text('Driver service guidelines'), findsOneWidget);
+    expect(find.text('Your information'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('closeLegalDetails')));
+    await tester.pumpAndSettle();
+    expect(auth.requestCount, 0);
+    expect(
+      tester
+          .widget<Checkbox>(find.byKey(const Key('legalConsentCheckbox')))
+          .value,
+      isFalse,
+    );
+  });
+
+  testWidgets(
+    'agreement and legal readers fit narrow screens with large text',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(280, 600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      for (final ThemeData theme in <ThemeData>[
+        AppTheme.light,
+        AppTheme.dark,
+      ]) {
+        final List<Widget> pages = <Widget>[
+          AgreementsScreen(
+            driverName: 'Test Driver',
+            agreementStore: _FakeDriverAgreementStore(),
+          ),
+          for (final DriverLegalDocument document in DriverLegalDocument.values)
+            DriverLegalDetailsScreen(document: document),
+        ];
+        for (final Widget page in pages) {
+          await tester.pumpWidget(
+            MaterialApp(
+              key: UniqueKey(),
+              theme: theme,
+              builder: (BuildContext context, Widget? child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(1.6)),
+                child: child!,
+              ),
+              home: page,
+            ),
+          );
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+        }
+      }
+    },
+  );
+
+  testWidgets(
+    'biometric onboarding can be skipped without enabling or prompting',
+    (WidgetTester tester) async {
+      final BiometricFixture fixture = BiometricFixture();
+      await fixture.start();
+      addTearDown(fixture.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: BiometricOptInScreen(
+            driverName: 'Test Driver',
+            controller: fixture.controller,
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('skipDriverBiometrics')));
+      await tester.pumpAndSettle();
+      expect(find.text('Agreements'), findsOneWidget);
+      expect(fixture.device.prompts, 0);
+      expect(fixture.preferences.writes, 0);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'biometric onboarding does not advance on cancel and waits for success',
+    (WidgetTester tester) async {
+      final BiometricFixture fixture = BiometricFixture();
+      await fixture.start();
+      addTearDown(fixture.dispose);
+      fixture.device.result = DriverBiometricResult.cancelled;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: BiometricOptInScreen(
+            driverName: 'Test Driver',
+            controller: fixture.controller,
+          ),
+        ),
+      );
+      final Finder enable = find.byKey(const Key('enableDriverBiometrics'));
+      await tester.tap(enable);
+      await tester.pumpAndSettle();
+      expect(find.text('Agreements'), findsNothing);
+      expect(find.byKey(const Key('biometricOptInMessage')), findsOneWidget);
+      expect(fixture.controller.enabled, isFalse);
+
+      fixture.device.authentication = Completer<DriverBiometricResult>();
+      await tester.tap(enable);
+      await tester.pump();
+      expect(tester.widget<ElevatedButton>(enable).onPressed, isNull);
+      expect(
+        tester
+            .widget<TextButton>(find.byKey(const Key('skipDriverBiometrics')))
+            .onPressed,
+        isNull,
+      );
+      expect(find.text('Agreements'), findsNothing);
+      fixture.device.authentication!.complete(DriverBiometricResult.success);
+      await tester.pumpAndSettle();
+      expect(find.text('Agreements'), findsOneWidget);
+      expect(fixture.preferences.values['driver-a'], isTrue);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'root lock covers pushed pages and logout discards their navigation',
+    (WidgetTester tester) async {
+      final BiometricFixture fixture = BiometricFixture();
+      fixture.preferences.values['driver-a'] = true;
+      fixture.controller.confirmPhoneSignIn('driver-a');
+      final _MutableDriverAuthService auth = _MutableDriverAuthService(fixture);
+      addTearDown(fixture.dispose);
+      addTearDown(auth.close);
+      await tester.pumpWidget(
+        AlphaPlusApp(
+          authService: auth,
+          biometricController: fixture.controller,
+          home: Builder(
+            builder: (BuildContext context) => Scaffold(
+              body: fixture.uid == null
+                  ? const Text('Signed out test home')
+                  : ElevatedButton(
+                      onPressed: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const Scaffold(
+                            body: Text('Private driver detail'),
+                          ),
+                        ),
+                      ),
+                      child: const Text('Open private detail'),
+                    ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open private detail'));
+      await tester.pumpAndSettle();
+      expect(find.text('Private driver detail'), findsOneWidget);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('driverBiometricLock')), findsOneWidget);
+      expect(find.text('Private driver detail'), findsNothing);
+      expect(
+        find.text('Private driver detail', skipOffstage: false),
+        findsOneWidget,
+      );
+      fixture.device.result = DriverBiometricResult.cancelled;
+      await tester.tap(find.byKey(const Key('unlockDriverApp')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('driverBiometricLock')), findsOneWidget);
+      fixture.device.result = DriverBiometricResult.success;
+      await tester.tap(find.byKey(const Key('unlockDriverApp')));
+      await tester.pumpAndSettle();
+      expect(find.text('Private driver detail'), findsOneWidget);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('biometricPhoneSignIn')));
+      await tester.pumpAndSettle();
+      expect(auth.signOutCount, 1);
+      expect(
+        find.text('Private driver detail', skipOffstage: false),
+        findsNothing,
+      );
+      expect(find.text('Signed out test home'), findsOneWidget);
+      expect(fixture.preferences.values['driver-a'], isTrue);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets('back navigation cannot expose a page under the biometric gate', (
+    WidgetTester tester,
+  ) async {
+    final BiometricFixture fixture = BiometricFixture();
+    await fixture.start();
+    addTearDown(fixture.dispose);
+    final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigatorKey,
+        theme: AppTheme.light,
+        builder: (BuildContext context, Widget? child) => DriverBiometricGate(
+          controller: fixture.controller,
+          onPhoneSignIn: () async {},
+          child: child!,
+        ),
+        home: const Scaffold(body: Text('Private home')),
+      ),
+    );
+    navigatorKey.currentState!.push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const Scaffold(body: Text('Private second page')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await fixture.controller.enable();
+    fixture.controller.handleLifecycle(AppLifecycleState.paused);
+    fixture.controller.handleLifecycle(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    navigatorKey.currentState!.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Private home'), findsNothing);
+    expect(find.byKey(const Key('driverBiometricLock')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('quick unlock settings requires confirmation before disabling', (
+    WidgetTester tester,
+  ) async {
+    final BiometricFixture fixture = BiometricFixture();
+    await fixture.start(enabled: true);
+    await fixture.controller.unlock();
+    addTearDown(fixture.dispose);
+    fixture.device.result = DriverBiometricResult.cancelled;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: DriverBiometricSettingsScreen(controller: fixture.controller),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('changeQuickUnlock')));
+    await tester.pumpAndSettle();
+    expect(fixture.controller.enabled, isTrue);
+    fixture.device.result = DriverBiometricResult.success;
+    await tester.tap(find.byKey(const Key('changeQuickUnlock')));
+    await tester.pumpAndSettle();
+    expect(fixture.controller.enabled, isFalse);
+    expect(find.text('Quick unlock turned off.'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('biometric screens support narrow layouts and large text', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(280, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final BiometricFixture fixture = BiometricFixture();
+    await fixture.start();
+    addTearDown(fixture.dispose);
+    for (final ThemeData theme in <ThemeData>[AppTheme.light, AppTheme.dark]) {
+      for (final Widget page in <Widget>[
+        BiometricOptInScreen(
+          driverName: 'Test Driver',
+          controller: fixture.controller,
+        ),
+        DriverBiometricSettingsScreen(controller: fixture.controller),
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            key: UniqueKey(),
+            theme: theme,
+            builder: (BuildContext context, Widget? child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(1.6)),
+              child: child!,
+            ),
+            home: page,
+          ),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+      fixture.preferences.values['driver-a'] = true;
+      await fixture.controller.bindAccount('driver-a');
+      await tester.pumpWidget(
+        MaterialApp(
+          key: UniqueKey(),
+          theme: theme,
+          builder: (BuildContext context, Widget? child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.6)),
+            child: DriverBiometricGate(
+              controller: fixture.controller,
+              onPhoneSignIn: () async {},
+              child: child!,
+            ),
+          ),
+          home: const Scaffold(body: Text('Hidden page')),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
+
   testWidgets('map attribution stays clear below the dashboard card', (
     WidgetTester tester,
   ) async {
@@ -476,6 +1003,9 @@ void main() {
   testWidgets('driver profile actions open their detail pages', (
     WidgetTester tester,
   ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
     final DriverRegistration registration = DriverRegistration()
       ..vehicleType = 'Car'
       ..make = 'Toyota'
@@ -484,30 +1014,83 @@ void main() {
       ..manufactureYear = '2020'
       ..plateNumber = 'SSD 123 A';
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: DriverShell(
-          driverName: 'Test Driver',
-          registration: registration,
-          mapBuilder: (_) => const ColoredBox(color: Colors.white),
-        ),
-      ),
-    );
+    final List<(Size, double)> layouts = <(Size, double)>[
+      (const Size(320, 640), 1.6),
+      (const Size(390, 844), 1.0),
+      (const Size(800, 700), 1.0),
+      (const Size(800, 700), 1.6),
+    ];
+    for (final ThemeData theme in <ThemeData>[AppTheme.light, AppTheme.dark]) {
+      for (final (Size size, double textScale) in layouts) {
+        tester.view.physicalSize = size;
+        await tester.pumpWidget(
+          MaterialApp(
+            key: UniqueKey(),
+            theme: theme,
+            builder: (BuildContext context, Widget? child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(textScale)),
+              child: child!,
+            ),
+            home: DriverShell(
+              driverName: 'Test Driver',
+              registration: registration,
+              mapBuilder: (_) => const ColoredBox(color: Colors.white),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        // The off-screen Profile page must also lay out without exceptions.
+        expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('Profile'));
-    await tester.pumpAndSettle();
+        await tester.tap(find.text('Profile'));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.text('Promo codes'), findsNothing);
 
-    expect(find.text('Alpha Plus South Sudan'), findsOneWidget);
-    expect(find.text('Promo codes'), findsNothing);
+        final Finder services = find.byKey(const Key('driverMyServicesButton'));
+        await tester.ensureVisible(services);
+        await tester.pumpAndSettle();
+        final Rect summary = tester.getRect(
+          find.byKey(const Key('driverServicesSummary')),
+        );
+        final Rect details = tester.getRect(
+          find.byKey(const Key('driverServicesDetails')),
+        );
+        final Rect button = tester.getRect(services);
+        expect(button.left, greaterThanOrEqualTo(summary.left));
+        expect(button.right, lessThanOrEqualTo(summary.right + 0.1));
+        expect(button.height, greaterThanOrEqualTo(48));
+        expect(button.overlaps(details), isFalse);
+        if (size.width == 320 || textScale > 1.0) {
+          expect(button.top, greaterThanOrEqualTo(details.bottom + 11.9));
+        } else if (size.width == 800) {
+          expect(button.left, greaterThanOrEqualTo(details.right + 15.9));
+        }
 
-    await tester.tap(find.text('Payment'));
-    await tester.pumpAndSettle();
+        await tester.tap(services);
+        await tester.pumpAndSettle();
+        expect(find.text('Passenger rides'), findsOneWidget);
+        expect(find.text('Delivery'), findsOneWidget);
+        expect(tester.takeException(), isNull);
 
-    expect(find.text('Cash payments'), findsOneWidget);
-    expect(find.text('Card payments'), findsOneWidget);
-    expect(find.text('Alpha Wallet'), findsOneWidget);
-    expect(find.text('Coming soon'), findsNWidgets(2));
+        await tester.tap(find.byTooltip('Back'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Payment'));
+        await tester.pumpAndSettle();
+        expect(find.text('Alpha Plus South Sudan'), findsOneWidget);
+        await tester.tap(find.text('Payment'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Cash payments'), findsOneWidget);
+        expect(find.text('Card payments'), findsOneWidget);
+        expect(find.text('Alpha Wallet'), findsOneWidget);
+        expect(find.text('Coming soon'), findsNWidgets(2));
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    }
   });
 
   testWidgets('money balance limit opens its explanation', (
@@ -578,6 +1161,47 @@ class _FakeDriverAuthService implements DriverAuthService {
     lastVerificationId = verificationId;
     lastSmsCode = smsCode;
     if (verifyCompleter != null) await verifyCompleter!.future;
+  }
+}
+
+class _MutableDriverAuthService extends _FakeDriverAuthService {
+  _MutableDriverAuthService(this.fixture);
+  final BiometricFixture fixture;
+  final StreamController<String?> _changes =
+      StreamController<String?>.broadcast(sync: true);
+  int signOutCount = 0;
+
+  @override
+  String? get currentUserId => fixture.uid;
+
+  @override
+  Stream<String?> get userIdChanges => _changes.stream;
+
+  @override
+  Future<void> signOut() async {
+    signOutCount++;
+    fixture.uid = null;
+    _changes.add(null);
+  }
+
+  Future<void> close() => _changes.close();
+}
+
+class _FakeDriverAgreementStore implements DriverAgreementStore {
+  int saveCount = 0;
+  bool? lastAccepted;
+  bool? lastProductUpdates;
+  Completer<void>? saveCompleter;
+
+  @override
+  Future<void> saveAcknowledgement({
+    required bool accepted,
+    required bool productUpdates,
+  }) async {
+    saveCount += 1;
+    lastAccepted = accepted;
+    lastProductUpdates = productUpdates;
+    if (saveCompleter != null) await saveCompleter!.future;
   }
 }
 

@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/data/driver_auth_service.dart';
+import 'features/auth/data/driver_biometric_controller.dart';
 import 'features/auth/data/driver_session_service.dart';
 import 'features/auth/presentation/biometric_opt_in_screen.dart';
+import 'features/auth/presentation/driver_biometric_gate.dart';
 import 'features/auth/presentation/driver_name_screen.dart';
 import 'features/auth/presentation/phone_login_screen.dart';
 import 'features/auth/presentation/splash_screen.dart';
@@ -33,15 +35,85 @@ Future<void> main() async {
   );
 }
 
-class AlphaPlusApp extends StatelessWidget {
-  const AlphaPlusApp({this.firebaseInitializationError, this.home, super.key});
+class AlphaPlusApp extends StatefulWidget {
+  const AlphaPlusApp({
+    this.firebaseInitializationError,
+    this.home,
+    this.authService,
+    this.biometricController,
+    super.key,
+  });
 
   final Object? firebaseInitializationError;
   final Widget? home;
+  final DriverAuthService? authService;
+  final DriverBiometricController? biometricController;
+
+  @override
+  State<AlphaPlusApp> createState() => _AlphaPlusAppState();
+}
+
+class _AlphaPlusAppState extends State<AlphaPlusApp> {
+  GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  StreamSubscription<String?>? _authSubscription;
+  DriverAuthService? _authService;
+  DriverBiometricController? _biometrics;
+  String? _activeUid;
+
+  @override
+  void initState() {
+    super.initState();
+    // Existing isolated widget previews (home: ...) don't initialize Firebase.
+    // Production always installs the guard; tests can inject its dependencies.
+    if (widget.firebaseInitializationError == null &&
+        (widget.home == null || widget.biometricController != null)) {
+      _authService = widget.authService ?? FirebaseDriverAuthService();
+      _biometrics =
+          widget.biometricController ?? DriverBiometricController.instance;
+      _activeUid = _authService!.currentUserId;
+      unawaited(_biometrics!.bindAccount(_activeUid));
+      _authSubscription = _authService!.userIdChanges.listen(
+        _accountChanged,
+        onError: (Object error, StackTrace stackTrace) {
+          _biometrics!.prepareForPhoneSignIn();
+        },
+      );
+    }
+  }
+
+  void _accountChanged(String? uid) {
+    if (!mounted || uid == _activeUid) return;
+    // Discard ALL routes on sign-in, logout, or account replacement. Merely
+    // changing the home widget leaves pushed private pages on the old stack.
+    setState(() {
+      _activeUid = uid;
+      _navigatorKey = GlobalKey<NavigatorState>();
+    });
+    unawaited(_biometrics!.bindAccount(uid));
+  }
+
+  Future<void> _verifyByPhone() async {
+    final String? uid = _authService!.currentUserId;
+    if (uid == null) return;
+    if (widget.authService != null) {
+      await _authService!.signOut();
+    } else {
+      // Local sign-out remains possible during an outage. The next successful
+      // phone login activates a new session; do not revoke another device's.
+      await DriverSessionService.instance.forceLocalSignOut(uid);
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_authSubscription?.cancel());
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Alpha Plus',
       theme: AppTheme.light,
@@ -49,10 +121,17 @@ class AlphaPlusApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       themeAnimationDuration: const Duration(milliseconds: 450),
       themeAnimationCurve: Curves.easeInOutCubic,
+      builder: _biometrics == null
+          ? null
+          : (BuildContext context, Widget? child) => DriverBiometricGate(
+              controller: _biometrics!,
+              onPhoneSignIn: _verifyByPhone,
+              child: child!,
+            ),
       home:
-          home ??
+          widget.home ??
           AppBootstrap(
-            firebaseInitializationError: firebaseInitializationError,
+            firebaseInitializationError: widget.firebaseInitializationError,
           ),
     );
   }
