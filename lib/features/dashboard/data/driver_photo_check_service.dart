@@ -65,14 +65,20 @@ class DriverPhotoCheckPolicy {
     if (faceCount == 0) {
       issues.add('No face was found. Look directly at the camera and retake.');
     } else if (faceCount > 1) {
-      issues.add('More than one face was found. Only the driver may be visible.');
+      issues.add(
+        'More than one face was found. Only the driver may be visible.',
+      );
     } else if (faceMetrics == null) {
-      issues.add('The face position could not be checked. Please retake the photo.');
+      issues.add(
+        'The face position could not be checked. Please retake the photo.',
+      );
     } else {
       if (faceMetrics.coverage < 0.07) {
         issues.add('Your face is too far away. Move closer to the camera.');
       } else if (faceMetrics.coverage > 0.58) {
-        issues.add('Your face is too close. Move the phone slightly farther away.');
+        issues.add(
+          'Your face is too close. Move the phone slightly farther away.',
+        );
       }
 
       if (faceMetrics.headYaw.abs() > 18 ||
@@ -85,7 +91,9 @@ class DriverPhotoCheckPolicy {
       final double? rightEye = faceMetrics.rightEyeOpenProbability;
       if ((leftEye != null && leftEye < 0.35) ||
           (rightEye != null && rightEye < 0.35)) {
-        issues.add('Keep both eyes open and remove anything covering your face.');
+        issues.add(
+          'Keep both eyes open and remove anything covering your face.',
+        );
       }
     }
 
@@ -129,8 +137,8 @@ class MlKitDriverPhotoCheckAnalyzer implements DriverPhotoCheckAnalyzer {
   @override
   Future<DriverPhotoCheckResult> analyze(String imagePath) async {
     try {
-      final DocumentQualityResult imageQuality =
-          await _imageQualityAnalyzer.analyze(imagePath);
+      final DocumentQualityResult imageQuality = await _imageQualityAnalyzer
+          .analyze(imagePath);
       final List<Face> faces = await _faceDetector.processImage(
         InputImage.fromFilePath(imagePath),
       );
@@ -139,10 +147,9 @@ class MlKitDriverPhotoCheckAnalyzer implements DriverPhotoCheckAnalyzer {
 
       if (faces.length == 1 && imageMetrics != null) {
         final Face face = faces.single;
-        final double imageArea = math.max(
-          1,
-          imageMetrics.width * imageMetrics.height,
-        ).toDouble();
+        final double imageArea = math
+            .max(1, imageMetrics.width * imageMetrics.height)
+            .toDouble();
         final double faceArea = math
             .max(0, face.boundingBox.width * face.boundingBox.height)
             .toDouble();
@@ -208,8 +215,7 @@ abstract class DriverPhotoCheckRepository {
   });
 }
 
-class FirebaseDriverPhotoCheckRepository
-    implements DriverPhotoCheckRepository {
+class FirebaseDriverPhotoCheckRepository implements DriverPhotoCheckRepository {
   FirebaseDriverPhotoCheckRepository({
     FirebaseStorage? storage,
     FirebaseFirestore? firestore,
@@ -251,17 +257,17 @@ class FirebaseDriverPhotoCheckRepository
     await imageReference.putFile(File(imagePath), metadata);
 
     try {
-      await _firestore.collection('driver_photo_checks').doc(driverId).set(
-        <String, dynamic>{
-          'driverId': driverId,
-          'storagePath': imageReference.fullPath,
-          'status': 'pending',
-          'automatedScreeningPassed': true,
-          'submittedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('driver_photo_checks')
+          .doc(driverId)
+          .set(<String, dynamic>{
+            'driverId': driverId,
+            'storagePath': imageReference.fullPath,
+            'status': 'pending',
+            'automatedScreeningPassed': true,
+            'submittedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } on Object {
       try {
         await imageReference.delete();

@@ -325,7 +325,9 @@ class _DriverProfileGate extends StatelessWidget {
             }
 
             return DriverShell(
+              driverId: profile.uid,
               driverName: profile.fullName,
+              reviewStatus: profile.reviewStatus,
               registration: profile.registration,
               onSignOut: authService.signOut,
             );

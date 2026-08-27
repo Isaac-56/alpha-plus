@@ -68,13 +68,14 @@ class _DriverNameScreenState extends State<DriverNameScreen> {
       _saving = true;
       _errorMessage = null;
     });
+    FocusScope.of(context).unfocus();
 
     try {
       await _profileStore.saveIdentity(
         uid: userId,
         phoneNumber: phoneNumber,
-        firstName: _firstName.text,
-        lastName: _lastName.text,
+        firstName: _firstName.text.trim(),
+        lastName: _lastName.text.trim(),
       );
       if (!mounted) {
         return;
@@ -96,16 +97,21 @@ class _DriverNameScreenState extends State<DriverNameScreen> {
   @override
   Widget build(BuildContext context) {
     return OnboardingScaffold(
+      authStyle: true,
+      centerHeader: true,
+      showBackButton: Navigator.of(context).canPop(),
+      header: const AuthHeaderIcon(icon: Icons.person_outline_rounded),
       title: 'What should we call you?',
       subtitle: 'Use the name shown on your official driver documents.',
       bottom: ElevatedButton(
+        key: const Key('saveDriverName'),
         onPressed: _isValid && !_saving ? _continue : null,
         child: _saving
             ? const SizedBox.square(
                 dimension: 22,
                 child: CircularProgressIndicator(strokeWidth: 2.4),
               )
-            : const Text('Next'),
+            : const Text('Continue', textAlign: TextAlign.center),
       ),
       child: AutofillGroup(
         child: Column(
@@ -113,35 +119,41 @@ class _DriverNameScreenState extends State<DriverNameScreen> {
             TextField(
               key: const Key('firstNameField'),
               controller: _firstName,
+              enabled: !_saving,
+              keyboardType: TextInputType.name,
+              autocorrect: false,
               textCapitalization: TextCapitalization.words,
               textInputAction: TextInputAction.next,
               autofillHints: const <String>[AutofillHints.givenName],
               inputFormatters: <TextInputFormatter>[
-                FilteringTextInputFormatter.allow(RegExp(r"[a-zA-Z '\-]")),
+                LengthLimitingTextInputFormatter(80),
               ],
               decoration: const InputDecoration(
                 labelText: 'First name',
                 hintText: 'Enter your first name',
                 prefixIcon: Icon(Icons.person_outline_rounded),
               ),
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => setState(() => _errorMessage = null),
             ),
             const SizedBox(height: 14),
             TextField(
               key: const Key('lastNameField'),
               controller: _lastName,
+              enabled: !_saving,
+              keyboardType: TextInputType.name,
+              autocorrect: false,
               textCapitalization: TextCapitalization.words,
               textInputAction: TextInputAction.done,
               autofillHints: const <String>[AutofillHints.familyName],
               inputFormatters: <TextInputFormatter>[
-                FilteringTextInputFormatter.allow(RegExp(r"[a-zA-Z '\-]")),
+                LengthLimitingTextInputFormatter(80),
               ],
               decoration: const InputDecoration(
                 labelText: 'Last name',
                 hintText: 'Enter your last name',
                 prefixIcon: Icon(Icons.badge_outlined),
               ),
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => setState(() => _errorMessage = null),
               onSubmitted: (_) {
                 if (_isValid && !_saving) {
                   _continue();
@@ -151,6 +163,7 @@ class _DriverNameScreenState extends State<DriverNameScreen> {
             if (_errorMessage != null) ...<Widget>[
               const SizedBox(height: 16),
               Container(
+                key: const Key('driverNameError'),
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(

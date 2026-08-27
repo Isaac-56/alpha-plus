@@ -1,0 +1,43 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "driver_locations": {
+      ".read": "auth != null",
+      "$driverId": {
+        ".write": "auth != null && auth.uid === $driverId",
+        ".validate": "!newData.exists() || newData.hasChildren(['driverId', 'presenceId', 'latitude', 'longitude', 'heading', 'accuracy', 'isOnline', 'vehicleType', 'updatedAt'])",
+        "driverId": {
+          ".validate": "newData.isString() && newData.val() === $driverId"
+        },
+        "presenceId": {
+          ".validate": "newData.isString() && newData.val().length > 10 && newData.val().length <= 80"
+        },
+        "latitude": {
+          ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+        },
+        "longitude": {
+          ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+        },
+        "heading": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 360"
+        },
+        "accuracy": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+        },
+        "isOnline": {
+          ".validate": "newData.isBoolean()"
+        },
+        "vehicleType": {
+          ".validate": "newData.isString() && (newData.val() === 'standard' || newData.val() === 'boda' || newData.val() === 'rickshaw')"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

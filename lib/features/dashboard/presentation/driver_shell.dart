@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -6,18 +8,24 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../onboarding/models/driver_registration.dart';
+import '../data/driver_presence_service.dart';
 import 'driver_detail_screens.dart';
+import 'driver_map_camera.dart';
 
 class DriverShell extends StatefulWidget {
   const DriverShell({
+    this.driverId = '',
     required this.driverName,
+    this.reviewStatus = 'pending',
     required this.registration,
     this.onSignOut,
     this.mapBuilder,
     super.key,
   });
 
+  final String driverId;
   final String driverName;
+  final String reviewStatus;
   final DriverRegistration registration;
   final Future<void> Function()? onSignOut;
   final WidgetBuilder? mapBuilder;
@@ -33,7 +41,10 @@ class _DriverShellState extends State<DriverShell> {
   Widget build(BuildContext context) {
     final List<Widget> pages = <Widget>[
       _RequestsPage(
+        driverId: widget.driverId,
         driverName: widget.driverName,
+        reviewStatus: widget.reviewStatus,
+        vehicleType: widget.registration.vehicleType,
         mapBuilder: widget.mapBuilder,
       ),
       const _PoolPage(),
@@ -92,104 +103,411 @@ class _DriverShellState extends State<DriverShell> {
   }
 }
 
-class _RequestsPage extends StatelessWidget {
-  const _RequestsPage({required this.driverName, this.mapBuilder});
+class _RequestsPage extends StatefulWidget {
+  const _RequestsPage({
+    required this.driverId,
+    required this.driverName,
+    required this.reviewStatus,
+    required this.vehicleType,
+    this.mapBuilder,
+  });
 
+  final String driverId;
   final String driverName;
+  final String reviewStatus;
+  final String vehicleType;
   final WidgetBuilder? mapBuilder;
 
   @override
+  State<_RequestsPage> createState() => _RequestsPageState();
+}
+
+class _RequestsPageState extends State<_RequestsPage> {
+  final GlobalKey _mapBoundsKey = GlobalKey();
+  final GlobalKey _availabilityKey = GlobalKey();
+  final GlobalKey _progressKey = GlobalKey();
+  EdgeInsets _cameraInsets = const EdgeInsets.only(top: 96, bottom: 340);
+  double _attributionBottom = 8;
+  bool _measurementScheduled = false;
+
+  void _scheduleViewportMeasurement() {
+    if (_measurementScheduled) return;
+    _measurementScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measurementScheduled = false;
+      if (!mounted) return;
+      final RenderObject? mapObject = _mapBoundsKey.currentContext
+          ?.findRenderObject();
+      final RenderObject? availabilityObject = _availabilityKey.currentContext
+          ?.findRenderObject();
+      final RenderObject? progressObject = _progressKey.currentContext
+          ?.findRenderObject();
+      if (mapObject is! RenderBox ||
+          availabilityObject is! RenderBox ||
+          progressObject is! RenderBox ||
+          !mapObject.hasSize ||
+          !availabilityObject.hasSize ||
+          !progressObject.hasSize) {
+        return;
+      }
+
+      final double mapTop = mapObject.localToGlobal(Offset.zero).dy;
+      final double headerBottom = availabilityObject
+          .localToGlobal(Offset(0, availabilityObject.size.height))
+          .dy;
+      final double panelTop = progressObject.localToGlobal(Offset.zero).dy;
+      final EdgeInsets cameraInsets = EdgeInsets.only(
+        top: headerBottom - mapTop + 8,
+        bottom: mapTop + mapObject.size.height - panelTop + 8,
+      );
+      final double attributionBottom = MediaQuery.paddingOf(context).bottom + 8;
+      if (_cameraInsets != cameraInsets ||
+          _attributionBottom != attributionBottom) {
+        setState(() {
+          _cameraInsets = cameraInsets;
+          _attributionBottom = attributionBottom;
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: <Widget>[
-        mapBuilder?.call(context) ?? const _DriverMap(),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-            child: Column(
-              children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 13,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        _scheduleViewportMeasurement();
+        return Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            SizedBox.expand(
+              key: _mapBoundsKey,
+              child:
+                  widget.mapBuilder?.call(context) ??
+                  _DriverMap(
+                    cameraInsets: _cameraInsets,
+                    attributionBottom: _attributionBottom,
                   ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
+            ),
+            NotificationListener<SizeChangedLayoutNotification>(
+              onNotification: (_) {
+                _scheduleViewportMeasurement();
+                return true;
+              },
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      Icon(Icons.schedule_rounded),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Verification in progress',
-                              style: TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                            Text('Usually completed within a few minutes'),
-                          ],
+                      SizeChangedLayoutNotifier(
+                        child: SizedBox(
+                          key: _availabilityKey,
+                          child: _DriverAvailabilityCard(
+                            driverId: widget.driverId,
+                            reviewStatus: widget.reviewStatus,
+                            vehicleType: widget.vehicleType,
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(26),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Welcome, ${driverName.split(' ').first}',
-                        style: Theme.of(context).textTheme.headlineMedium,
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder:
+                              (BuildContext context, BoxConstraints bounds) {
+                                // Preserve some map above the scrollable card.
+                                final double mapGap = (bounds.maxHeight * 0.35)
+                                    .clamp(0.0, 112.0)
+                                    .toDouble();
+                                return Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxHeight: bounds.maxHeight - mapGap,
+                                    ),
+                                    child: SizeChangedLayoutNotifier(
+                                      child: SizedBox(
+                                        key: _progressKey,
+                                        child: _buildProgressCard(context),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                        ),
                       ),
-                      const SizedBox(height: 14),
-                      const _ProgressRow(
-                        title: 'Registration',
-                        subtitle: 'Complete',
-                        complete: true,
-                      ),
-                      const _ProgressRow(
-                        title: 'Driver documents',
-                        subtitle: 'Under review',
-                        complete: true,
-                      ),
-                      const _ProgressRow(
-                        title: 'Device setup',
-                        subtitle: 'Ready',
-                        complete: true,
-                        showLine: false,
+                      // Transparent space for the SDK's own logo and copyright.
+                      // NavigationBar sits outside the map body, below this.
+                      const SizedBox(
+                        key: Key('driverMapAttributionClearance'),
+                        height: 56,
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildProgressCard(BuildContext context) {
+    return Container(
+      key: const Key('driverProgressCard'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(26),
+      ),
+      child: SingleChildScrollView(
+        key: const Key('driverProgressScroll'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Welcome, ${widget.driverName.split(' ').first}',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 14),
+            const _ProgressRow(
+              title: 'Registration',
+              subtitle: 'Complete',
+              complete: true,
+            ),
+            const _ProgressRow(
+              title: 'Driver documents',
+              subtitle: 'Submitted',
+              complete: true,
+            ),
+            _ProgressRow(
+              title: 'Account approval',
+              subtitle: _reviewLabel(widget.reviewStatus),
+              complete: DriverAvailabilityPolicy.canGoOnline(
+                widget.reviewStatus,
+              ),
+            ),
+            const _ProgressRow(
+              title: 'Device setup',
+              subtitle: 'Ready',
+              complete: true,
+              showLine: false,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _reviewLabel(String status) {
+    switch (status.trim().toLowerCase()) {
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Needs attention';
+      default:
+        return 'Under review';
+    }
+  }
+}
+
+class _DriverAvailabilityCard extends StatefulWidget {
+  const _DriverAvailabilityCard({
+    required this.driverId,
+    required this.reviewStatus,
+    required this.vehicleType,
+  });
+
+  final String driverId;
+  final String reviewStatus;
+  final String vehicleType;
+
+  @override
+  State<_DriverAvailabilityCard> createState() =>
+      _DriverAvailabilityCardState();
+}
+
+class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
+  DriverPresenceService? _presence;
+
+  bool _changing = false;
+
+  DriverPresenceService get _service =>
+      _presence ??= DriverPresenceService.instance;
+
+  bool get _approved =>
+      DriverAvailabilityPolicy.canGoOnline(widget.reviewStatus);
+
+  @override
+  void dispose() {
+    final DriverPresenceService? presence = _presence;
+    if (presence != null) {
+      unawaited(presence.goOffline());
+    }
+    super.dispose();
+  }
+
+  Future<void> _setOnline(bool online) async {
+    if (_changing) return;
+
+    setState(() => _changing = true);
+    try {
+      if (online) {
+        await _service.goOnline(
+          driverId: widget.driverId,
+          reviewStatus: widget.reviewStatus,
+          vehicleType: widget.vehicleType,
+        );
+      } else {
+        await _service.goOffline();
+      }
+    } on DriverPresenceException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Alpha Plus could not update your availability. Check your connection and try again.',
             ),
           ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _changing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_approved || widget.driverId.isEmpty) {
+      final bool rejected = widget.reviewStatus.toLowerCase() == 'rejected';
+      return _AvailabilitySurface(
+        child: Row(
+          children: <Widget>[
+            Icon(
+              rejected ? Icons.error_outline_rounded : Icons.schedule_rounded,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    rejected
+                        ? 'Verification needs attention'
+                        : 'Verification in progress',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    rejected
+                        ? 'Open Profile to review the required steps'
+                        : 'You can go online immediately after approval',
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      );
+    }
+
+    return StreamBuilder<bool>(
+      stream: _service.watchOnlineState(widget.driverId),
+      initialData: false,
+      builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+        final bool isOnline = snapshot.data ?? false;
+
+        return _AvailabilitySurface(
+          child: Row(
+            children: <Widget>[
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: isOnline ? AppColors.primary : Colors.grey,
+                  shape: BoxShape.circle,
+                  boxShadow: isOnline
+                      ? <BoxShadow>[
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.45),
+                            blurRadius: 10,
+                          ),
+                        ]
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      isOnline ? 'You are online' : 'You are offline',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      isOnline
+                          ? 'Your live location is visible for nearby requests'
+                          : 'Go online when you are ready to drive',
+                    ),
+                  ],
+                ),
+              ),
+              if (_changing)
+                const SizedBox.square(
+                  dimension: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                )
+              else
+                Switch.adaptive(value: isOnline, onChanged: _setOnline),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AvailabilitySurface extends StatelessWidget {
+  const _AvailabilitySurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }
 
 class _DriverMap extends StatefulWidget {
-  const _DriverMap();
+  const _DriverMap({
+    required this.cameraInsets,
+    required this.attributionBottom,
+  });
+
+  final EdgeInsets cameraInsets;
+  final double attributionBottom;
 
   @override
   State<_DriverMap> createState() => _DriverMapState();
@@ -197,11 +515,20 @@ class _DriverMap extends StatefulWidget {
 
 class _DriverMapState extends State<_DriverMap> {
   static const LatLng _jubaCenter = LatLng(4.8517, 31.5825);
+  static const double _overviewZoom = 16;
+  static const double _focusedZoom = 17;
 
   GoogleMapController? _mapController;
   LatLng _driverLocation = _jubaCenter;
   bool _locationGranted = false;
   bool _findingLocation = true;
+
+  EdgeInsets get _mapPadding => EdgeInsets.fromLTRB(
+    8,
+    widget.cameraInsets.top,
+    8,
+    widget.attributionBottom,
+  );
 
   bool get _supportsGoogleMap =>
       kIsWeb ||
@@ -213,6 +540,41 @@ class _DriverMapState extends State<_DriverMap> {
     super.initState();
     if (_supportsGoogleMap) {
       _locateDriver(requestPermission: false);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _DriverMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cameraInsets != widget.cameraInsets ||
+        oldWidget.attributionBottom != widget.attributionBottom) {
+      // Let the GoogleMap child send its updated native padding first.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_frameDriver(animate: false));
+      });
+    }
+  }
+
+  Future<void> _frameDriver({bool animate = true}) async {
+    final GoogleMapController? controller = _mapController;
+    if (controller == null || !mounted) return;
+    final CameraUpdate update = CameraUpdate.newCameraPosition(
+      driverMapCameraPosition(
+        location: _driverLocation,
+        zoom: _locationGranted ? _focusedZoom : _overviewZoom,
+        viewportInsets: widget.cameraInsets,
+        mapPadding: _mapPadding,
+      ),
+    );
+    try {
+      if (animate) {
+        await controller.animateCamera(update);
+      } else {
+        await controller.moveCamera(update);
+      }
+    } on Object {
+      // A map can be disposed while a viewport update is in flight.
+      // The location button can retry when the map is available again.
     }
   }
 
@@ -277,11 +639,7 @@ class _DriverMapState extends State<_DriverMap> {
         _locationGranted = true;
         _findingLocation = false;
       });
-      await _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: location, zoom: 16),
-        ),
-      );
+      await _frameDriver();
     } on Object {
       if (mounted) {
         setState(() => _findingLocation = false);
@@ -310,25 +668,24 @@ class _DriverMapState extends State<_DriverMap> {
     }
 
     return Stack(
+      fit: StackFit.expand,
       children: <Widget>[
         GoogleMap(
-          initialCameraPosition: const CameraPosition(
-            target: _jubaCenter,
-            zoom: 15,
+          initialCameraPosition: driverMapCameraPosition(
+            location: _jubaCenter,
+            zoom: _overviewZoom,
+            viewportInsets: widget.cameraInsets,
+            mapPadding: _mapPadding,
           ),
           onMapCreated: (GoogleMapController controller) {
             _mapController = controller;
-            if (_locationGranted) {
-              controller.animateCamera(
-                CameraUpdate.newCameraPosition(
-                  CameraPosition(target: _driverLocation, zoom: 16),
-                ),
-              );
-            }
+            unawaited(_frameDriver(animate: false));
           },
+          padding: _mapPadding,
           myLocationEnabled: _locationGranted,
           myLocationButtonEnabled: false,
           zoomControlsEnabled: false,
+          minMaxZoomPreference: const MinMaxZoomPreference(12, 20),
           compassEnabled: true,
           mapToolbarEnabled: false,
           trafficEnabled: false,
@@ -342,7 +699,7 @@ class _DriverMapState extends State<_DriverMap> {
           polylines: const <Polyline>{},
         ),
         Positioned(
-          top: 104,
+          top: widget.cameraInsets.top + 8,
           right: 16,
           child: Material(
             color: Theme.of(context).colorScheme.surface,

@@ -39,6 +39,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   }
 
   Future<void> _continue() async {
+    if (_submitting) return;
     if (!_isValid) {
       _phoneFocus.requestFocus();
       setState(() {
@@ -161,31 +162,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return OnboardingScaffold(
+      authStyle: true,
       showBackButton: false,
       centerHeader: true,
-      header: Container(
-        width: 144,
-        height: 144,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.08),
-          shape: BoxShape.circle,
-        ),
-        child: Container(
-          width: 104,
-          height: 104,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.16),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.phone_rounded,
-            size: 54,
-            color: AppColors.ink,
-          ),
-        ),
-      ),
+      header: const AuthHeaderIcon(icon: Icons.phone_rounded),
       title: 'Enter your phone number',
       subtitle:
           'We’ll send you a verification code by SMS to confirm your number.',
@@ -212,6 +192,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
           TextField(
             key: const Key('phoneField'),
             controller: _phoneController,
+            enabled: !_submitting,
             focusNode: _phoneFocus,
             autofocus: false,
             keyboardType: TextInputType.phone,

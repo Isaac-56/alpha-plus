@@ -1,27 +1,30 @@
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  },
-  "storage": {
-    "rules": "storage.rules"
-  },
-  "flutter": {
-    "platforms": {
-      "android": {
-        "default": {
-          "projectId": "alpha-ride-29708",
-          "appId": "1:486103357366:android:2326bbe4b1505b237f1317",
-          "fileOutput": "android/app/google-services.json"
-        }
-      },
-      "dart": {
-        "lib/firebase_options.dart": {
-          "projectId": "alpha-ride-29708",
-          "configurations": {
-            "android": "1:486103357366:android:2326bbe4b1505b237f1317"
-          }
-        }
-      }
-    }
-  }
+    "firestore":  {
+                      "rules":  "firestore.rules"
+                  },
+    "storage":  {
+                    "rules":  "storage.rules"
+                },
+    "flutter":  {
+                    "platforms":  {
+                                      "android":  {
+                                                      "default":  {
+                                                                      "projectId":  "alpha-ride-29708",
+                                                                      "appId":  "1:486103357366:android:2326bbe4b1505b237f1317",
+                                                                      "fileOutput":  "android/app/google-services.json"
+                                                                  }
+                                                  },
+                                      "dart":  {
+                                                   "lib/firebase_options.dart":  {
+                                                                                     "projectId":  "alpha-ride-29708",
+                                                                                     "configurations":  {
+                                                                                                            "android":  "1:486103357366:android:2326bbe4b1505b237f1317"
+                                                                                                        }
+                                                                                 }
+                                               }
+                                  }
+                },
+    "database":  {
+                     "rules":  "database.rules.json"
+                 }
 }

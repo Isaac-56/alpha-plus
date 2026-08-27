@@ -1,3 +1,5 @@
+import java.util.Properties as AlphaPlusMapsBuildProperties
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -22,7 +24,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // ML Kit face detection requires Android API 21 or newer.
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -46,3 +48,31 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// BEGIN ALPHA PLUS MAPS KEY WIRING v1
+// Keep the restricted Maps key in android/secrets.properties, outside Git.
+android {
+    defaultConfig {
+        val alphaPlusMapsProperties = AlphaPlusMapsBuildProperties()
+        val alphaPlusMapsSecretsFile = rootProject.file("secrets.properties")
+        if (alphaPlusMapsSecretsFile.exists()) {
+            alphaPlusMapsSecretsFile.inputStream().use {
+                alphaPlusMapsProperties.load(it)
+            }
+        }
+
+        val alphaPlusMapsKey = alphaPlusMapsProperties.getProperty("MAPS_API_KEY")
+            ?.trim()?.takeIf { it.isNotEmpty() }
+            ?: providers.environmentVariable("MAPS_API_KEY").orNull
+                ?.trim()?.takeIf { it.isNotEmpty() }
+
+        if (alphaPlusMapsKey == null) {
+            throw GradleException(
+                "MAPS_API_KEY is missing. Add it to android/secrets.properties " +
+                    "or set the MAPS_API_KEY environment variable before building.",
+            )
+        }
+        manifestPlaceholders["MAPS_API_KEY"] = alphaPlusMapsKey
+    }
+}
+// END ALPHA PLUS MAPS KEY WIRING v1
