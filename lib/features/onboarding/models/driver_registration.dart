@@ -1,6 +1,10 @@
 class DriverRegistration {
   DriverRegistration();
 
+  static const String ridesService = 'rides';
+
+  String serviceType = ridesService;
+
   String vehicleType = '';
   String make = '';
   String model = '';
@@ -13,6 +17,8 @@ class DriverRegistration {
   String licenceLastName = '';
   String licenceNumber = '';
   String licenceIssueDate = '';
+
+  bool get serviceComplete => serviceType.trim().isNotEmpty;
 
   bool get vehicleComplete =>
       vehicleType.isNotEmpty &&
@@ -31,6 +37,7 @@ class DriverRegistration {
 
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
+      'serviceType': serviceType,
       'vehicleType': vehicleType,
       'make': make,
       'model': model,
@@ -49,6 +56,8 @@ class DriverRegistration {
     final Map<String, dynamic> values = data ?? <String, dynamic>{};
 
     return DriverRegistration()
+      ..serviceType =
+          values['serviceType'] as String? ?? DriverRegistration.ridesService
       ..vehicleType = values['vehicleType'] as String? ?? ''
       ..make = values['make'] as String? ?? ''
       ..model = values['model'] as String? ?? ''

@@ -22,7 +22,11 @@ class _ServiceRegistrationScreenState extends State<ServiceRegistrationScreen> {
   void _continue() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => StageOneCompleteScreen(driverName: widget.driverName),
+        builder: (_) => StageOneCompleteScreen(
+          driverName: widget.driverName,
+          selectedServiceLabel: 'Passenger rides',
+          registrationCity: 'Juba, South Sudan',
+        ),
       ),
     );
   }
@@ -30,55 +34,130 @@ class _ServiceRegistrationScreenState extends State<ServiceRegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return OnboardingScaffold(
+      authStyle: true,
       title: 'Choose how you’ll earn',
-      subtitle: 'Start in Juba. You can add more approved services later.',
+      subtitle:
+          'Start with passenger rides in Juba. More approved services will appear here when they are ready.',
       bottom: ElevatedButton(
+        key: const Key('continueServiceRegistration'),
         onPressed: _continue,
         child: const Text('Continue'),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Material(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 18,
-                vertical: 6,
-              ),
-              leading: const Icon(Icons.location_city_rounded),
-              title: const Text('Registration city'),
-              subtitle: const Text('Juba, South Sudan'),
-              trailing: const Icon(Icons.keyboard_arrow_right_rounded),
-            ),
-          ),
+          const _RegistrationCityCard(),
           const SizedBox(height: 28),
           Text(
             'Choose a service',
-            style: Theme.of(context).textTheme.headlineMedium,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'You can add another service later after it becomes available.',
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 16),
           _ServiceCard(
+            key: const Key('passengerRidesService'),
             selected: _selected == DriverService.rides,
             icon: Icons.local_taxi_rounded,
-            title: 'Driver',
-            description: 'Accept passenger trips and drive with Alpha Plus.',
+            title: 'Passenger rides',
+            description: 'Accept trip requests and drive with Alpha Plus.',
             badge: 'Available',
             onTap: () => setState(() => _selected = DriverService.rides),
           ),
           const SizedBox(height: 14),
-          _ServiceCard(
-            selected: _selected == DriverService.delivery,
+          const _ServiceCard(
+            key: Key('deliveryService'),
+            selected: false,
             icon: Icons.delivery_dining_rounded,
             title: 'Delivery',
-            description: 'Deliver parcels using a car, boda or rickshaw.',
+            description: 'Parcel delivery will be added in a future update.',
             badge: 'Coming soon',
             enabled: false,
-            onTap: () {},
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RegistrationCityCard extends StatelessWidget {
+  const _RegistrationCityCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colors = theme.colorScheme;
+    final bool stackStatus =
+        MediaQuery.sizeOf(context).width < 380 ||
+        MediaQuery.textScalerOf(context).scale(16) > 20;
+
+    final Widget details = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          width: 48,
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: colors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Icon(Icons.location_city_rounded, color: colors.onSurface),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'Registration city',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text('Juba, South Sudan', style: theme.textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    const Widget status = _StatusBadge(
+      label: 'Launch city',
+      icon: Icons.lock_outline_rounded,
+    );
+
+    return Container(
+      key: const Key('registrationCityCard'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: stackStatus
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                details,
+                const SizedBox(height: 12),
+                const Align(alignment: Alignment.centerRight, child: status),
+              ],
+            )
+          : Row(
+              children: <Widget>[
+                Expanded(child: details),
+                const SizedBox(width: 16),
+                status,
+              ],
+            ),
     );
   }
 }
@@ -90,8 +169,9 @@ class _ServiceCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.badge,
-    required this.onTap,
+    this.onTap,
     this.enabled = true,
+    super.key,
   });
 
   final bool selected;
@@ -99,104 +179,193 @@ class _ServiceCard extends StatelessWidget {
   final String title;
   final String description;
   final String badge;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool enabled;
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colors = theme.colorScheme;
     final Color foreground = enabled
-        ? Theme.of(context).colorScheme.onSurface
-        : Theme.of(context).textTheme.bodyMedium!.color!;
+        ? colors.onSurface
+        : colors.onSurface.withValues(alpha: 0.58);
 
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 180),
-      opacity: enabled ? 1 : 0.62,
-      child: Material(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: enabled ? onTap : null,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      selected: selected,
+      label: '$title, $badge',
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 180),
+        opacity: enabled ? 1 : 0.62,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: enabled ? onTap : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
                 color: selected
-                    ? AppColors.primary
-                    : Theme.of(context).dividerColor,
-                width: selected ? 2 : 1,
+                    ? colors.primary.withValues(alpha: 0.06)
+                    : colors.surface,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: selected ? AppColors.primary : theme.dividerColor,
+                  width: selected ? 2 : 1,
+                ),
               ),
-            ),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.primary.withValues(alpha: 0.18)
-                        : Theme.of(context).scaffoldBackgroundColor,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Icon(icon, size: 30, color: foreground),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final bool stackStatus =
+                      constraints.maxWidth < 360 ||
+                      MediaQuery.textScalerOf(context).scale(16) > 20;
+                  final Widget details = _ServiceDetails(
+                    icon: icon,
+                    title: title,
+                    description: description,
+                    selected: selected,
+                    foreground: foreground,
+                  );
+                  final Widget status = Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(color: foreground),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 9,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? AppColors.primary.withValues(alpha: 0.18)
-                                  : Theme.of(context).scaffoldBackgroundColor,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              badge,
-                              style: TextStyle(
-                                color: foreground,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        description,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
+                      _StatusBadge(label: badge, emphasized: selected),
+                      if (selected)
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.primary,
+                        ),
                     ],
-                  ),
-                ),
-                if (selected) ...<Widget>[
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.check_circle_rounded,
-                    color: AppColors.primary,
-                  ),
-                ],
-              ],
+                  );
+
+                  if (stackStatus) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        details,
+                        const SizedBox(height: 12),
+                        Align(alignment: Alignment.centerRight, child: status),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: <Widget>[
+                      Expanded(child: details),
+                      const SizedBox(width: 16),
+                      status,
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ServiceDetails extends StatelessWidget {
+  const _ServiceDetails({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.selected,
+    required this.foreground,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final bool selected;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          width: 54,
+          height: 54,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primary.withValues(alpha: 0.18)
+                : theme.scaffoldBackgroundColor,
+            borderRadius: BorderRadius.circular(17),
+          ),
+          child: Icon(icon, size: 29, color: foreground),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                description,
+                style: theme.textTheme.bodyMedium?.copyWith(color: foreground),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.label, this.icon, this.emphasized = false});
+
+  final String label;
+  final IconData? icon;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+    final Color foreground = emphasized
+        ? colors.onSurface
+        : colors.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: emphasized
+            ? colors.primary.withValues(alpha: 0.16)
+            : colors.onSurface.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (icon != null) ...<Widget>[
+            Icon(icon, size: 14, color: foreground),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: foreground,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
