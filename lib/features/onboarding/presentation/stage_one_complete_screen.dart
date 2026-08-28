@@ -2,26 +2,46 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/onboarding_scaffold.dart';
+import '../models/driver_registration.dart';
 import 'vehicle_setup_screen.dart';
 
 class StageOneCompleteScreen extends StatelessWidget {
   const StageOneCompleteScreen({
     required this.driverName,
-    this.selectedServiceLabel = 'Passenger rides',
+    this.registration,
     this.registrationCity = 'Juba, South Sudan',
     super.key,
   });
 
   final String driverName;
-  final String selectedServiceLabel;
+
+  /// Registration data collected so far.
+  ///
+  /// Optional temporarily for compatibility with existing tests and direct
+  /// previews. The normal onboarding flow always supplies this object from
+  /// ServiceRegistrationScreen.
+  final DriverRegistration? registration;
+
   final String registrationCity;
 
   String get _firstName {
     final String normalized = driverName.trim();
+
     if (normalized.isEmpty) {
       return 'Driver';
     }
+
     return normalized.split(RegExp(r'\s+')).first;
+  }
+
+  String get _serviceLabel {
+    switch (registration?.serviceType) {
+      case DriverRegistration.ridesService:
+      case null:
+        return 'Passenger rides';
+      default:
+        return 'Passenger rides';
+    }
   }
 
   @override
@@ -51,7 +71,7 @@ class StageOneCompleteScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             _SelectionSummaryCard(
-              service: selectedServiceLabel,
+              service: _serviceLabel,
               city: registrationCity,
             ),
             const SizedBox(height: 16),
@@ -100,6 +120,7 @@ class _SelectionSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colors = theme.colorScheme;
+
     return Container(
       key: const Key('stageOneSelectionSummary'),
       padding: const EdgeInsets.all(18),
@@ -150,6 +171,7 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colors = theme.colorScheme;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -196,6 +218,7 @@ class _NextStageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
