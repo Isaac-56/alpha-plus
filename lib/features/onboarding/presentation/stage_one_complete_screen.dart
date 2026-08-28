@@ -14,14 +14,7 @@ class StageOneCompleteScreen extends StatelessWidget {
   });
 
   final String driverName;
-
-  /// Registration data collected so far.
-  ///
-  /// Optional temporarily for compatibility with existing tests and direct
-  /// previews. The normal onboarding flow always supplies this object from
-  /// ServiceRegistrationScreen.
   final DriverRegistration? registration;
-
   final String registrationCity;
 
   String get _firstName {
@@ -44,6 +37,22 @@ class StageOneCompleteScreen extends StatelessWidget {
     }
   }
 
+  void _continue(BuildContext context) {
+    // Normal onboarding already supplies the registration created on the
+    // service-selection page. The fallback keeps direct previews/tests safe.
+    final DriverRegistration activeRegistration =
+        registration ?? DriverRegistration();
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VehicleSetupScreen(
+          driverName: driverName,
+          registration: activeRegistration,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -58,13 +67,7 @@ class StageOneCompleteScreen extends StatelessWidget {
             'Your Alpha Plus identity is ready. Review your first service, then continue with vehicle and document registration.',
         bottom: ElevatedButton(
           key: const Key('continueToVehicleSetup'),
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => VehicleSetupScreen(driverName: driverName),
-              ),
-            );
-          },
+          onPressed: () => _continue(context),
           child: const Text('Continue to vehicle setup'),
         ),
         child: Column(

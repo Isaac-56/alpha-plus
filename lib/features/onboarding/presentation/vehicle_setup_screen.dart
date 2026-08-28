@@ -8,20 +8,32 @@ import 'licence_information_screen.dart';
 import 'registration_option_screen.dart';
 
 class VehicleSetupScreen extends StatefulWidget {
-  const VehicleSetupScreen({required this.driverName, super.key});
+  const VehicleSetupScreen({
+    required this.driverName,
+    this.registration,
+    super.key,
+  });
 
   final String driverName;
+
+  /// The registration object created earlier in onboarding.
+  ///
+  /// Optional temporarily so direct previews and older tests can still open
+  /// this screen safely.
+  final DriverRegistration? registration;
 
   @override
   State<VehicleSetupScreen> createState() => _VehicleSetupScreenState();
 }
 
 class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
-  final DriverRegistration _registration = DriverRegistration();
+  late final DriverRegistration _registration;
+
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _plateController = TextEditingController();
 
   static const List<String> _vehicleTypes = <String>['Car', 'Boda', 'Rickshaw'];
+
   static const List<String> _makes = <String>[
     'Toyota',
     'Nissan',
@@ -33,6 +45,7 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
     'TVS',
     'Other',
   ];
+
   static const List<String> _models = <String>[
     'Corolla',
     'Vitz',
@@ -47,6 +60,7 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
     'RE4S',
     'Other',
   ];
+
   static const Map<String, Color> _colors = <String, Color>{
     'White': Color(0xFFF7F7F4),
     'Black': Color(0xFF171917),
@@ -60,6 +74,20 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
     'Yellow': Color(0xFFFFD836),
     'Other': Color(0xFFE9ECE9),
   };
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Keep using the SAME registration object received from the previous
+    // onboarding step instead of silently creating a replacement.
+    _registration = widget.registration ?? DriverRegistration();
+
+    // Restore any previously entered values if this screen is opened with an
+    // existing registration object.
+    _yearController.text = _registration.manufactureYear;
+    _plateController.text = _registration.plateNumber;
+  }
 
   @override
   void dispose() {
@@ -85,6 +113,7 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
         ),
       ),
     );
+
     if (result != null && mounted) {
       setState(() => onSelected(result));
     }
@@ -92,14 +121,16 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
 
   void _continue() {
     _registration
-      ..manufactureYear = _yearController.text
+      ..manufactureYear = _yearController.text.trim()
       ..plateNumber = _plateController.text.trim().toUpperCase();
+
     if (!_registration.vehicleComplete) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Complete every vehicle detail first.')),
       );
       return;
     }
+
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => LicenceInformationScreen(
@@ -116,6 +147,7 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
       title: 'Enter your vehicle details',
       subtitle: 'Tell us about the vehicle you own or rent for trips.',
       bottom: ElevatedButton(
+        key: const Key('continueVehicleSetup'),
         onPressed: _continue,
         child: const Text('Continue'),
       ),
@@ -171,8 +203,9 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                             title: 'Model',
                             options: _models,
                             selected: _registration.model,
-                            onSelected: (String value) =>
-                                _registration.model = value,
+                            onSelected: (String value) {
+                              _registration.model = value;
+                            },
                           ),
                   ),
                   _PickerRow(
@@ -185,7 +218,9 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                       options: _colors.keys.toList(),
                       selected: _registration.color,
                       colors: _colors,
-                      onSelected: (String value) => _registration.color = value,
+                      onSelected: (String value) {
+                        _registration.color = value;
+                      },
                     ),
                   ),
                   _InputRow(
@@ -234,6 +269,7 @@ class _VehicleIllustration extends StatelessWidget {
       'Rickshaw' => Icons.electric_rickshaw_rounded,
       _ => Icons.directions_car_filled_rounded,
     };
+
     return Container(
       height: 150,
       decoration: BoxDecoration(
@@ -284,6 +320,7 @@ class _PickerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool complete = value.isNotEmpty;
+
     return Column(
       children: <Widget>[
         Material(
