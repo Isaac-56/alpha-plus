@@ -296,6 +296,7 @@ class _DocumentSubmissionScreenState extends State<DocumentSubmissionScreen> {
           builder: (_) => DeviceSetupScreen(
             driverName: widget.driverName,
             registration: widget.registration,
+            userId: driverId,
           ),
         ),
       );
