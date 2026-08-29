@@ -20,6 +20,8 @@ void main() {
       expect(find.text('Delivery'), findsOneWidget);
       expect(find.text('Coming soon'), findsOneWidget);
 
+      await tester.ensureVisible(find.byKey(const Key('deliveryService')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('deliveryService')));
       await tester.pump();
       expect(find.text('Welcome, Test'), findsNothing);

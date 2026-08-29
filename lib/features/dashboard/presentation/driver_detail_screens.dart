@@ -28,40 +28,25 @@ class BalanceLimitScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          const _NoticeCard(
+            icon: Icons.info_outline_rounded,
+            text:
+                'Live driver balances and balance-limit enforcement are not connected in this build.',
+          ),
+          const SizedBox(height: 20),
           Text(
-            'Alpha Plus charges a service fee for each completed trip, but you do not have to pay it immediately.',
+            'When billing is enabled, this page can explain any verified account limit, service fees, settlements, and the action required before new requests are paused.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const SizedBox(height: 22),
-          Text(
-            'Your balance limit is the amount your driver account can owe. If the limit is exceeded, new trip requests will pause until your balance reaches the required level.',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 44),
-          Center(
-            child: Container(
-              width: 250,
-              height: 220,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Stack(
-                alignment: Alignment.center,
-                children: <Widget>[
-                  Icon(Icons.account_balance_wallet_rounded, size: 118),
-                  Positioned(
-                    right: 44,
-                    bottom: 42,
-                    child: CircleAvatar(
-                      radius: 34,
-                      backgroundColor: AppColors.primary,
-                      child: Icon(Icons.schedule_rounded, size: 34),
-                    ),
-                  ),
-                ],
-              ),
+          const SizedBox(height: 28),
+          Container(
+            height: 220,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(28),
             ),
+            child: const Icon(Icons.account_balance_wallet_outlined, size: 116),
           ),
         ],
       ),
@@ -810,17 +795,9 @@ class InviteDriverScreen extends StatelessWidget {
     return _DetailScaffold(
       title: 'Invite a friend',
       bottom: ElevatedButton.icon(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Referral sharing will be connected in the backend stage.',
-              ),
-            ),
-          );
-        },
-        icon: const Icon(Icons.ios_share_rounded),
-        label: const Text('Share invitation'),
+        onPressed: null,
+        icon: const Icon(Icons.schedule_rounded),
+        label: const Text('Referrals coming soon'),
       ),
       child: Column(
         children: <Widget>[
@@ -835,9 +812,15 @@ class InviteDriverScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            'Share Alpha Plus with trusted drivers in your community.',
+            'Referral codes and rewards are not active yet.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'This page will be enabled only after referral tracking and reward rules are connected and verified.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 18),
           Container(
@@ -857,13 +840,13 @@ class InviteDriverScreen extends StatelessWidget {
                       Text('Referral code'),
                       SizedBox(height: 4),
                       Text(
-                        'AVAILABLE SOON',
+                        'NOT AVAILABLE YET',
                         style: TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.copy_rounded),
+                Icon(Icons.hourglass_empty_rounded),
               ],
             ),
           ),
@@ -873,16 +856,8 @@ class InviteDriverScreen extends StatelessWidget {
   }
 }
 
-class DriverSettingsScreen extends StatefulWidget {
+class DriverSettingsScreen extends StatelessWidget {
   const DriverSettingsScreen({super.key});
-
-  @override
-  State<DriverSettingsScreen> createState() => _DriverSettingsScreenState();
-}
-
-class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
-  bool _tripAlerts = true;
-  bool _sound = true;
 
   @override
   Widget build(BuildContext context) {
@@ -890,40 +865,41 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
       title: 'Settings',
       child: Column(
         children: <Widget>[
-          // ALPHA PLUS QUICK UNLOCK SETTINGS v1
           const DriverBiometricSettingsTile(),
           Divider(color: Theme.of(context).dividerColor),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.notifications_active_outlined),
-            title: const Text('Trip request alerts'),
-            subtitle: const Text('Receive alerts while you are online'),
-            value: _tripAlerts,
-            activeTrackColor: AppColors.primary,
-            onChanged: (bool value) => setState(() => _tripAlerts = value),
+          const _InformationCard(
+            icon: Icons.notifications_active_outlined,
+            title: 'Trip request alerts',
+            subtitle:
+                'Alerts depend on device permission, driver availability, and connected trip services.',
           ),
-          Divider(color: Theme.of(context).dividerColor),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.volume_up_outlined),
-            title: const Text('Alert sounds'),
-            subtitle: const Text('Play a sound for new trip requests'),
-            value: _sound,
-            activeTrackColor: AppColors.primary,
-            onChanged: (bool value) => setState(() => _sound = value),
+          const SizedBox(height: 12),
+          const _InformationCard(
+            icon: Icons.volume_up_outlined,
+            title: 'Alert sounds',
+            subtitle:
+                'Sound controls will be enabled with verified trip-alert delivery.',
+            enabled: false,
+            trailing: _StatusPill(label: 'Soon', muted: true),
           ),
-          Divider(color: Theme.of(context).dividerColor),
-          _ActionTile(
+          const SizedBox(height: 12),
+          const _InformationCard(
             icon: Icons.language_rounded,
             title: 'Language',
             subtitle: 'English',
-            onTap: () => _comingSoon(context, 'Language selection'),
+            enabled: false,
+            trailing: _StatusPill(label: 'Soon', muted: true),
           ),
+          const SizedBox(height: 12),
           _ActionTile(
             icon: Icons.shield_outlined,
             title: 'Privacy and security',
-            subtitle: 'Permissions and account protection',
-            onTap: () => _comingSoon(context, 'Privacy settings'),
+            subtitle: 'Permissions, sessions, biometrics and driver data',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PrivacySecurityScreen(),
+              ),
+            ),
           ),
           _ActionTile(
             icon: Icons.info_outline_rounded,
@@ -941,137 +917,121 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
   }
 }
 
-class SupportConversationScreen extends StatefulWidget {
+class PrivacySecurityScreen extends StatelessWidget {
+  const PrivacySecurityScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const _DetailScaffold(
+      title: 'Privacy and security',
+      child: Column(
+        children: <Widget>[
+          _InformationCard(
+            icon: Icons.devices_rounded,
+            title: 'Active driver session',
+            subtitle:
+                'Alpha Plus is designed to keep one active driver session per account. A newer login can sign the older device out.',
+            trailing: _StatusPill(label: 'Protected'),
+          ),
+          SizedBox(height: 12),
+          _InformationCard(
+            icon: Icons.fingerprint_rounded,
+            title: 'Quick unlock',
+            subtitle:
+                'Biometric quick unlock is optional and applies only to this device. It does not replace backend account authorization.',
+          ),
+          SizedBox(height: 12),
+          _InformationCard(
+            icon: Icons.location_on_outlined,
+            title: 'Driver location',
+            subtitle:
+                'Location permissions are used for driver availability and positioning while the driver service is active.',
+          ),
+          SizedBox(height: 12),
+          _InformationCard(
+            icon: Icons.badge_outlined,
+            title: 'Documents and photo checks',
+            subtitle:
+                'Submitted driver documents and photo checks are uploaded for account verification. Final approval remains a review decision.',
+          ),
+          SizedBox(height: 20),
+          _NoticeCard(
+            icon: Icons.password_rounded,
+            text:
+                'Never share an OTP or sign-in code. Full production privacy notices, retention rules, account deletion, and deployed security rules must be verified before public launch.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SupportConversationScreen extends StatelessWidget {
   const SupportConversationScreen({this.title = 'Support', super.key});
 
   final String title;
 
   @override
-  State<SupportConversationScreen> createState() =>
-      _SupportConversationScreenState();
-}
-
-class _SupportConversationScreenState extends State<SupportConversationScreen> {
-  final TextEditingController _controller = TextEditingController();
-  final List<String> _messages = <String>[];
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _send() {
-    final String text = _controller.text.trim();
-    if (text.isEmpty) {
-      return;
-    }
-    setState(() => _messages.add(text));
-    _controller.clear();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: const Padding(
-          padding: EdgeInsets.all(6),
-          child: AlphaBackButton(),
-        ),
-        title: Text(widget.title),
-      ),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: <Widget>[
-            Expanded(
-              child: _messages.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            const CircleAvatar(
-                              radius: 42,
-                              backgroundColor: AppColors.primary,
-                              child: Icon(
-                                Icons.support_agent_rounded,
-                                size: 44,
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            Text(
-                              'How can we help?',
-                              style: Theme.of(context).textTheme.headlineMedium,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Send a message and the Alpha Plus support team will respond here.',
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(20),
-                      itemCount: _messages.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        return Align(
-                          alignment: Alignment.centerRight,
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 10, left: 54),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Text(
-                              _messages[index],
-                              style: const TextStyle(color: AppColors.ink),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+    return _DetailScaffold(
+      title: title,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Center(
+            child: CircleAvatar(
+              radius: 42,
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.support_agent_rounded, size: 44),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                16,
-                10,
-                16,
-                12 + MediaQuery.viewInsetsOf(context).bottom,
-              ),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      decoration: const InputDecoration(
-                        hintText: 'Message Support',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  IconButton.filled(
-                    onPressed: _send,
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                    ),
-                    icon: const Icon(Icons.send_rounded, color: AppColors.ink),
-                  ),
-                ],
+          ),
+          const SizedBox(height: 18),
+          Center(
+            child: Text(
+              'Support options',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'In-app support messaging is not connected in this build.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const _NoticeCard(
+            icon: Icons.info_outline_rounded,
+            text:
+                'No message typed in this build would be sent to a support team. Use the existing approved Alpha Plus support channel until in-app messaging is connected.',
+          ),
+          const SizedBox(height: 18),
+          _ActionTile(
+            icon: Icons.build_circle_outlined,
+            title: 'Troubleshooting',
+            subtitle: 'Location, trip alerts and connection checks',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const TroubleshootingScreen(),
               ),
             ),
-          ],
-        ),
+          ),
+          const _InformationCard(
+            icon: Icons.assignment_outlined,
+            title: 'When reporting a problem',
+            subtitle:
+                'Include the screen name, what you expected, what happened, and whether the issue repeats after reopening the app.',
+          ),
+          const SizedBox(height: 12),
+          const _InformationCard(
+            icon: Icons.security_rounded,
+            title: 'Protect your account',
+            subtitle:
+                'Support should never ask you to share an OTP, password, or unrestricted API key.',
+          ),
+        ],
       ),
     );
   }
@@ -1249,8 +1209,6 @@ class _InformationCard extends StatelessWidget {
               return details;
             }
 
-            // Give status badges their own bounded row when space is tight.
-            // Do not shrink text or let the badge consume the text column.
             final bool stackStatus =
                 constraints.maxWidth < 360 ||
                 MediaQuery.textScalerOf(context).scale(16) > 20;
@@ -1471,11 +1429,5 @@ void _showHelp(BuildContext context, String title, String message) {
         ),
       );
     },
-  );
-}
-
-void _comingSoon(BuildContext context, String feature) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('$feature will be connected in the next stage.')),
   );
 }

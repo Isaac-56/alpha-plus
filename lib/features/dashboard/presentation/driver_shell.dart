@@ -52,6 +52,7 @@ class _DriverShellState extends State<DriverShell> {
       const _ChatsPage(),
       _ProfilePage(
         driverName: widget.driverName,
+        reviewStatus: widget.reviewStatus,
         registration: widget.registration,
         onSignOut: widget.onSignOut,
       ),
@@ -81,14 +82,8 @@ class _DriverShellState extends State<DriverShell> {
               label: 'Money',
             ),
             NavigationDestination(
-              icon: Badge(
-                label: Text('1'),
-                child: Icon(Icons.chat_bubble_outline_rounded),
-              ),
-              selectedIcon: Badge(
-                label: Text('1'),
-                child: Icon(Icons.chat_bubble_rounded),
-              ),
+              icon: Icon(Icons.chat_bubble_outline_rounded),
+              selectedIcon: Icon(Icons.chat_bubble_rounded),
               label: 'Chats',
             ),
             NavigationDestination(
@@ -214,7 +209,6 @@ class _RequestsPageState extends State<_RequestsPage> {
                         child: LayoutBuilder(
                           builder:
                               (BuildContext context, BoxConstraints bounds) {
-                                // Preserve some map above the scrollable card.
                                 final double mapGap = (bounds.maxHeight * 0.35)
                                     .clamp(0.0, 112.0)
                                     .toDouble();
@@ -235,8 +229,6 @@ class _RequestsPageState extends State<_RequestsPage> {
                               },
                         ),
                       ),
-                      // Transparent space for the SDK's own logo and copyright.
-                      // NavigationBar sits outside the map body, below this.
                       const SizedBox(
                         key: Key('driverMapAttributionClearance'),
                         height: 56,
@@ -548,7 +540,6 @@ class _DriverMapState extends State<_DriverMap> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.cameraInsets != widget.cameraInsets ||
         oldWidget.attributionBottom != widget.attributionBottom) {
-      // Let the GoogleMap child send its updated native padding first.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_frameDriver(animate: false));
       });
@@ -573,8 +564,7 @@ class _DriverMapState extends State<_DriverMap> {
         await controller.moveCamera(update);
       }
     } on Object {
-      // A map can be disposed while a viewport update is in flight.
-      // The location button can retry when the map is available again.
+      // The native map can be disposed while a camera update is in flight.
     }
   }
 
@@ -803,14 +793,15 @@ class _PoolPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return _EmptyStatePage(
       title: 'Order pool',
-      icon: Icons.inbox_rounded,
-      headline: 'No trip requests right now',
-      description: 'New requests will appear here as soon as you are approved.',
-      buttonLabel: 'Update',
+      icon: Icons.route_outlined,
+      headline: 'No live requests yet',
+      description:
+          'Trip requests will appear here after your account is approved and live dispatch is enabled.',
+      buttonLabel: 'Refresh',
       onPressed: () {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Order pool refreshed.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No new trip requests yet.')),
+        );
       },
     );
   }
@@ -841,74 +832,81 @@ class _MoneyPage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 28),
-          Text(
-            'SSP 0',
-            style: Theme.of(
-              context,
-            ).textTheme.displaySmall?.copyWith(fontSize: 52),
-          ),
-          const Text(
-            'Today',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           _DashboardCard(
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(
-                "View other drivers' stats",
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: const Text('Complete trips to see your own'),
-              trailing: const Icon(Icons.keyboard_arrow_right_rounded),
-              onTap: () => _showComingSoon(context, 'Driver statistics'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.account_balance_wallet_outlined),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Earnings not available yet',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Completed-trip earnings and live balances will appear here when trip and payment services are connected.',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 14),
           _DashboardCard(
             child: Column(
               children: <Widget>[
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.lock_outline_rounded),
-                  title: const Text('Balance limit'),
-                  subtitle: const Text('Everything looks good'),
-                  trailing: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        '-SSP 0',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(Icons.keyboard_arrow_right_rounded),
-                    ],
+                  leading: const Icon(Icons.payments_outlined),
+                  title: const Text(
+                    'Payment methods',
+                    style: TextStyle(fontWeight: FontWeight.w800),
                   ),
-                  onTap: () => _openScreen(context, const BalanceLimitScreen()),
+                  subtitle: const Text(
+                    'Cash is configured for passenger rides. Digital methods are not enabled yet.',
+                  ),
+                  trailing: const Icon(Icons.keyboard_arrow_right_rounded),
+                  onTap: () =>
+                      _openScreen(context, const PaymentInformationScreen()),
                 ),
                 Divider(color: Theme.of(context).dividerColor),
-                const ListTile(
+                ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Balance'),
-                  trailing: Text(
-                    'SSP 0',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  leading: const Icon(Icons.lock_outline_rounded),
+                  title: const Text(
+                    'Balance limit',
+                    style: TextStyle(fontWeight: FontWeight.w800),
                   ),
+                  subtitle: const Text(
+                    'No live balance limit is being enforced from this screen.',
+                  ),
+                  trailing: const Icon(Icons.keyboard_arrow_right_rounded),
+                  onTap: () => _openScreen(context, const BalanceLimitScreen()),
                 ),
-                const SizedBox(height: 24),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text('Service partner'),
-                      SizedBox(height: 4),
-                      Text(
-                        'Alpha Plus South Sudan',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _DashboardCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Icon(Icons.info_outline_rounded),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Money values stay hidden until the app has a verified source of completed trips, fees, and settlements. Alpha Plus will not display placeholder balances as real account data.',
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
               ],
@@ -929,8 +927,16 @@ class _ChatsPage extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(24),
         children: <Widget>[
-          Text('Messages', style: Theme.of(context).textTheme.displaySmall),
-          const SizedBox(height: 20),
+          Text(
+            'Updates & support',
+            style: Theme.of(context).textTheme.displaySmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Driver information and support options are collected here. A live inbox is not connected yet.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 22),
           SizedBox(
             height: 142,
             child: ListView(
@@ -944,7 +950,7 @@ class _ChatsPage extends StatelessWidget {
                     const InformationMessageScreen(
                       title: 'Earn on your way',
                       body:
-                          'When requests go live, Alpha Plus can show trips that move you toward your chosen area.',
+                          'When live requests are enabled, Alpha Plus can surface trips that fit the driver service area and availability.',
                       icon: Icons.route_rounded,
                     ),
                   ),
@@ -957,7 +963,7 @@ class _ChatsPage extends StatelessWidget {
                     const InformationMessageScreen(
                       title: 'Safety first',
                       body:
-                          'Keep your vehicle roadworthy, follow local traffic rules, and use in-app Support whenever a trip feels unsafe.',
+                          'Keep your vehicle roadworthy, follow local traffic rules, and stop driving whenever conditions are unsafe.',
                       icon: Icons.health_and_safety_rounded,
                     ),
                   ),
@@ -974,39 +980,49 @@ class _ChatsPage extends StatelessWidget {
           const SizedBox(height: 24),
           _MessageTile(
             icon: Icons.support_agent_rounded,
-            title: 'Support',
+            title: 'Support options',
+            subtitle: 'Troubleshooting and current support status',
             color: AppColors.primary,
             onTap: () =>
                 _openScreen(context, const SupportConversationScreen()),
           ),
           _MessageTile(
             icon: Icons.newspaper_rounded,
-            title: 'Alpha Plus news',
-            subtitle: 'Welcome to the driver community',
+            title: 'Alpha Plus information',
+            subtitle: 'Driver onboarding and service guidance',
             onTap: () => _openScreen(
               context,
               const InformationMessageScreen(
-                title: 'Welcome to Alpha Plus',
+                title: 'Alpha Plus driver information',
                 body:
-                    'Your driver account is being prepared. Service updates and approval messages will appear here.',
+                    'Approval and service information shown in this build comes from your current driver profile. A live news feed is not connected yet.',
                 icon: Icons.newspaper_rounded,
               ),
             ),
           ),
           _MessageTile(
-            icon: Icons.notifications_active_rounded,
+            icon: Icons.notifications_none_rounded,
             title: 'Service notifications',
-            onTap: () => _showComingSoon(context, 'Service notifications'),
-          ),
-          _MessageTile(
-            icon: Icons.warning_amber_rounded,
-            title: 'Safety alerts',
+            subtitle: 'Live notification inbox not connected',
             onTap: () => _openScreen(
               context,
               const InformationMessageScreen(
-                title: 'Safety alerts',
+                title: 'Service notifications',
                 body:
-                    'Important safety notices for Juba and your active service area will appear here.',
+                    'This build does not yet have a live service-notification inbox. Important live messaging must be connected and verified before it is shown here.',
+                icon: Icons.notifications_none_rounded,
+              ),
+            ),
+          ),
+          _MessageTile(
+            icon: Icons.warning_amber_rounded,
+            title: 'Safety guidance',
+            onTap: () => _openScreen(
+              context,
+              const InformationMessageScreen(
+                title: 'Safety guidance',
+                body:
+                    'Safety notices will appear here only after a trusted live source is connected. For now, follow local road rules and approved Alpha Plus operating guidance.',
                 icon: Icons.warning_amber_rounded,
               ),
             ),
@@ -1020,13 +1036,26 @@ class _ChatsPage extends StatelessWidget {
 class _ProfilePage extends StatelessWidget {
   const _ProfilePage({
     required this.driverName,
+    required this.reviewStatus,
     required this.registration,
     this.onSignOut,
   });
 
   final String driverName;
+  final String reviewStatus;
   final DriverRegistration registration;
   final Future<void> Function()? onSignOut;
+
+  String _reviewLabel() {
+    switch (reviewStatus.trim().toLowerCase()) {
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Needs attention';
+      default:
+        return 'Under review';
+    }
+  }
 
   Future<void> _confirmSignOut(BuildContext context) async {
     final bool confirmed =
@@ -1080,6 +1109,7 @@ class _ProfilePage extends StatelessWidget {
                 ),
               ),
               IconButton.filledTonal(
+                tooltip: 'Invite a driver',
                 onPressed: () =>
                     _openScreen(context, const InviteDriverScreen()),
                 icon: const Icon(Icons.person_add_alt_1_rounded),
@@ -1093,8 +1123,6 @@ class _ProfilePage extends StatelessWidget {
                 LayoutBuilder(
                   key: const Key('driverServicesSummary'),
                   builder: (BuildContext context, BoxConstraints constraints) {
-                    // Keep the action out of ListTile.trailing. On small
-                    // screens or with enlarged text it needs its own row.
                     final bool stackButton =
                         constraints.maxWidth < 380 ||
                         MediaQuery.textScalerOf(context).scale(16) > 20;
@@ -1118,13 +1146,13 @@ class _ProfilePage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(
-                                'Driver',
+                                'Passenger rides',
                                 style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(fontWeight: FontWeight.w900),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Account under review',
+                                'Account ${_reviewLabel().toLowerCase()}',
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                             ],
@@ -1173,17 +1201,17 @@ class _ProfilePage extends StatelessWidget {
                   children: <Widget>[
                     Expanded(
                       child: _MetricCard(
-                        value: '+100',
-                        label: 'Priority',
-                        icon: Icons.bolt_rounded,
+                        value: '—',
+                        label: 'Trips',
+                        icon: Icons.route_rounded,
                       ),
                     ),
                     SizedBox(width: 12),
                     Expanded(
                       child: _MetricCard(
-                        value: '5.0',
+                        value: '—',
                         label: 'Rating',
-                        icon: Icons.star_rounded,
+                        icon: Icons.star_outline_rounded,
                       ),
                     ),
                   ],
@@ -1204,7 +1232,7 @@ class _ProfilePage extends StatelessWidget {
                 _ProfileAction(
                   icon: Icons.apps_rounded,
                   title: 'Services and options',
-                  value: '1 active',
+                  value: 'Passenger rides',
                   onTap: () =>
                       _openScreen(context, const DriverServicesScreen()),
                 ),
@@ -1279,6 +1307,12 @@ class _ProfilePage extends StatelessWidget {
             child: Column(
               children: <Widget>[
                 _ProfileAction(
+                  icon: Icons.support_agent_rounded,
+                  title: 'Support',
+                  onTap: () =>
+                      _openScreen(context, const SupportConversationScreen()),
+                ),
+                _ProfileAction(
                   icon: Icons.build_circle_outlined,
                   title: 'Troubleshooting',
                   onTap: () =>
@@ -1350,45 +1384,65 @@ class _EmptyStatePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(title, style: Theme.of(context).textTheme.displaySmall),
-            const Spacer(),
-            Center(
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final double minHeight = constraints.maxHeight > 48
+              ? constraints.maxHeight - 48
+              : 0;
+          final double topGap = (constraints.maxHeight * 0.12)
+              .clamp(24.0, 72.0)
+              .toDouble();
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: minHeight),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Container(
-                    width: 116,
-                    height: 116,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.18),
-                      shape: BoxShape.circle,
+                  Text(title, style: Theme.of(context).textTheme.displaySmall),
+                  SizedBox(height: topGap),
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                        children: <Widget>[
+                          Container(
+                            width: 116,
+                            height: 116,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.18),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(icon, size: 58),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            headline,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            description,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          const SizedBox(height: 18),
+                          FilledButton.tonalIcon(
+                            onPressed: onPressed,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: Text(buttonLabel),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Icon(icon, size: 58),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(headline, style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 6),
-                  Text(
-                    description,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 18),
-                  FilledButton.tonalIcon(
-                    onPressed: onPressed,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: Text(buttonLabel),
                   ),
                 ],
               ),
             ),
-            const Spacer(flex: 2),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -1621,10 +1675,4 @@ String _vehicleName(DriverRegistration registration) {
 
 void _openScreen(BuildContext context, Widget screen) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
-}
-
-void _showComingSoon(BuildContext context, String feature) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('$feature will be connected in the backend stage.')),
-  );
 }
