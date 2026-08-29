@@ -86,7 +86,7 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
       isScrollControlled: true,
       builder: (BuildContext context) {
         return SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -235,6 +235,83 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
     }
   }
 
+  Widget _buildSetupPanel(BuildContext context, {required bool ready}) {
+    return Container(
+      key: const Key('deviceSetupPanel'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            ready ? 'Your device is ready' : 'Set up your device',
+            style: Theme.of(context).textTheme.headlineLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            ready
+                ? 'You can now receive trip requests reliably.'
+                : 'Activate these settings so trip requests reach you while you’re online.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 22),
+          _PermissionTile(
+            key: const Key('screenOverlayPermission'),
+            title: 'Screen overlay',
+            subtitle: 'Show new trip requests over other apps',
+            complete: _overlayReady,
+            onTap: _openingSettings
+                ? null
+                : () => _explainPermission(overlay: true),
+          ),
+          Divider(height: 1, color: Theme.of(context).dividerColor),
+          _PermissionTile(
+            key: const Key('backgroundLocationPermission'),
+            title: 'Background location access',
+            subtitle: 'Keep your availability and position accurate',
+            complete: _backgroundLocationReady,
+            onTap: _openingSettings
+                ? null
+                : () => _explainPermission(overlay: false),
+          ),
+          const SizedBox(height: 20),
+          if (_errorMessage != null) ...<Widget>[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                _errorMessage!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+          ElevatedButton(
+            key: const Key('completeDeviceSetup'),
+            onPressed: ready && !_saving ? _finish : null,
+            child: _saving
+                ? const SizedBox.square(
+                    dimension: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  )
+                : Text(ready ? 'Open Alpha Plus' : 'Complete setup'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool ready = _overlayReady && _backgroundLocationReady;
@@ -245,103 +322,43 @@ class _DeviceSetupScreenState extends State<DeviceSetupScreen>
         children: <Widget>[
           const _DriverBackdrop(),
           SafeArea(
-            child: Column(
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton.filled(
-                      onPressed: Navigator.of(context).pop,
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppColors.ink,
-                      ),
-                      icon: const Icon(Icons.arrow_back_rounded),
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final double heroGap = (constraints.maxHeight * 0.22)
+                    .clamp(80.0, 180.0)
+                    .toDouble();
+
+                return SingleChildScrollView(
+                  key: const Key('deviceSetupScroll'),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
                     ),
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 18),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(30),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        ready ? 'Your device is ready' : 'Set up your device',
-                        style: Theme.of(context).textTheme.headlineLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        ready
-                            ? 'You can now receive trip requests reliably.'
-                            : 'Activate these settings so trip requests reach you while you’re online.',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 22),
-                      _PermissionTile(
-                        title: 'Screen overlay',
-                        subtitle: 'Show new trip requests over other apps',
-                        complete: _overlayReady,
-                        onTap: _openingSettings
-                            ? null
-                            : () => _explainPermission(overlay: true),
-                      ),
-                      Divider(height: 1, color: Theme.of(context).dividerColor),
-                      _PermissionTile(
-                        title: 'Background location access',
-                        subtitle:
-                            'Keep your availability and position accurate',
-                        complete: _backgroundLocationReady,
-                        onTap: _openingSettings
-                            ? null
-                            : () => _explainPermission(overlay: false),
-                      ),
-                      const SizedBox(height: 20),
-                      if (_errorMessage != null) ...<Widget>[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.errorContainer,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onErrorContainer,
-                              fontWeight: FontWeight.w600,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton.filled(
+                              key: const Key('deviceSetupBackButton'),
+                              onPressed: Navigator.of(context).pop,
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: AppColors.ink,
+                              ),
+                              icon: const Icon(Icons.arrow_back_rounded),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 14),
+                        SizedBox(height: heroGap),
+                        _buildSetupPanel(context, ready: ready),
                       ],
-                      ElevatedButton(
-                        onPressed: ready && !_saving ? _finish : null,
-                        child: _saving
-                            ? const SizedBox.square(
-                                dimension: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                ),
-                              )
-                            : Text(
-                                ready ? 'Open Alpha Plus' : 'Complete setup',
-                              ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ],
@@ -414,6 +431,7 @@ class _PermissionTile extends StatelessWidget {
     required this.subtitle,
     required this.complete,
     required this.onTap,
+    super.key,
   });
 
   final String title;
@@ -423,29 +441,32 @@ class _PermissionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 5),
-      leading: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: complete
-              ? AppColors.primary
-              : Theme.of(context).scaffoldBackgroundColor,
-          shape: BoxShape.circle,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(vertical: 5),
+        leading: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: complete
+                ? AppColors.primary
+                : Theme.of(context).scaffoldBackgroundColor,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            complete ? Icons.check_rounded : Icons.circle_outlined,
+            color: complete ? AppColors.ink : null,
+          ),
         ),
-        child: Icon(
-          complete ? Icons.check_rounded : Icons.circle_outlined,
-          color: complete ? AppColors.ink : null,
-        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(subtitle),
+        trailing: complete
+            ? const Icon(Icons.verified_rounded, color: AppColors.primary)
+            : const Icon(Icons.keyboard_arrow_right_rounded),
+        onTap: onTap,
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text(subtitle),
-      trailing: complete
-          ? const Icon(Icons.verified_rounded, color: AppColors.primary)
-          : const Icon(Icons.keyboard_arrow_right_rounded),
-      onTap: onTap,
     );
   }
 }
