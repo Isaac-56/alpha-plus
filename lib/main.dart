@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/app_theme_controller.dart';
 import 'features/auth/data/driver_auth_service.dart';
 import 'features/auth/data/driver_biometric_controller.dart';
 import 'features/auth/data/driver_session_service.dart';
@@ -20,6 +21,7 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppThemeController.initialize();
 
   Object? firebaseInitializationError;
   try {
@@ -63,6 +65,7 @@ class _AlphaPlusAppState extends State<AlphaPlusApp> {
   @override
   void initState() {
     super.initState();
+    AppThemeController.themeMode.addListener(_themeChanged);
     // Existing isolated widget previews (home: ...) don't initialize Firebase.
     // Production always installs the guard; tests can inject its dependencies.
     if (widget.firebaseInitializationError == null &&
@@ -79,6 +82,10 @@ class _AlphaPlusAppState extends State<AlphaPlusApp> {
         },
       );
     }
+  }
+
+  void _themeChanged() {
+    if (mounted) setState(() {});
   }
 
   void _accountChanged(String? uid) {
@@ -106,6 +113,7 @@ class _AlphaPlusAppState extends State<AlphaPlusApp> {
 
   @override
   void dispose() {
+    AppThemeController.themeMode.removeListener(_themeChanged);
     unawaited(_authSubscription?.cancel());
     super.dispose();
   }
@@ -118,9 +126,9 @@ class _AlphaPlusAppState extends State<AlphaPlusApp> {
       title: 'Alpha Plus',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
-      themeAnimationDuration: const Duration(milliseconds: 450),
-      themeAnimationCurve: Curves.easeInOutCubic,
+      themeMode: AppThemeController.themeMode.value,
+      themeAnimationDuration: const Duration(milliseconds: 600),
+      themeAnimationCurve: Curves.easeInOutCubicEmphasized,
       builder: _biometrics == null
           ? null
           : (BuildContext context, Widget? child) => DriverBiometricGate(

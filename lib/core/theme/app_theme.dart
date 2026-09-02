@@ -10,11 +10,13 @@ abstract final class AppTheme {
 
   static ThemeData _theme(Brightness brightness) {
     final bool isDark = brightness == Brightness.dark;
-    final Color canvas = isDark ? AppColors.darkCanvas : AppColors.canvas;
-    final Color surface = isDark ? AppColors.darkSurface : AppColors.surface;
+    final Color canvas = isDark ? AppColors.darkCanvas : Colors.white;
+    final Color surface = isDark ? AppColors.darkSurface : Colors.white;
     final Color ink = isDark ? Colors.white : AppColors.ink;
     final Color muted = isDark ? const Color(0xFFADB5AD) : AppColors.muted;
-    final Color border = isDark ? AppColors.darkBorder : AppColors.border;
+    final Color border = isDark
+        ? AppColors.darkBorder
+        : const Color(0xFFE8EBE8);
 
     final ColorScheme scheme = ColorScheme.fromSeed(
       seedColor: AppColors.primary,

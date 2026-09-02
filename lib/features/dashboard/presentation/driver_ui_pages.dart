@@ -9,6 +9,7 @@ import '../../auth/data/driver_legal_content.dart';
 import '../../auth/presentation/driver_biometric_settings_screen.dart';
 import '../../auth/presentation/driver_legal_details_screen.dart';
 import '../../onboarding/models/driver_registration.dart';
+import 'driver_appearance_screen.dart';
 import 'driver_detail_screens.dart';
 
 class DriverPoolPageUi extends StatelessWidget {
@@ -513,7 +514,7 @@ class DriverProfilePageUi extends StatelessWidget {
             _ActionRow(
               icon: Icons.settings_outlined,
               title: 'Settings',
-              subtitle: 'Security, permissions, legal and app information',
+              subtitle: 'Appearance, security, permissions and app information',
               onTap: () => _push(context, const DriverCompleteSettingsScreen()),
             ),
             _ActionRow(
@@ -971,6 +972,19 @@ class DriverCompleteSettingsScreen extends StatelessWidget {
     return _DetailPage(
       title: 'Settings',
       children: <Widget>[
+        _SectionCard(
+          title: 'Appearance',
+          children: <Widget>[
+            _ActionRow(
+              icon: Icons.brightness_6_outlined,
+              title: 'App appearance',
+              subtitle: 'Use device settings, light or dark mode',
+              showDivider: false,
+              onTap: () => _push(context, const DriverAppearanceScreen()),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
         const _SectionCard(
           title: 'Security',
           children: <Widget>[DriverBiometricSettingsTile()],
