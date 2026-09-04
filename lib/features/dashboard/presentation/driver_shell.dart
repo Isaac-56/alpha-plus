@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../onboarding/models/driver_registration.dart';
+import '../../rides/presentation/driver_ride_offer_layer.dart';
 import '../data/driver_presence_service.dart';
 import 'driver_map_camera.dart';
 import 'driver_ui_pages.dart';
@@ -61,7 +62,7 @@ class _DriverShellState extends State<DriverShell> {
       ),
     ];
 
-    return PopScope(
+    final Widget shell = PopScope(
       canPop: false,
       child: Scaffold(
         body: IndexedStack(index: _index, children: pages),
@@ -98,6 +99,14 @@ class _DriverShellState extends State<DriverShell> {
         ),
       ),
     );
+
+    final bool liveOffersEnabled =
+        widget.driverId.trim().isNotEmpty &&
+        widget.reviewStatus.trim().toLowerCase() == 'approved';
+
+    if (!liveOffersEnabled) return shell;
+
+    return DriverRideOfferLayer(driverId: widget.driverId, child: shell);
   }
 }
 
