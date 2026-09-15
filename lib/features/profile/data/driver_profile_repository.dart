@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../auth/data/driver_account_role_service.dart';
 import '../../onboarding/models/driver_registration.dart';
 import '../models/driver_profile.dart';
 
@@ -61,6 +62,8 @@ class FirebaseDriverProfileStore implements DriverProfileStore {
     required String firstName,
     required String lastName,
   }) async {
+    await DriverAccountRoleService.instance.claimDriverRole();
+
     final DocumentReference<Map<String, dynamic>> driver = _driver(uid);
     await _firestore.runTransaction((Transaction transaction) async {
       final DocumentSnapshot<Map<String, dynamic>> snapshot = await transaction

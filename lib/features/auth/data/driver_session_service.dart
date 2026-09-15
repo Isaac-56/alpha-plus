@@ -7,6 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'driver_account_role_service.dart';
+
 /// Enforces one active Alpha Plus installation for each Firebase driver UID.
 ///
 /// A new successful sign-in replaces the session ID stored in Firestore. Any
@@ -48,6 +50,8 @@ class DriverSessionService {
     final String sessionId = _createSessionId();
 
     try {
+      await DriverAccountRoleService.instance.claimDriverRole();
+
       await preferences.setString(localKey, sessionId);
 
       await _sessionReference(user.uid).set(<String, dynamic>{
