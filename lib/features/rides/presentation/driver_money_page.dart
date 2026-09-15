@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../dashboard/presentation/driver_detail_screens.dart';
 import '../data/driver_trip_history_service.dart';
 
 class DriverMoneyPage extends StatelessWidget {
@@ -32,22 +33,20 @@ class DriverMoneyPage extends StatelessWidget {
               .where((DriverTripRecord trip) => trip.isCompleted)
               .toList(growable: false);
           final DateTime now = DateTime.now();
-          final DateTime startToday = DateTime(now.year, now.month, now.day);
-          final DateTime startWeek = startToday.subtract(
-            Duration(days: startToday.weekday - DateTime.monday),
+          final DateTime today = DateTime(now.year, now.month, now.day);
+          final DateTime weekStart = today.subtract(
+            Duration(days: today.weekday - DateTime.monday),
           );
-
-          final int todayGross = _sumSince(completed, startToday);
-          final int weekGross = _sumSince(completed, startWeek);
-          final int allGross = completed.fold<int>(
+          final int grossToday = _sumSince(completed, today);
+          final int grossWeek = _sumSince(completed, weekStart);
+          final int grossAll = completed.fold<int>(
             0,
             (int total, DriverTripRecord trip) => total + trip.grossFare,
           );
 
           return RefreshIndicator(
-            onRefresh: () async {
-              await Future<void>.delayed(const Duration(milliseconds: 350));
-            },
+            onRefresh: () async =>
+                Future<void>.delayed(const Duration(milliseconds: 300)),
             child: ListView(
               key: const Key('driverMoneyPage'),
               physics: const AlwaysScrollableScrollPhysics(),
@@ -78,7 +77,7 @@ class DriverMoneyPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 _GrossFareCard(
-                  amount: allGross,
+                  amount: grossAll,
                   completedTrips: completed.length,
                 ),
                 const SizedBox(height: 14),
@@ -88,7 +87,7 @@ class DriverMoneyPage extends StatelessWidget {
                       child: _MetricCard(
                         key: const Key('driverTodayGross'),
                         label: 'Today',
-                        value: '${_money(todayGross)} SSP',
+                        value: '${_money(grossToday)} SSP',
                         icon: Icons.today_outlined,
                       ),
                     ),
@@ -97,7 +96,7 @@ class DriverMoneyPage extends StatelessWidget {
                       child: _MetricCard(
                         key: const Key('driverWeekGross'),
                         label: 'This week',
-                        value: '${_money(weekGross)} SSP',
+                        value: '${_money(grossWeek)} SSP',
                         icon: Icons.calendar_view_week_outlined,
                       ),
                     ),
@@ -105,6 +104,14 @@ class DriverMoneyPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 const _SettlementNotice(),
+                const SizedBox(height: 10),
+                _BalanceLimitLink(
+                  onTap: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const BalanceLimitScreen(),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 Row(
                   children: <Widget>[
@@ -392,6 +399,40 @@ class _SettlementNotice extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BalanceLimitLink extends StatelessWidget {
+  const _BalanceLimitLink({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.account_balance_wallet_outlined),
+              SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  'Balance limit',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+        ),
       ),
     );
   }
