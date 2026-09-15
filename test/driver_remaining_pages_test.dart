@@ -22,7 +22,6 @@ void main() {
         MaterialApp(
           theme: AppTheme.light,
           home: DriverShell(
-            driverId: 'driver-test-123',
             driverName: 'Test Driver',
             reviewStatus: 'pending',
             registration: registration,
