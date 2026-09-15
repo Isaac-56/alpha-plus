@@ -61,8 +61,7 @@ class DriverTripRecord {
 }
 
 class DriverTripHistoryService {
-  DriverTripHistoryService({FirebaseFirestore? firestore})
-      : _firestore = firestore;
+  DriverTripHistoryService({this._firestore});
 
   static final DriverTripHistoryService instance = DriverTripHistoryService();
 
