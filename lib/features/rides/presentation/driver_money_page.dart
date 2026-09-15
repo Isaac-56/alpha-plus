@@ -47,115 +47,124 @@ class DriverMoneyPage extends StatelessWidget {
           return RefreshIndicator(
             onRefresh: () async =>
                 Future<void>.delayed(const Duration(milliseconds: 300)),
-            child: ListView(
+            child: SingleChildScrollView(
               key: const Key('driverMoneyPage'),
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
-              children: <Widget>[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            'Money',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Verified cash fares from completed rides.',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const _CashBadge(),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                _GrossFareCard(
-                  amount: grossAll,
-                  completedTrips: completed.length,
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _MetricCard(
-                        key: const Key('driverTodayGross'),
-                        label: 'Today',
-                        value: '${_money(grossToday)} SSP',
-                        icon: Icons.today_outlined,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _MetricCard(
-                        key: const Key('driverWeekGross'),
-                        label: 'This week',
-                        value: '${_money(grossWeek)} SSP',
-                        icon: Icons.calendar_view_week_outlined,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                const _SettlementNotice(),
-                const SizedBox(height: 10),
-                _BalanceLimitLink(
-                  onTap: () => Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const BalanceLimitScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        'Trip activity',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w900,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              'Money',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineMedium
+                                  ?.copyWith(fontWeight: FontWeight.w900),
                             ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Verified cash fares from completed rides.',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      '${trips.length} ${trips.length == 1 ? 'record' : 'records'}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                if (snapshot.hasError)
-                  const _MessageCard(
-                    icon: Icons.cloud_off_outlined,
-                    title: 'Trip activity unavailable',
-                    body:
-                        'Alpha Plus could not load your verified ride records. Check your connection and try again.',
-                  )
-                else if (trips.isEmpty)
-                  const _MessageCard(
-                    key: Key('driverTripHistoryEmpty'),
-                    icon: Icons.route_outlined,
-                    title: 'No trip activity yet',
-                    body:
-                        'Completed and cancelled rides will appear here after real trips are processed.',
-                  )
-                else
-                  ...trips.map(
-                    (DriverTripRecord trip) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _TripCard(
-                        trip: trip,
-                        onTap: () => _showTripDetails(context, trip),
+                      TextButton.icon(
+                        onPressed: () => Navigator.of(context).push<void>(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const BalanceLimitScreen(),
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.account_balance_wallet_outlined,
+                          size: 18,
+                        ),
+                        label: const Text('Balance limit'),
                       ),
-                    ),
+                    ],
                   ),
-              ],
+                  const SizedBox(height: 16),
+                  _GrossFareCard(
+                    amount: grossAll,
+                    completedTrips: completed.length,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          'Trip activity',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                      Text(
+                        '${trips.length} ${trips.length == 1 ? 'record' : 'records'}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (snapshot.hasError)
+                    const _MessageCard(
+                      icon: Icons.cloud_off_outlined,
+                      title: 'Trip activity unavailable',
+                      body:
+                          'Alpha Plus could not load your verified ride records. Check your connection and try again.',
+                    )
+                  else if (trips.isEmpty)
+                    const _MessageCard(
+                      key: Key('driverTripHistoryEmpty'),
+                      icon: Icons.route_outlined,
+                      title: 'No trip activity yet',
+                      body:
+                          'Completed and cancelled rides will appear here after real trips are processed.',
+                    )
+                  else
+                    ...trips.map(
+                      (DriverTripRecord trip) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _TripCard(
+                          trip: trip,
+                          onTap: () => _showTripDetails(context, trip),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _MetricCard(
+                          key: const Key('driverTodayGross'),
+                          label: 'Today',
+                          value: '${_money(grossToday)} SSP',
+                          icon: Icons.today_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _MetricCard(
+                          key: const Key('driverWeekGross'),
+                          label: 'This week',
+                          value: '${_money(grossWeek)} SSP',
+                          icon: Icons.calendar_view_week_outlined,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  const _SettlementNotice(),
+                ],
+              ),
             ),
           );
         },
@@ -269,29 +278,6 @@ class DriverMoneyPage extends StatelessWidget {
   }
 }
 
-class _CashBadge extends StatelessWidget {
-  const _CashBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(Icons.payments_outlined, size: 17),
-          SizedBox(width: 6),
-          Text('Cash', style: TextStyle(fontWeight: FontWeight.w800)),
-        ],
-      ),
-    );
-  }
-}
-
 class _GrossFareCard extends StatelessWidget {
   const _GrossFareCard({required this.amount, required this.completedTrips});
 
@@ -302,7 +288,6 @@ class _GrossFareCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: const Key('driverGrossFareCard'),
-      width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: AppColors.ink,
@@ -311,9 +296,18 @@ class _GrossFareCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Text(
-            'Gross cash fares',
-            style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
+          const Row(
+            children: <Widget>[
+              Icon(Icons.payments_outlined, color: AppColors.primary, size: 19),
+              SizedBox(width: 8),
+              Text(
+                'Gross cash fares',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -404,40 +398,6 @@ class _SettlementNotice extends StatelessWidget {
   }
 }
 
-class _BalanceLimitLink extends StatelessWidget {
-  const _BalanceLimitLink({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-          child: Row(
-            children: <Widget>[
-              Icon(Icons.account_balance_wallet_outlined),
-              SizedBox(width: 11),
-              Expanded(
-                child: Text(
-                  'Balance limit',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _TripCard extends StatelessWidget {
   const _TripCard({required this.trip, required this.onTap});
 
@@ -459,15 +419,11 @@ class _TripCard extends StatelessWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: trip.isCompleted
-                          ? AppColors.primary.withValues(alpha: 0.16)
-                          : Theme.of(context).colorScheme.errorContainer,
-                      shape: BoxShape.circle,
-                    ),
+                  CircleAvatar(
+                    radius: 19,
+                    backgroundColor: trip.isCompleted
+                        ? AppColors.primary.withValues(alpha: 0.16)
+                        : Theme.of(context).colorScheme.errorContainer,
                     child: Icon(
                       trip.isCompleted
                           ? Icons.check_rounded
@@ -496,7 +452,6 @@ class _TripCard extends StatelessWidget {
                       '${_money(trip.grossFare)} ${trip.currencyCode}',
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
-                  const SizedBox(width: 4),
                   const Icon(Icons.chevron_right_rounded),
                 ],
               ),
@@ -535,7 +490,6 @@ class _RouteLine extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium,
           ),
         ),
       ],
@@ -586,7 +540,7 @@ class _ValueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        Text(label),
         const Spacer(),
         Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
       ],
@@ -609,22 +563,25 @@ class _MessageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Theme.of(context).dividerColor),
       ),
-      child: Column(
+      child: Row(
         children: <Widget>[
-          Icon(icon, size: 36, color: AppColors.primary),
-          const SizedBox(height: 10),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 5),
-          Text(
-            body,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
+          Icon(icon, size: 32, color: AppColors.primary),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 4),
+                Text(body, style: Theme.of(context).textTheme.bodyMedium),
+              ],
+            ),
           ),
         ],
       ),
