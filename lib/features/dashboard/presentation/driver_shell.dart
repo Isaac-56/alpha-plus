@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../onboarding/models/driver_registration.dart';
 import '../../rides/presentation/driver_money_page.dart';
+import '../../rides/presentation/driver_pool_page.dart';
 import '../../rides/presentation/driver_ride_offer_layer.dart';
 import '../data/driver_presence_service.dart';
 import 'driver_map_camera.dart';
@@ -807,7 +808,7 @@ class _PoolPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DriverPoolPageUi(
+    return DriverPoolPage(
       reviewStatus: reviewStatus,
       registration: registration,
     );
