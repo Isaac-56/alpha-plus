@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../onboarding/models/driver_registration.dart';
+import '../../rides/presentation/driver_money_page.dart';
 import '../../rides/presentation/driver_ride_offer_layer.dart';
 import '../data/driver_presence_service.dart';
 import 'driver_map_camera.dart';
@@ -52,7 +53,7 @@ class _DriverShellState extends State<DriverShell> {
         reviewStatus: widget.reviewStatus,
         registration: widget.registration,
       ),
-      const _MoneyPage(),
+      _MoneyPage(driverId: widget.driverId),
       const _ChatsPage(),
       _ProfilePage(
         driverName: widget.driverName,
@@ -814,11 +815,13 @@ class _PoolPage extends StatelessWidget {
 }
 
 class _MoneyPage extends StatelessWidget {
-  const _MoneyPage();
+  const _MoneyPage({required this.driverId});
+
+  final String driverId;
 
   @override
   Widget build(BuildContext context) {
-    return const DriverMoneyPageUi();
+    return DriverMoneyPage(driverId: driverId);
   }
 }
 
