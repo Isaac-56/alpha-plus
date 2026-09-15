@@ -36,9 +36,10 @@ void main() {
       expect(find.byType(Badge), findsNothing);
 
       await tester.tap(find.text('Money'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(find.text('Earnings not available yet'), findsOneWidget);
+      expect(find.text('Gross cash fares'), findsOneWidget);
+      expect(find.text('No trip activity yet'), findsOneWidget);
       expect(find.text('SSP 0'), findsNothing);
 
       await tester.tap(find.text('Profile'));
