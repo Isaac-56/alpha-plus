@@ -11,17 +11,34 @@ class DriverAccountRoleService {
 
   final FirebaseFunctions _functions;
 
-  Future<void> claimDriverRole() => _claimRole('driver');
+  Future<void> ensureDriverEligible() =>
+      _callRoleFunction('checkAccountRole', 'driver', requireClaim: false);
 
-  Future<void> _claimRole(String role) async {
+  Future<void> claimDriverRole() =>
+      _callRoleFunction('claimAccountRole', 'driver', requireClaim: true);
+
+  Future<void> _callRoleFunction(
+    String functionName,
+    String role, {
+    required bool requireClaim,
+  }) async {
     try {
       final HttpsCallableResult<dynamic> result =
-          await _functions.httpsCallable('claimAccountRole').call<dynamic>(
+          await _functions.httpsCallable(functionName).call<dynamic>(
         <String, dynamic>{'role': role},
       );
       final Object? data = result.data;
-      if (data is Map && data['role'] == role) {
-        return;
+
+      if (data is Map) {
+        final Object? resolvedRole = data['role'];
+        final Object? eligible = data['eligible'];
+        final Object? claimed = data['claimed'];
+
+        if (eligible == true &&
+            (resolvedRole == null || resolvedRole == role) &&
+            (!requireClaim || (resolvedRole == role && claimed == true))) {
+          return;
+        }
       }
 
       throw FirebaseAuthException(

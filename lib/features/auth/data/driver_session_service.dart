@@ -50,7 +50,7 @@ class DriverSessionService {
     final String sessionId = _createSessionId();
 
     try {
-      await DriverAccountRoleService.instance.claimDriverRole();
+      await DriverAccountRoleService.instance.ensureDriverEligible();
 
       await preferences.setString(localKey, sessionId);
 
