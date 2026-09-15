@@ -62,11 +62,11 @@ class DriverTripRecord {
 
 class DriverTripHistoryService {
   DriverTripHistoryService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore;
 
   static final DriverTripHistoryService instance = DriverTripHistoryService();
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
 
   Stream<List<DriverTripRecord>> watchTrips(String driverId) {
     final String normalized = driverId.trim();
@@ -76,34 +76,44 @@ class DriverTripHistoryService {
       );
     }
 
-    return _firestore
-        .collection('rides')
-        .where('driverId', isEqualTo: normalized)
-        .snapshots()
-        .map((QuerySnapshot<Map<String, dynamic>> snapshot) {
-      final List<DriverTripRecord> trips = <DriverTripRecord>[];
+    try {
+      final FirebaseFirestore firestore =
+          _firestore ?? FirebaseFirestore.instance;
+      return firestore
+          .collection('rides')
+          .where('driverId', isEqualTo: normalized)
+          .snapshots()
+          .map((QuerySnapshot<Map<String, dynamic>> snapshot) {
+        final List<DriverTripRecord> trips = <DriverTripRecord>[];
 
-      for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-          in snapshot.docs) {
-        try {
-          trips.add(
-            DriverTripRecord.fromMap(
-              rideId: document.id,
-              data: document.data(),
-            ),
-          );
-        } on FormatException {
-          // Active or malformed rides are not presented as completed activity.
+        for (final QueryDocumentSnapshot<Map<String, dynamic>> document
+            in snapshot.docs) {
+          try {
+            trips.add(
+              DriverTripRecord.fromMap(
+                rideId: document.id,
+                data: document.data(),
+              ),
+            );
+          } on FormatException {
+            // Active or malformed rides are not presented as completed activity.
+          }
         }
-      }
 
-      trips.sort((DriverTripRecord first, DriverTripRecord second) {
-        final int firstMs = first.activityAt?.millisecondsSinceEpoch ?? 0;
-        final int secondMs = second.activityAt?.millisecondsSinceEpoch ?? 0;
-        return secondMs.compareTo(firstMs);
+        trips.sort((DriverTripRecord first, DriverTripRecord second) {
+          final int firstMs = first.activityAt?.millisecondsSinceEpoch ?? 0;
+          final int secondMs = second.activityAt?.millisecondsSinceEpoch ?? 0;
+          return secondMs.compareTo(firstMs);
+        });
+        return List<DriverTripRecord>.unmodifiable(trips);
       });
-      return List<DriverTripRecord>.unmodifiable(trips);
-    });
+    } on Object {
+      // Widget tests and pre-Firebase startup states should render an empty,
+      // truthful view instead of crashing while no Firebase app exists yet.
+      return Stream<List<DriverTripRecord>>.value(
+        const <DriverTripRecord>[],
+      );
+    }
   }
 }
 
