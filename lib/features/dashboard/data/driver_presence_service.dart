@@ -56,6 +56,7 @@ class DriverPresenceService {
   DatabaseReference? _activeReference;
   String? _activePresenceId;
   String? _activeDriverId;
+  Object? _onlineAttempt;
 
   DatabaseReference _driverReference(String driverId) =>
       _database.ref('driver_locations/$driverId');
@@ -126,6 +127,8 @@ class DriverPresenceService {
 
     await goOffline();
 
+    final Object onlineAttempt = Object();
+    _onlineAttempt = onlineAttempt;
     final String presenceId = _createPresenceId();
     final DatabaseReference reference = _driverReference(driverId);
     final String normalizedVehicleType =
@@ -135,6 +138,7 @@ class DriverPresenceService {
     final Position initialPosition = await Geolocator.getCurrentPosition(
       locationSettings: settings,
     );
+    if (_onlineAttempt != onlineAttempt) return;
 
     _activeDriverId = driverId;
     _activePresenceId = presenceId;
@@ -144,6 +148,7 @@ class DriverPresenceService {
       'isOnline': false,
       'updatedAt': ServerValue.timestamp,
     });
+    if (_onlineAttempt != onlineAttempt) return;
 
     await _publishPosition(
       reference: reference,
@@ -151,6 +156,7 @@ class DriverPresenceService {
       vehicleType: normalizedVehicleType,
       position: initialPosition,
     );
+    if (_onlineAttempt != onlineAttempt) return;
 
     _positionSubscription =
         Geolocator.getPositionStream(locationSettings: settings).listen(
@@ -194,6 +200,7 @@ class DriverPresenceService {
   }
 
   Future<void> goOffline() async {
+    _onlineAttempt = null;
     await _positionSubscription?.cancel();
     _positionSubscription = null;
 
