@@ -51,6 +51,41 @@ void main() {
     },
   );
 
+  testWidgets('approved request map hides the completed setup card', (
+    WidgetTester tester,
+  ) async {
+    final DriverRegistration registration = DriverRegistration()
+      ..serviceType = DriverRegistration.ridesService
+      ..vehicleType = 'Car'
+      ..make = 'Toyota'
+      ..model = 'Corolla'
+      ..color = 'White'
+      ..manufactureYear = '2020'
+      ..plateNumber = 'SSD 1234';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: DriverShell(
+          driverName: 'Test Driver',
+          reviewStatus: 'approved',
+          registration: registration,
+          mapBuilder: (_) => const ColoredBox(
+            key: Key('approvedDriverMap'),
+            color: Color(0xFFE9F7E7),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+
+    expect(find.byKey(const Key('approvedDriverMap')), findsOneWidget);
+    expect(find.byKey(const Key('driverProgressCard')), findsNothing);
+    expect(find.text('Account approval'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('support page clearly states messaging is not connected', (
     WidgetTester tester,
   ) async {
