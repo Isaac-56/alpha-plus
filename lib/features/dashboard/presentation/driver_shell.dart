@@ -139,6 +139,9 @@ class _RequestsPageState extends State<_RequestsPage> {
   double _attributionBottom = 8;
   bool _measurementScheduled = false;
 
+  bool get _approved =>
+      DriverAvailabilityPolicy.canGoOnline(widget.reviewStatus);
+
   void _scheduleViewportMeasurement() {
     if (_measurementScheduled) return;
     _measurementScheduled = true;
@@ -223,9 +226,11 @@ class _RequestsPageState extends State<_RequestsPage> {
                         child: LayoutBuilder(
                           builder:
                               (BuildContext context, BoxConstraints bounds) {
-                                final double mapGap = (bounds.maxHeight * 0.35)
-                                    .clamp(0.0, 112.0)
-                                    .toDouble();
+                                final double mapGap = _approved
+                                    ? 0
+                                    : (bounds.maxHeight * 0.35)
+                                          .clamp(0.0, 112.0)
+                                          .toDouble();
                                 return Align(
                                   alignment: Alignment.bottomCenter,
                                   child: ConstrainedBox(
@@ -235,7 +240,9 @@ class _RequestsPageState extends State<_RequestsPage> {
                                     child: SizeChangedLayoutNotifier(
                                       child: SizedBox(
                                         key: _progressKey,
-                                        child: _buildProgressCard(context),
+                                        child: _approved
+                                            ? const SizedBox.shrink()
+                                            : _buildProgressCard(context),
                                       ),
                                     ),
                                   ),
@@ -335,6 +342,8 @@ class _DriverAvailabilityCard extends StatefulWidget {
 }
 
 class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
+  static const Duration _availabilityChangeTimeout = Duration(seconds: 20);
+
   DriverPresenceService? _presence;
 
   bool _changing = false;
@@ -360,13 +369,26 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
     setState(() => _changing = true);
     try {
       if (online) {
-        await _service.goOnline(
-          driverId: widget.driverId,
-          reviewStatus: widget.reviewStatus,
-          vehicleType: widget.vehicleType,
-        );
+        await _service
+            .goOnline(
+              driverId: widget.driverId,
+              reviewStatus: widget.reviewStatus,
+              vehicleType: widget.vehicleType,
+            )
+            .timeout(_availabilityChangeTimeout);
       } else {
-        await _service.goOffline();
+        await _service.goOffline().timeout(_availabilityChangeTimeout);
+      }
+    } on TimeoutException {
+      unawaited(_service.goOffline().catchError((Object _) {}));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Alpha Plus could not confirm your availability. Check your connection and try again.',
+            ),
+          ),
+        );
       }
     } on DriverPresenceException catch (error) {
       if (mounted) {

@@ -57,6 +57,8 @@ class DefaultFirebaseOptions {
     appId: '1:486103357366:android:2326bbe4b1505b237f1317',
     messagingSenderId: '486103357366',
     projectId: 'alpha-ride-29708',
+    databaseURL:
+        'https://alpha-ride-29708-default-rtdb.europe-west1.firebasedatabase.app',
     storageBucket: 'alpha-ride-29708.firebasestorage.app',
   );
 }
