@@ -18,8 +18,23 @@ class DriverPresenceException implements Exception {
 class DriverAvailabilityPolicy {
   const DriverAvailabilityPolicy._();
 
+  // Keep this aligned with PRESENCE_FRESH_MS in the dispatch backend.
+  static const Duration presenceFreshnessWindow = Duration(seconds: 90);
+  static const Duration heartbeatInterval = Duration(seconds: 30);
+
   static bool canGoOnline(String reviewStatus) =>
       reviewStatus.trim().toLowerCase() == 'approved';
+
+  static bool isPresenceFresh(
+    int? updatedAt, {
+    int? nowMilliseconds,
+  }) {
+    if (updatedAt == null) return false;
+
+    final int age =
+        (nowMilliseconds ?? DateTime.now().millisecondsSinceEpoch) - updatedAt;
+    return age >= 0 && age <= presenceFreshnessWindow.inMilliseconds;
+  }
 
   static String normalizedVehicleType(String vehicleType) {
     final String normalized = vehicleType.trim().toLowerCase();
@@ -53,6 +68,7 @@ class DriverPresenceService {
   final FirebaseDatabase _database;
 
   StreamSubscription<Position>? _positionSubscription;
+  Timer? _heartbeatTimer;
   DatabaseReference? _activeReference;
   String? _activePresenceId;
   String? _activeDriverId;
@@ -73,11 +89,7 @@ class DriverPresenceService {
       final int? updatedAt = rawUpdatedAt is num
           ? rawUpdatedAt.toInt()
           : int.tryParse(rawUpdatedAt?.toString() ?? '');
-      final bool fresh =
-          updatedAt != null &&
-          DateTime.now().millisecondsSinceEpoch - updatedAt <= 90000;
-
-      if (!fresh) return false;
+      if (!DriverAvailabilityPolicy.isPresenceFresh(updatedAt)) return false;
       if (rawOnline is bool) return rawOnline;
       if (rawOnline is num) return rawOnline != 0;
 
@@ -158,6 +170,8 @@ class DriverPresenceService {
     );
     if (_onlineAttempt != onlineAttempt) return;
 
+    _startHeartbeat(reference: reference, presenceId: presenceId);
+
     _positionSubscription =
         Geolocator.getPositionStream(locationSettings: settings).listen(
           (Position position) {
@@ -167,7 +181,9 @@ class DriverPresenceService {
                 presenceId: presenceId,
                 vehicleType: normalizedVehicleType,
                 position: position,
-              ),
+              ).catchError((Object error) {
+                debugPrint('Unable to publish the driver location: $error');
+              }),
             );
           },
           onError: (_) {
@@ -197,10 +213,54 @@ class DriverPresenceService {
       'vehicleType': vehicleType,
       'updatedAt': ServerValue.timestamp,
     });
+
+    if (_activePresenceId != presenceId) {
+      await _removePresenceIfOwned(reference, presenceId);
+    }
+  }
+
+  void _startHeartbeat({
+    required DatabaseReference reference,
+    required String presenceId,
+  }) {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(
+      DriverAvailabilityPolicy.heartbeatInterval,
+      (_) {
+        unawaited(
+          _refreshHeartbeat(reference, presenceId).catchError((Object error) {
+            debugPrint('Unable to refresh driver availability: $error');
+          }),
+        );
+      },
+    );
+  }
+
+  Future<void> _refreshHeartbeat(
+    DatabaseReference reference,
+    String presenceId,
+  ) async {
+    if (_activePresenceId != presenceId) return;
+
+    await reference.runTransaction((Object? currentValue) {
+      if (_activePresenceId != presenceId ||
+          currentValue is! Map<Object?, Object?> ||
+          currentValue['presenceId'] != presenceId) {
+        return Transaction.abort();
+      }
+
+      return Transaction.success(<Object?, Object?>{
+        ...currentValue,
+        'isOnline': true,
+        'updatedAt': ServerValue.timestamp,
+      });
+    });
   }
 
   Future<void> goOffline() async {
     _onlineAttempt = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
     await _positionSubscription?.cancel();
     _positionSubscription = null;
 
@@ -214,6 +274,13 @@ class DriverPresenceService {
     if (reference == null || presenceId == null) return;
 
     await reference.onDisconnect().cancel();
+    await _removePresenceIfOwned(reference, presenceId);
+  }
+
+  Future<void> _removePresenceIfOwned(
+    DatabaseReference reference,
+    String presenceId,
+  ) async {
     await reference.runTransaction((Object? currentValue) {
       if (currentValue is! Map<Object?, Object?> ||
           currentValue['presenceId'] != presenceId) {
