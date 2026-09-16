@@ -21,5 +21,47 @@ void main() {
         'rickshaw',
       );
     });
+
+    test('keeps presence fresh with a heartbeat before backend expiry', () {
+      expect(
+        DriverAvailabilityPolicy.heartbeatInterval.inMilliseconds * 2,
+        lessThan(
+          DriverAvailabilityPolicy.presenceFreshnessWindow.inMilliseconds,
+        ),
+      );
+    });
+
+    test('matches backend presence freshness boundaries', () {
+      const int now = 2_000_000;
+
+      expect(
+        DriverAvailabilityPolicy.isPresenceFresh(
+          now -
+              DriverAvailabilityPolicy
+                  .presenceFreshnessWindow
+                  .inMilliseconds,
+          nowMilliseconds: now,
+        ),
+        isTrue,
+      );
+      expect(
+        DriverAvailabilityPolicy.isPresenceFresh(
+          now -
+              DriverAvailabilityPolicy
+                  .presenceFreshnessWindow
+                  .inMilliseconds -
+              1,
+          nowMilliseconds: now,
+        ),
+        isFalse,
+      );
+      expect(
+        DriverAvailabilityPolicy.isPresenceFresh(
+          now + 1,
+          nowMilliseconds: now,
+        ),
+        isFalse,
+      );
+    });
   });
 }
