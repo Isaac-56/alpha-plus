@@ -30,9 +30,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: DriverMoneyPage(
-          driverId: 'driver-1',
-          service: _FakeTripHistoryService(<DriverTripRecord>[trip]),
+        home: Scaffold(
+          body: DriverMoneyPage(
+            driverId: 'driver-1',
+            service: _FakeTripHistoryService(<DriverTripRecord>[trip]),
+          ),
         ),
       ),
     );
@@ -58,9 +60,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: DriverMoneyPage(
-          driverId: 'driver-1',
-          service: _FakeTripHistoryService(const <DriverTripRecord>[]),
+        home: Scaffold(
+          body: DriverMoneyPage(
+            driverId: 'driver-1',
+            service: _FakeTripHistoryService(const <DriverTripRecord>[]),
+          ),
         ),
       ),
     );
