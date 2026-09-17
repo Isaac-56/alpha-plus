@@ -46,6 +46,30 @@ void main() {
     expect(find.textContaining('launch commission is 10%'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('money accounting remains usable on a narrow phone', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: DriverMoneyPage(
+          driverId: 'driver-1',
+          service: _FakeTripHistoryService(const <DriverTripRecord>[]),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Alpha fee due'), findsOneWidget);
+    expect(find.text('Driver net'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _FakeTripHistoryService extends DriverTripHistoryService {
