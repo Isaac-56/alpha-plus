@@ -32,6 +32,9 @@ class DriverMoneyPage extends StatelessWidget {
           final List<DriverTripRecord> completed = trips
               .where((DriverTripRecord trip) => trip.isCompleted)
               .toList(growable: false);
+          final List<DriverTripRecord> accounted = completed
+              .where((DriverTripRecord trip) => trip.hasTrustedAccounting)
+              .toList(growable: false);
           final DateTime now = DateTime.now();
           final DateTime today = DateTime(now.year, now.month, now.day);
           final DateTime weekStart = today.subtract(
@@ -43,6 +46,18 @@ class DriverMoneyPage extends StatelessWidget {
             0,
             (int total, DriverTripRecord trip) => total + trip.grossFare,
           );
+          final int platformFeeDue = accounted.fold<int>(
+            0,
+            (int total, DriverTripRecord trip) =>
+                total + (trip.isPlatformFeeDue ? trip.platformFee! : 0),
+          );
+          final int driverNetAll = accounted.fold<int>(
+            0,
+            (int total, DriverTripRecord trip) =>
+                total + trip.driverNetFare!,
+          );
+          final bool hasLegacyCompletedRides =
+              accounted.length != completed.length;
 
           return RefreshIndicator(
             onRefresh: () async =>
@@ -70,7 +85,7 @@ class DriverMoneyPage extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Verified cash fares from completed rides.',
+                              'Completed rides, earnings and cash settlement.',
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ],
@@ -94,6 +109,28 @@ class DriverMoneyPage extends StatelessWidget {
                   _GrossFareCard(
                     amount: grossAll,
                     completedTrips: completed.length,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _MetricCard(
+                          key: const Key('driverPlatformFeeDue'),
+                          label: 'Alpha fee due',
+                          value: '${_money(platformFeeDue)} SSP',
+                          icon: Icons.account_balance_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _MetricCard(
+                          key: const Key('driverNetEarnings'),
+                          label: 'Driver net',
+                          value: '${_money(driverNetAll)} SSP',
+                          icon: Icons.savings_outlined,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 20),
                   Row(
@@ -162,7 +199,9 @@ class DriverMoneyPage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  const _SettlementNotice(),
+                  _SettlementNotice(
+                    hasLegacyCompletedRides: hasLegacyCompletedRides,
+                  ),
                 ],
               ),
             ),
@@ -256,6 +295,25 @@ class DriverMoneyPage extends StatelessWidget {
                   label: trip.isCompleted ? 'Gross fare' : 'Fare shown',
                   value: '${_money(trip.grossFare)} ${trip.currencyCode}',
                 ),
+                if (trip.hasTrustedAccounting) ...<Widget>[
+                  const SizedBox(height: 10),
+                  _ValueRow(
+                    label: 'Alpha fee (${trip.commissionLabel})',
+                    value:
+                        '${_money(trip.platformFee!)} ${trip.currencyCode}',
+                  ),
+                  const SizedBox(height: 10),
+                  _ValueRow(
+                    label: 'Driver net',
+                    value:
+                        '${_money(trip.driverNetFare!)} ${trip.currencyCode}',
+                  ),
+                  const SizedBox(height: 10),
+                  _ValueRow(
+                    label: 'Settlement',
+                    value: trip.isPlatformFeeDue ? 'Fee due' : 'Recorded',
+                  ),
+                ],
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: () => Navigator.pop(sheetContext),
@@ -371,7 +429,9 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _SettlementNotice extends StatelessWidget {
-  const _SettlementNotice();
+  const _SettlementNotice({required this.hasLegacyCompletedRides});
+
+  final bool hasLegacyCompletedRides;
 
   @override
   Widget build(BuildContext context) {
@@ -381,15 +441,20 @@ class _SettlementNotice extends StatelessWidget {
         color: AppColors.primary.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(Icons.info_outline_rounded, size: 20),
-          SizedBox(width: 10),
+          const Icon(Icons.info_outline_rounded, size: 20),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'These are gross cash fares from completed trips. Platform fees, commission and settlement balances are not calculated until Alpha’s payout rules are defined.',
-              style: TextStyle(height: 1.4, fontWeight: FontWeight.w600),
+              hasLegacyCompletedRides
+                  ? 'Alpha applies a 10% fee to newly completed cash rides. Older rides without trusted settlement fields remain in the gross total but are not estimated in fee or net totals.'
+                  : 'Alpha’s launch commission is 10%. You keep 90% of each completed fare. Because you collect the cash, the Alpha fee is recorded as your settlement balance.',
+              style: const TextStyle(
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

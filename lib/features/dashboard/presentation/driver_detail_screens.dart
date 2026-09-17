@@ -31,11 +31,11 @@ class BalanceLimitScreen extends StatelessWidget {
           const _NoticeCard(
             icon: Icons.info_outline_rounded,
             text:
-                'Live driver balances and balance-limit enforcement are not connected in this build.',
+                'Alpha records a 10% platform fee on every newly completed cash ride. You retain 90% as driver earnings.',
           ),
           const SizedBox(height: 20),
           Text(
-            'When billing is enabled, this page can explain any verified account limit, service fees, settlements, and the action required before new requests are paused.',
+            'Because the passenger pays you directly, the platform fee appears as an amount due to Alpha. Automatic balance-limit enforcement remains disabled until a verified settlement workflow is available.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 28),

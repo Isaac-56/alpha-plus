@@ -1,0 +1,59 @@
+import 'package:alpha_plus/core/theme/app_theme.dart';
+import 'package:alpha_plus/features/rides/data/driver_trip_history_service.dart';
+import 'package:alpha_plus/features/rides/presentation/driver_money_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  testWidgets('money page shows completed count, Alpha fee and driver net', (
+    WidgetTester tester,
+  ) async {
+    final DriverTripRecord trip = DriverTripRecord.fromMap(
+      rideId: 'ride-accounted',
+      data: <String, dynamic>{
+        'status': 'completed',
+        'pickup': <String, dynamic>{'address': 'Custom Market'},
+        'destination': <String, dynamic>{'address': 'Juba Airport'},
+        'rideOptionId': 'standard',
+        'paymentMethod': 'cash',
+        'estimatedFare': 20000,
+        'finalFare': 20000,
+        'currencyCode': 'SSP',
+        'platformCommissionBps': 1000,
+        'platformFee': 2000,
+        'driverNetFare': 18000,
+        'cashCollectedByDriver': 20000,
+        'settlementStatus': 'platform_fee_due',
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: DriverMoneyPage(
+          driverId: 'driver-1',
+          service: _FakeTripHistoryService(<DriverTripRecord>[trip]),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 completed trip'), findsOneWidget);
+    expect(find.text('Alpha fee due'), findsOneWidget);
+    expect(find.text('2,000 SSP'), findsOneWidget);
+    expect(find.text('Driver net'), findsOneWidget);
+    expect(find.text('18,000 SSP'), findsOneWidget);
+    expect(find.textContaining('launch commission is 10%'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+class _FakeTripHistoryService extends DriverTripHistoryService {
+  _FakeTripHistoryService(this.trips);
+
+  final List<DriverTripRecord> trips;
+
+  @override
+  Stream<List<DriverTripRecord>> watchTrips(String driverId) =>
+      Stream<List<DriverTripRecord>>.value(trips);
+}
