@@ -63,6 +63,39 @@ void main() {
         isFalse,
       );
     });
+
+    test('online UI follows the active presence, not the phone clock', () {
+      expect(
+        DriverAvailabilityPolicy.isCurrentPresenceOnline(
+          driverId: 'driver-1',
+          activeDriverId: 'driver-1',
+          activePresenceId: 'presence-1',
+          remotePresenceId: 'presence-1',
+          rawOnline: true,
+        ),
+        isTrue,
+      );
+      expect(
+        DriverAvailabilityPolicy.isCurrentPresenceOnline(
+          driverId: 'driver-1',
+          activeDriverId: 'driver-1',
+          activePresenceId: 'presence-1',
+          remotePresenceId: 'old-presence',
+          rawOnline: true,
+        ),
+        isFalse,
+      );
+      expect(
+        DriverAvailabilityPolicy.isCurrentPresenceOnline(
+          driverId: 'driver-1',
+          activeDriverId: 'driver-1',
+          activePresenceId: 'presence-1',
+          remotePresenceId: 'presence-1',
+          rawOnline: false,
+        ),
+        isFalse,
+      );
+    });
   });
 
   group('DriverHeadingPolicy', () {

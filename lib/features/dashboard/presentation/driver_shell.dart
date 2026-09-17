@@ -40,6 +40,11 @@ class DriverShell extends StatefulWidget {
 class _DriverShellState extends State<DriverShell> {
   int _index = 0;
 
+  Future<void> _signOut() async {
+    await DriverPresenceService.instance.goOffline();
+    await widget.onSignOut?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = <Widget>[
@@ -60,7 +65,7 @@ class _DriverShellState extends State<DriverShell> {
         driverName: widget.driverName,
         reviewStatus: widget.reviewStatus,
         registration: widget.registration,
-        onSignOut: widget.onSignOut,
+        onSignOut: widget.onSignOut == null ? null : _signOut,
       ),
     ];
 
@@ -353,15 +358,6 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
 
   bool get _approved =>
       DriverAvailabilityPolicy.canGoOnline(widget.reviewStatus);
-
-  @override
-  void dispose() {
-    final DriverPresenceService? presence = _presence;
-    if (presence != null) {
-      unawaited(presence.goOffline());
-    }
-    super.dispose();
-  }
 
   Future<void> _setOnline(bool online) async {
     if (_changing) return;
