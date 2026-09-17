@@ -36,6 +36,29 @@ class DriverAvailabilityPolicy {
     return age >= 0 && age <= presenceFreshnessWindow.inMilliseconds;
   }
 
+  static bool isCurrentPresenceOnline({
+    required String driverId,
+    required String? activeDriverId,
+    required String? activePresenceId,
+    required Object? remotePresenceId,
+    required Object? rawOnline,
+  }) {
+    if (driverId.isEmpty ||
+        activeDriverId != driverId ||
+        activePresenceId == null ||
+        remotePresenceId != activePresenceId) {
+      return false;
+    }
+
+    if (rawOnline is bool) return rawOnline;
+    if (rawOnline is num) return rawOnline != 0;
+
+    final String normalized = rawOnline?.toString().toLowerCase().trim() ?? '';
+    return normalized == 'true' ||
+        normalized == 'online' ||
+        normalized == '1';
+  }
+
   static String normalizedVehicleType(String vehicleType) {
     final String normalized = vehicleType.trim().toLowerCase();
 
@@ -115,7 +138,10 @@ class DriverPresenceService {
   final FirebaseDatabase _database;
 
   StreamSubscription<Position>? _positionSubscription;
+  StreamSubscription<DatabaseEvent>? _connectionSubscription;
   Timer? _heartbeatTimer;
+  Timer? _positionRestartTimer;
+  int _positionRestartAttempts = 0;
   DatabaseReference? _activeReference;
   String? _activePresenceId;
   String? _activeDriverId;
@@ -134,17 +160,14 @@ class DriverPresenceService {
       if (value is! Map<Object?, Object?>) return false;
 
       final Object? rawOnline = value['isOnline'] ?? value['online'];
-      final Object? rawUpdatedAt = value['updatedAt'] ?? value['lastUpdated'];
-      final int? updatedAt = rawUpdatedAt is num
-          ? rawUpdatedAt.toInt()
-          : int.tryParse(rawUpdatedAt?.toString() ?? '');
-      if (!DriverAvailabilityPolicy.isPresenceFresh(updatedAt)) return false;
-      if (rawOnline is bool) return rawOnline;
-      if (rawOnline is num) return rawOnline != 0;
-
-      final String normalized = rawOnline?.toString().toLowerCase() ?? '';
-      return normalized == 'true' || normalized == 'online';
-    });
+      return DriverAvailabilityPolicy.isCurrentPresenceOnline(
+        driverId: driverId,
+        activeDriverId: _activeDriverId,
+        activePresenceId: _activePresenceId,
+        remotePresenceId: value['presenceId'],
+        rawOnline: rawOnline,
+      );
+    }).distinct();
   }
 
   Future<void> goOnline({
@@ -222,27 +245,17 @@ class DriverPresenceService {
     if (_onlineAttempt != onlineAttempt) return;
 
     _startHeartbeat(reference: reference, presenceId: presenceId);
-
-    _positionSubscription =
-        Geolocator.getPositionStream(locationSettings: settings).listen(
-          (Position position) {
-            final double heading = _resolveHeading(position);
-            unawaited(
-              _publishPosition(
-                reference: reference,
-                presenceId: presenceId,
-                vehicleType: normalizedVehicleType,
-                position: position,
-                heading: heading,
-              ).catchError((Object error) {
-                debugPrint('Unable to publish the driver location: $error');
-              }),
-            );
-          },
-          onError: (_) {
-            unawaited(goOffline());
-          },
-        );
+    _startConnectionRecovery(
+      reference: reference,
+      presenceId: presenceId,
+      vehicleType: normalizedVehicleType,
+    );
+    await _startPositionUpdates(
+      reference: reference,
+      presenceId: presenceId,
+      vehicleType: normalizedVehicleType,
+      settings: settings,
+    );
   }
 
   Future<void> _publishPosition({
@@ -269,6 +282,202 @@ class DriverPresenceService {
     if (_activePresenceId != presenceId) {
       await _removePresenceIfOwned(reference, presenceId);
     }
+  }
+
+  Future<void> _startPositionUpdates({
+    required DatabaseReference reference,
+    required String presenceId,
+    required String vehicleType,
+    required LocationSettings settings,
+  }) async {
+    final StreamSubscription<Position>? previous = _positionSubscription;
+    _positionSubscription = null;
+    await previous?.cancel();
+
+    if (_activePresenceId != presenceId) return;
+
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: settings,
+    ).listen(
+      (Position position) {
+        _positionRestartTimer?.cancel();
+        _positionRestartTimer = null;
+        _positionRestartAttempts = 0;
+
+        final double heading = _resolveHeading(position);
+        unawaited(
+          _publishPosition(
+            reference: reference,
+            presenceId: presenceId,
+            vehicleType: vehicleType,
+            position: position,
+            heading: heading,
+          ).catchError((Object error) {
+            debugPrint('Unable to publish the driver location: $error');
+          }),
+        );
+      },
+      onError: (Object error) {
+        debugPrint('Driver location stream paused: $error');
+        _schedulePositionRestart(
+          reference: reference,
+          presenceId: presenceId,
+          vehicleType: vehicleType,
+          settings: settings,
+        );
+      },
+      onDone: () {
+        _schedulePositionRestart(
+          reference: reference,
+          presenceId: presenceId,
+          vehicleType: vehicleType,
+          settings: settings,
+        );
+      },
+      cancelOnError: true,
+    );
+  }
+
+  void _schedulePositionRestart({
+    required DatabaseReference reference,
+    required String presenceId,
+    required String vehicleType,
+    required LocationSettings settings,
+  }) {
+    if (_activePresenceId != presenceId ||
+        _positionRestartTimer?.isActive == true) {
+      return;
+    }
+
+    _positionRestartTimer = Timer(const Duration(seconds: 3), () {
+      _positionRestartTimer = null;
+      unawaited(
+        _recoverPositionUpdates(
+          reference: reference,
+          presenceId: presenceId,
+          vehicleType: vehicleType,
+          settings: settings,
+        ),
+      );
+    });
+  }
+
+  Future<void> _recoverPositionUpdates({
+    required DatabaseReference reference,
+    required String presenceId,
+    required String vehicleType,
+    required LocationSettings settings,
+  }) async {
+    if (_activePresenceId != presenceId) return;
+
+    try {
+      final bool locationEnabled = await Geolocator.isLocationServiceEnabled();
+      final LocationPermission permission = await Geolocator.checkPermission();
+      if (!locationEnabled ||
+          permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw const DriverPresenceException(
+          'Location access is unavailable while the driver is online.',
+        );
+      }
+
+      final Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 12),
+        ),
+      );
+      if (_activePresenceId != presenceId) return;
+
+      final double heading = _resolveHeading(position);
+      await _publishPosition(
+        reference: reference,
+        presenceId: presenceId,
+        vehicleType: vehicleType,
+        position: position,
+        heading: heading,
+      );
+
+      _positionRestartAttempts = 0;
+      await _startPositionUpdates(
+        reference: reference,
+        presenceId: presenceId,
+        vehicleType: vehicleType,
+        settings: settings,
+      );
+    } on Object catch (error) {
+      if (_activePresenceId != presenceId) return;
+
+      _positionRestartAttempts += 1;
+      debugPrint(
+        'Unable to restore driver location '
+        '(attempt $_positionRestartAttempts): $error',
+      );
+
+      if (_positionRestartAttempts >= 3) {
+        await goOffline();
+        return;
+      }
+
+      _schedulePositionRestart(
+        reference: reference,
+        presenceId: presenceId,
+        vehicleType: vehicleType,
+        settings: settings,
+      );
+    }
+  }
+
+  void _startConnectionRecovery({
+    required DatabaseReference reference,
+    required String presenceId,
+    required String vehicleType,
+  }) {
+    unawaited(_connectionSubscription?.cancel());
+    _connectionSubscription = _database.ref('.info/connected').onValue.listen(
+      (DatabaseEvent event) {
+        if (event.snapshot.value != true ||
+            _activePresenceId != presenceId) {
+          return;
+        }
+
+        unawaited(
+          _restoreConnectedPresence(
+            reference: reference,
+            presenceId: presenceId,
+            vehicleType: vehicleType,
+          ).catchError((Object error) {
+            debugPrint('Unable to restore driver availability: $error');
+          }),
+        );
+      },
+      onError: (Object error) {
+        debugPrint('Driver connection monitor paused: $error');
+      },
+    );
+  }
+
+  Future<void> _restoreConnectedPresence({
+    required DatabaseReference reference,
+    required String presenceId,
+    required String vehicleType,
+  }) async {
+    final Position? position = _lastPublishedPosition;
+    if (_activePresenceId != presenceId || position == null) return;
+
+    await reference.onDisconnect().update(<String, Object?>{
+      'isOnline': false,
+      'updatedAt': ServerValue.timestamp,
+    });
+    if (_activePresenceId != presenceId) return;
+
+    await _publishPosition(
+      reference: reference,
+      presenceId: presenceId,
+      vehicleType: vehicleType,
+      position: position,
+      heading: _lastPublishedHeading ?? 0,
+    );
   }
 
   void _startHeartbeat({
@@ -313,6 +522,11 @@ class DriverPresenceService {
     _onlineAttempt = null;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
+    _positionRestartTimer?.cancel();
+    _positionRestartTimer = null;
+    _positionRestartAttempts = 0;
+    await _connectionSubscription?.cancel();
+    _connectionSubscription = null;
     await _positionSubscription?.cancel();
     _positionSubscription = null;
 

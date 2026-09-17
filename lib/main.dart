@@ -14,6 +14,7 @@ import 'features/auth/presentation/driver_biometric_gate.dart';
 import 'features/auth/presentation/driver_name_screen.dart';
 import 'features/auth/presentation/phone_login_screen.dart';
 import 'features/auth/presentation/splash_screen.dart';
+import 'features/dashboard/data/driver_presence_service.dart';
 import 'features/dashboard/presentation/driver_shell.dart';
 import 'features/profile/data/driver_profile_repository.dart';
 import 'features/profile/models/driver_profile.dart';
@@ -90,6 +91,9 @@ class _AlphaPlusAppState extends State<AlphaPlusApp> {
 
   void _accountChanged(String? uid) {
     if (!mounted || uid == _activeUid) return;
+    if (_activeUid != null) {
+      unawaited(DriverPresenceService.instance.goOffline());
+    }
     // Discard ALL routes on sign-in, logout, or account replacement. Merely
     // changing the home widget leaves pushed private pages on the old stack.
     setState(() {
