@@ -395,11 +395,15 @@ class _GrossFareCard extends StatelessWidget {
             children: <Widget>[
               Icon(Icons.payments_outlined, color: AppColors.primary, size: 19),
               SizedBox(width: 8),
-              Text(
-                'Gross cash fares',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Text(
+                  'Gross cash fares',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
