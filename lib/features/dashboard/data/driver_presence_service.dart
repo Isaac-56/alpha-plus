@@ -52,6 +52,53 @@ class DriverAvailabilityPolicy {
   }
 }
 
+class DriverHeadingPolicy {
+  const DriverHeadingPolicy._();
+
+  static const int locationDistanceFilterMeters = 2;
+  static const Duration locationUpdateInterval = Duration(seconds: 2);
+  static const double minimumBearingMovementMeters = 1.5;
+  static const double maximumUsefulHeadingAccuracyDegrees = 60;
+
+  static double normalizedHeading(double value) {
+    return ((value % 360) + 360) % 360;
+  }
+
+  static double resolve({
+    required double reportedHeading,
+    required double reportedHeadingAccuracy,
+    required double movementMeters,
+    required double movementBearing,
+    double? previousHeading,
+  }) {
+    final bool hasPreviousHeading =
+        previousHeading != null && previousHeading.isFinite;
+    final bool movedEnough = movementMeters.isFinite &&
+        movementMeters >= minimumBearingMovementMeters;
+    final bool hasReliableReportedHeading = reportedHeading.isFinite &&
+        reportedHeading >= 0 &&
+        reportedHeading <= 360 &&
+        reportedHeadingAccuracy.isFinite &&
+        reportedHeadingAccuracy >= 0 &&
+        reportedHeadingAccuracy <= maximumUsefulHeadingAccuracyDegrees;
+
+    if (!movedEnough && hasPreviousHeading) {
+      return normalizedHeading(previousHeading);
+    }
+    if (hasReliableReportedHeading) {
+      return normalizedHeading(reportedHeading);
+    }
+    if (movedEnough && movementBearing.isFinite) {
+      return normalizedHeading(movementBearing);
+    }
+    if (hasPreviousHeading) {
+      return normalizedHeading(previousHeading);
+    }
+
+    return 0;
+  }
+}
+
 /// Publishes the active driver's public, short-lived map presence.
 ///
 /// Only coordinates needed for dispatch are written. Phone numbers, licence
@@ -72,6 +119,8 @@ class DriverPresenceService {
   DatabaseReference? _activeReference;
   String? _activePresenceId;
   String? _activeDriverId;
+  Position? _lastPublishedPosition;
+  double? _lastPublishedHeading;
   Object? _onlineAttempt;
 
   DatabaseReference _driverReference(String driverId) =>
@@ -155,6 +204,7 @@ class DriverPresenceService {
     _activeDriverId = driverId;
     _activePresenceId = presenceId;
     _activeReference = reference;
+    final double initialHeading = _resolveHeading(initialPosition);
 
     await reference.onDisconnect().update(<String, Object?>{
       'isOnline': false,
@@ -167,6 +217,7 @@ class DriverPresenceService {
       presenceId: presenceId,
       vehicleType: normalizedVehicleType,
       position: initialPosition,
+      heading: initialHeading,
     );
     if (_onlineAttempt != onlineAttempt) return;
 
@@ -175,12 +226,14 @@ class DriverPresenceService {
     _positionSubscription =
         Geolocator.getPositionStream(locationSettings: settings).listen(
           (Position position) {
+            final double heading = _resolveHeading(position);
             unawaited(
               _publishPosition(
                 reference: reference,
                 presenceId: presenceId,
                 vehicleType: normalizedVehicleType,
                 position: position,
+                heading: heading,
               ).catchError((Object error) {
                 debugPrint('Unable to publish the driver location: $error');
               }),
@@ -197,6 +250,7 @@ class DriverPresenceService {
     required String presenceId,
     required String vehicleType,
     required Position position,
+    required double heading,
   }) async {
     if (_activePresenceId != presenceId) return;
 
@@ -205,9 +259,7 @@ class DriverPresenceService {
       'presenceId': presenceId,
       'latitude': position.latitude,
       'longitude': position.longitude,
-      'heading': position.heading.isFinite && position.heading >= 0
-          ? position.heading
-          : 0,
+      'heading': DriverHeadingPolicy.normalizedHeading(heading),
       'accuracy': position.accuracy,
       'isOnline': true,
       'vehicleType': vehicleType,
@@ -270,6 +322,8 @@ class DriverPresenceService {
     _activeReference = null;
     _activePresenceId = null;
     _activeDriverId = null;
+    _lastPublishedPosition = null;
+    _lastPublishedHeading = null;
 
     if (reference == null || presenceId == null) return;
 
@@ -297,12 +351,47 @@ class DriverPresenceService {
     return '${DateTime.now().microsecondsSinceEpoch}-$randomPart';
   }
 
+  double _resolveHeading(Position position) {
+    final Position? previousPosition = _lastPublishedPosition;
+    double movementMeters = 0;
+    double movementBearing = _lastPublishedHeading ?? 0;
+
+    if (previousPosition != null) {
+      movementMeters = Geolocator.distanceBetween(
+        previousPosition.latitude,
+        previousPosition.longitude,
+        position.latitude,
+        position.longitude,
+      );
+      if (movementMeters >= DriverHeadingPolicy.minimumBearingMovementMeters) {
+        movementBearing = Geolocator.bearingBetween(
+          previousPosition.latitude,
+          previousPosition.longitude,
+          position.latitude,
+          position.longitude,
+        );
+      }
+    }
+
+    final double heading = DriverHeadingPolicy.resolve(
+      reportedHeading: position.heading,
+      reportedHeadingAccuracy: position.headingAccuracy,
+      movementMeters: movementMeters,
+      movementBearing: movementBearing,
+      previousHeading: _lastPublishedHeading,
+    );
+
+    _lastPublishedPosition = position;
+    _lastPublishedHeading = heading;
+    return heading;
+  }
+
   LocationSettings _onlineLocationSettings() {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return AndroidSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 8,
-        intervalDuration: const Duration(seconds: 8),
+        distanceFilter: DriverHeadingPolicy.locationDistanceFilterMeters,
+        intervalDuration: DriverHeadingPolicy.locationUpdateInterval,
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: 'Alpha Plus is online',
           notificationText: 'Sharing location for nearby trip requests',
@@ -314,7 +403,7 @@ class DriverPresenceService {
 
     return const LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 8,
+      distanceFilter: DriverHeadingPolicy.locationDistanceFilterMeters,
     );
   }
 }
