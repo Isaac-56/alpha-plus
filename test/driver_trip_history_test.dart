@@ -23,6 +23,34 @@ void main() {
     expect(trip.grossFare, 10500);
     expect(trip.pickupAddress, 'Imperial Plaza');
     expect(trip.destinationAddress, 'Juba Airport');
+    expect(trip.hasTrustedAccounting, false);
+  });
+
+  test('completed trip reads trusted 10 percent settlement accounting', () {
+    final DriverTripRecord trip = DriverTripRecord.fromMap(
+      rideId: 'ride-accounted',
+      data: <String, dynamic>{
+        'status': 'completed',
+        'pickup': <String, dynamic>{'address': 'Custom Market'},
+        'destination': <String, dynamic>{'address': 'Juba Airport'},
+        'rideOptionId': 'rickshaw',
+        'paymentMethod': 'cash',
+        'estimatedFare': 20000,
+        'finalFare': 20000,
+        'currencyCode': 'SSP',
+        'platformCommissionBps': 1000,
+        'platformFee': 2000,
+        'driverNetFare': 18000,
+        'cashCollectedByDriver': 20000,
+        'settlementStatus': 'platform_fee_due',
+      },
+    );
+
+    expect(trip.hasTrustedAccounting, true);
+    expect(trip.isPlatformFeeDue, true);
+    expect(trip.commissionLabel, '10%');
+    expect(trip.platformFee, 2000);
+    expect(trip.driverNetFare, 18000);
   });
 
   test('completed trip falls back to trusted estimated fare', () {
