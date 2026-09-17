@@ -12,6 +12,11 @@ class DriverTripRecord {
     required this.finalFare,
     required this.currencyCode,
     required this.activityAt,
+    required this.platformCommissionBps,
+    required this.platformFee,
+    required this.driverNetFare,
+    required this.cashCollectedByDriver,
+    required this.settlementStatus,
   });
 
   final String rideId;
@@ -24,10 +29,32 @@ class DriverTripRecord {
   final int? finalFare;
   final String currencyCode;
   final DateTime? activityAt;
+  final int? platformCommissionBps;
+  final int? platformFee;
+  final int? driverNetFare;
+  final int? cashCollectedByDriver;
+  final String settlementStatus;
 
   bool get isCompleted => status == 'completed';
   bool get isCancelled => status == 'cancelled';
   int get grossFare => finalFare ?? estimatedFare;
+  bool get hasTrustedAccounting =>
+      isCompleted &&
+      platformCommissionBps != null &&
+      platformFee != null &&
+      driverNetFare != null &&
+      cashCollectedByDriver != null &&
+      settlementStatus.isNotEmpty;
+  bool get isPlatformFeeDue =>
+      hasTrustedAccounting && settlementStatus == 'platform_fee_due';
+  String get commissionLabel {
+    final int? basisPoints = platformCommissionBps;
+    if (basisPoints == null) return '—';
+    final double percentage = basisPoints / 100;
+    return percentage == percentage.roundToDouble()
+        ? '${percentage.toInt()}%'
+        : '${percentage.toStringAsFixed(2)}%';
+  }
 
   factory DriverTripRecord.fromMap({
     required String rideId,
@@ -56,6 +83,11 @@ class DriverTripRecord {
         data['updatedAt'],
         data['requestedAt'],
       ]),
+      platformCommissionBps: _optionalInt(data['platformCommissionBps']),
+      platformFee: _optionalInt(data['platformFee']),
+      driverNetFare: _optionalInt(data['driverNetFare']),
+      cashCollectedByDriver: _optionalInt(data['cashCollectedByDriver']),
+      settlementStatus: _string(data['settlementStatus']).toLowerCase(),
     );
   }
 }
@@ -133,6 +165,11 @@ int _int(Object? value) {
     return value.toInt();
   }
   throw const FormatException('Fare must be an integer.');
+}
+
+int? _optionalInt(Object? value) {
+  if (value == null) return null;
+  return _int(value);
 }
 
 DateTime? _firstDate(Iterable<Object?> values) {

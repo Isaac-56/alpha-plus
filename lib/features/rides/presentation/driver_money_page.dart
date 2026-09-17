@@ -32,6 +32,9 @@ class DriverMoneyPage extends StatelessWidget {
           final List<DriverTripRecord> completed = trips
               .where((DriverTripRecord trip) => trip.isCompleted)
               .toList(growable: false);
+          final List<DriverTripRecord> accounted = completed
+              .where((DriverTripRecord trip) => trip.hasTrustedAccounting)
+              .toList(growable: false);
           final DateTime now = DateTime.now();
           final DateTime today = DateTime(now.year, now.month, now.day);
           final DateTime weekStart = today.subtract(
@@ -43,6 +46,18 @@ class DriverMoneyPage extends StatelessWidget {
             0,
             (int total, DriverTripRecord trip) => total + trip.grossFare,
           );
+          final int platformFeeDue = accounted.fold<int>(
+            0,
+            (int total, DriverTripRecord trip) =>
+                total + (trip.isPlatformFeeDue ? trip.platformFee! : 0),
+          );
+          final int driverNetAll = accounted.fold<int>(
+            0,
+            (int total, DriverTripRecord trip) =>
+                total + trip.driverNetFare!,
+          );
+          final bool hasLegacyCompletedRides =
+              accounted.length != completed.length;
 
           return RefreshIndicator(
             onRefresh: () async =>
@@ -54,46 +69,26 @@ class DriverMoneyPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Money',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineMedium
-                                  ?.copyWith(fontWeight: FontWeight.w900),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Verified cash fares from completed rides.',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => Navigator.of(context).push<void>(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const BalanceLimitScreen(),
-                          ),
-                        ),
-                        icon: const Icon(
-                          Icons.account_balance_wallet_outlined,
-                          size: 18,
-                        ),
-                        label: const Text('Balance limit'),
-                      ),
-                    ],
-                  ),
+                  const _MoneyHeader(),
                   const SizedBox(height: 16),
                   _GrossFareCard(
                     amount: grossAll,
                     completedTrips: completed.length,
+                  ),
+                  const SizedBox(height: 12),
+                  _MetricPair(
+                    first: _MetricCard(
+                      key: const Key('driverPlatformFeeDue'),
+                      label: 'Alpha fee due',
+                      value: '${_money(platformFeeDue)} SSP',
+                      icon: Icons.account_balance_outlined,
+                    ),
+                    second: _MetricCard(
+                      key: const Key('driverNetEarnings'),
+                      label: 'Driver net',
+                      value: '${_money(driverNetAll)} SSP',
+                      icon: Icons.savings_outlined,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Row(
@@ -140,29 +135,24 @@ class DriverMoneyPage extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 20),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _MetricCard(
-                          key: const Key('driverTodayGross'),
-                          label: 'Today',
-                          value: '${_money(grossToday)} SSP',
-                          icon: Icons.today_outlined,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _MetricCard(
-                          key: const Key('driverWeekGross'),
-                          label: 'This week',
-                          value: '${_money(grossWeek)} SSP',
-                          icon: Icons.calendar_view_week_outlined,
-                        ),
-                      ),
-                    ],
+                  _MetricPair(
+                    first: _MetricCard(
+                      key: const Key('driverTodayGross'),
+                      label: 'Today',
+                      value: '${_money(grossToday)} SSP',
+                      icon: Icons.today_outlined,
+                    ),
+                    second: _MetricCard(
+                      key: const Key('driverWeekGross'),
+                      label: 'This week',
+                      value: '${_money(grossWeek)} SSP',
+                      icon: Icons.calendar_view_week_outlined,
+                    ),
                   ),
                   const SizedBox(height: 14),
-                  const _SettlementNotice(),
+                  _SettlementNotice(
+                    hasLegacyCompletedRides: hasLegacyCompletedRides,
+                  ),
                 ],
               ),
             ),
@@ -256,6 +246,25 @@ class DriverMoneyPage extends StatelessWidget {
                   label: trip.isCompleted ? 'Gross fare' : 'Fare shown',
                   value: '${_money(trip.grossFare)} ${trip.currencyCode}',
                 ),
+                if (trip.hasTrustedAccounting) ...<Widget>[
+                  const SizedBox(height: 10),
+                  _ValueRow(
+                    label: 'Alpha fee (${trip.commissionLabel})',
+                    value:
+                        '${_money(trip.platformFee!)} ${trip.currencyCode}',
+                  ),
+                  const SizedBox(height: 10),
+                  _ValueRow(
+                    label: 'Driver net',
+                    value:
+                        '${_money(trip.driverNetFare!)} ${trip.currencyCode}',
+                  ),
+                  const SizedBox(height: 10),
+                  _ValueRow(
+                    label: 'Settlement',
+                    value: trip.isPlatformFeeDue ? 'Fee due' : 'Recorded',
+                  ),
+                ],
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: () => Navigator.pop(sheetContext),
@@ -272,6 +281,92 @@ class DriverMoneyPage extends StatelessWidget {
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+}
+
+class _MoneyHeader extends StatelessWidget {
+  const _MoneyHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Money',
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Completed rides, earnings and cash settlement.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ],
+    );
+    final Widget balanceButton = TextButton.icon(
+      onPressed: () => Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(builder: (_) => const BalanceLimitScreen()),
+      ),
+      icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
+      label: const Text('Balance limit'),
+    );
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (constraints.maxWidth < 430) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              title,
+              const SizedBox(height: 6),
+              balanceButton,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(child: title),
+            const SizedBox(width: 8),
+            balanceButton,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _MetricPair extends StatelessWidget {
+  const _MetricPair({required this.first, required this.second});
+
+  final Widget first;
+  final Widget second;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (constraints.maxWidth < 430) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              first,
+              const SizedBox(height: 12),
+              second,
+            ],
+          );
+        }
+        return Row(
+          children: <Widget>[
+            Expanded(child: first),
+            const SizedBox(width: 12),
+            Expanded(child: second),
+          ],
         );
       },
     );
@@ -300,11 +395,15 @@ class _GrossFareCard extends StatelessWidget {
             children: <Widget>[
               Icon(Icons.payments_outlined, color: AppColors.primary, size: 19),
               SizedBox(width: 8),
-              Text(
-                'Gross cash fares',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Text(
+                  'Gross cash fares',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -371,7 +470,9 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _SettlementNotice extends StatelessWidget {
-  const _SettlementNotice();
+  const _SettlementNotice({required this.hasLegacyCompletedRides});
+
+  final bool hasLegacyCompletedRides;
 
   @override
   Widget build(BuildContext context) {
@@ -381,15 +482,20 @@ class _SettlementNotice extends StatelessWidget {
         color: AppColors.primary.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(Icons.info_outline_rounded, size: 20),
-          SizedBox(width: 10),
+          const Icon(Icons.info_outline_rounded, size: 20),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'These are gross cash fares from completed trips. Platform fees, commission and settlement balances are not calculated until Alpha’s payout rules are defined.',
-              style: TextStyle(height: 1.4, fontWeight: FontWeight.w600),
+              hasLegacyCompletedRides
+                  ? 'Alpha applies a 10% fee to newly completed cash rides. Older rides without trusted settlement fields remain in the gross total but are not estimated in fee or net totals.'
+                  : 'Alpha’s launch commission is 10%. You keep 90% of each completed fare. Because you collect the cash, the Alpha fee is recorded as your settlement balance.',
+              style: const TextStyle(
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -448,9 +554,13 @@ class _TripCard extends StatelessWidget {
                     ),
                   ),
                   if (trip.isCompleted)
-                    Text(
-                      '${_money(trip.grossFare)} ${trip.currencyCode}',
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    Flexible(
+                      child: Text(
+                        '${_money(trip.grossFare)} ${trip.currencyCode}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
                     ),
                   const Icon(Icons.chevron_right_rounded),
                 ],
@@ -540,9 +650,17 @@ class _ValueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        Text(label),
-        const Spacer(),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+        Expanded(child: Text(label)),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ),
       ],
     );
   }
