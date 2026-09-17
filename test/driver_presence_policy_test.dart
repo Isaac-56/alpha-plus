@@ -64,4 +64,53 @@ void main() {
       );
     });
   });
+
+  group('DriverHeadingPolicy', () {
+    test('publishes frequent movement updates for live map rotation', () {
+      expect(DriverHeadingPolicy.locationDistanceFilterMeters, 2);
+      expect(
+        DriverHeadingPolicy.locationUpdateInterval,
+        const Duration(seconds: 2),
+      );
+    });
+
+    test('uses a reliable device heading after movement', () {
+      expect(
+        DriverHeadingPolicy.resolve(
+          reportedHeading: 91,
+          reportedHeadingAccuracy: 8,
+          movementMeters: 3,
+          movementBearing: 87,
+          previousHeading: 80,
+        ),
+        91,
+      );
+    });
+
+    test('uses movement bearing when device heading is unavailable', () {
+      expect(
+        DriverHeadingPolicy.resolve(
+          reportedHeading: -1,
+          reportedHeadingAccuracy: -1,
+          movementMeters: 4,
+          movementBearing: -10,
+          previousHeading: 20,
+        ),
+        350,
+      );
+    });
+
+    test('keeps the last direction while stationary', () {
+      expect(
+        DriverHeadingPolicy.resolve(
+          reportedHeading: 0,
+          reportedHeadingAccuracy: -1,
+          movementMeters: 0.4,
+          movementBearing: 0,
+          previousHeading: 275,
+        ),
+        275,
+      );
+    });
+  });
 }
