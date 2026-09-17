@@ -91,7 +91,7 @@ class _AlphaPlusAppState extends State<AlphaPlusApp> {
 
   void _accountChanged(String? uid) {
     if (!mounted || uid == _activeUid) return;
-    if (_activeUid != null) {
+    if (_activeUid != null && Firebase.apps.isNotEmpty) {
       unawaited(DriverPresenceService.instance.goOffline());
     }
     // Discard ALL routes on sign-in, logout, or account replacement. Merely
