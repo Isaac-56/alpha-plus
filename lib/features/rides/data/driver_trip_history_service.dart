@@ -5,7 +5,11 @@ class DriverTripRecord {
     required this.rideId,
     required this.status,
     required this.pickupAddress,
+    required this.pickupLatitude,
+    required this.pickupLongitude,
     required this.destinationAddress,
+    required this.destinationLatitude,
+    required this.destinationLongitude,
     required this.rideOptionId,
     required this.paymentMethod,
     required this.estimatedFare,
@@ -22,7 +26,11 @@ class DriverTripRecord {
   final String rideId;
   final String status;
   final String pickupAddress;
+  final double? pickupLatitude;
+  final double? pickupLongitude;
   final String destinationAddress;
+  final double? destinationLatitude;
+  final double? destinationLongitude;
   final String rideOptionId;
   final String paymentMethod;
   final int estimatedFare;
@@ -47,6 +55,16 @@ class DriverTripRecord {
       settlementStatus.isNotEmpty;
   bool get isPlatformFeeDue =>
       hasTrustedAccounting && settlementStatus == 'platform_fee_due';
+  String get pickupDisplayAddress => _locationLabel(
+        pickupAddress,
+        pickupLatitude,
+        pickupLongitude,
+      );
+  String get destinationDisplayAddress => _locationLabel(
+        destinationAddress,
+        destinationLatitude,
+        destinationLongitude,
+      );
   String get commissionLabel {
     final int? basisPoints = platformCommissionBps;
     if (basisPoints == null) return '—';
@@ -71,7 +89,11 @@ class DriverTripRecord {
       rideId: rideId,
       status: status,
       pickupAddress: _string(pickup['address']),
+      pickupLatitude: _optionalDouble(pickup['latitude']),
+      pickupLongitude: _optionalDouble(pickup['longitude']),
       destinationAddress: _string(destination['address']),
+      destinationLatitude: _optionalDouble(destination['latitude']),
+      destinationLongitude: _optionalDouble(destination['longitude']),
       rideOptionId: _string(data['rideOptionId']).toLowerCase(),
       paymentMethod: _string(data['paymentMethod']).toLowerCase(),
       estimatedFare: _int(data['estimatedFare']),
@@ -170,6 +192,26 @@ int _int(Object? value) {
 int? _optionalInt(Object? value) {
   if (value == null) return null;
   return _int(value);
+}
+
+double? _optionalDouble(Object? value) {
+  if (value is num && value.isFinite) return value.toDouble();
+  return null;
+}
+
+String _locationLabel(String address, double? latitude, double? longitude) {
+  final String normalizedAddress = address.trim();
+  final String lowerAddress = normalizedAddress.toLowerCase();
+  final bool genericAddress = normalizedAddress.isEmpty ||
+      lowerAddress == 'current location' ||
+      lowerAddress == 'selected location' ||
+      lowerAddress == 'detecting current location...';
+
+  if (!genericAddress) return normalizedAddress;
+  if (latitude != null && longitude != null) {
+    return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
+  }
+  return 'Address unavailable';
 }
 
 DateTime? _firstDate(Iterable<Object?> values) {
