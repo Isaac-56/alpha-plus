@@ -21,6 +21,13 @@ class DriverActiveRide {
     required this.paymentMethod,
     required this.estimatedFare,
     required this.currencyCode,
+    this.isWaiting = false,
+    this.waitingStartedAt,
+    this.waitingSeconds = 0,
+    this.billableWaitingSeconds = 0,
+    this.waitingCharge = 0,
+    this.waitingGraceSeconds = 120,
+    this.waitingRatePerMinute = 0,
   });
 
   static const Set<String> activeStatuses = <String>{
@@ -38,6 +45,13 @@ class DriverActiveRide {
   final String paymentMethod;
   final int estimatedFare;
   final String currencyCode;
+  final bool isWaiting;
+  final DateTime? waitingStartedAt;
+  final int waitingSeconds;
+  final int billableWaitingSeconds;
+  final int waitingCharge;
+  final int waitingGraceSeconds;
+  final int waitingRatePerMinute;
 
   bool get isActive => activeStatuses.contains(status);
 
@@ -65,6 +79,40 @@ class DriverActiveRide {
         'in_progress' => 'Complete trip',
         _ => 'Update ride',
       };
+
+  int waitingSecondsAt(DateTime now) {
+    if (!isWaiting || waitingStartedAt == null) return waitingSeconds;
+    final int activeSeconds = now
+        .difference(waitingStartedAt!)
+        .inSeconds
+        .clamp(0, 4 * 60 * 60)
+        .toInt();
+    return waitingSeconds + activeSeconds;
+  }
+
+  int billableWaitingSecondsAt(DateTime now) {
+    if (!isWaiting || waitingStartedAt == null) {
+      return billableWaitingSeconds;
+    }
+    final int activeSeconds = now
+        .difference(waitingStartedAt!)
+        .inSeconds
+        .clamp(0, 4 * 60 * 60)
+        .toInt();
+    return billableWaitingSeconds +
+        (activeSeconds - waitingGraceSeconds)
+            .clamp(0, 4 * 60 * 60)
+            .toInt();
+  }
+
+  int waitingChargeAt(DateTime now) {
+    final int seconds = billableWaitingSecondsAt(now);
+    if (seconds == 0 || waitingRatePerMinute <= 0) return waitingCharge;
+    final double raw = seconds / 60 * waitingRatePerMinute;
+    return (raw / 100).ceil() * 100;
+  }
+
+  int fareAt(DateTime now) => estimatedFare + waitingChargeAt(now);
 
   factory DriverActiveRide.fromMap({
     required String rideId,
@@ -97,6 +145,16 @@ class DriverActiveRide {
         data['currencyCode'],
         'currencyCode',
       ).toUpperCase(),
+      isWaiting: data['isWaiting'] == true,
+      waitingStartedAt: _optionalTimestamp(data['waitingStartedAt']),
+      waitingSeconds: _nonNegativeInt(data['waitingSeconds']),
+      billableWaitingSeconds:
+          _nonNegativeInt(data['billableWaitingSeconds']),
+      waitingCharge: _nonNegativeInt(data['waitingCharge']),
+      waitingGraceSeconds:
+          _nonNegativeInt(data['waitingGraceSeconds'], fallback: 120),
+      waitingRatePerMinute:
+          _nonNegativeInt(data['waitingRatePerMinute']),
     );
   }
 }
@@ -169,6 +227,31 @@ class DriverActiveRideService {
       throw DriverRideLifecycleException(message, code: error.code);
     }
   }
+
+  Future<void> setCustomerWaiting({
+    required String rideId,
+    required bool isWaiting,
+  }) async {
+    try {
+      await _functions.httpsCallable('setRideWaiting').call<dynamic>(
+        <String, dynamic>{
+          'rideId': rideId,
+          'isWaiting': isWaiting,
+        },
+      );
+    } on FirebaseFunctionsException catch (error) {
+      final String message = switch (error.code) {
+        'unauthenticated' => 'Sign in again before updating waiting time.',
+        'permission-denied' =>
+          error.message ?? 'Only the assigned driver can manage waiting.',
+        'failed-precondition' =>
+          error.message ?? 'Waiting cannot be changed at this ride stage.',
+        'not-found' => 'This ride no longer exists.',
+        _ => error.message ?? 'Waiting time could not be updated right now.',
+      };
+      throw DriverRideLifecycleException(message, code: error.code);
+    }
+  }
 }
 
 Map<String, dynamic> _requiredMap(Object? value, String field) {
@@ -193,4 +276,17 @@ int _positiveInt(Object? value, String field) {
     return value.toInt();
   }
   throw FormatException('Ride field "$field" must be a positive integer.');
+}
+
+int _nonNegativeInt(Object? value, {int fallback = 0}) {
+  if (value == null) return fallback;
+  if (value is int && value >= 0) return value;
+  if (value is num && value.isFinite && value >= 0) return value.round();
+  return fallback;
+}
+
+DateTime? _optionalTimestamp(Object? value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is DateTime) return value;
+  return null;
 }

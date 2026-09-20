@@ -1,4 +1,5 @@
 import 'package:alpha_plus/features/rides/data/driver_active_ride_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -59,5 +60,35 @@ void main() {
       ),
       throwsFormatException,
     );
+  });
+
+  test('active customer waiting projects proportional fare', () {
+    final DateTime now = DateTime.utc(2026, 9, 20, 12, 5);
+    final DriverActiveRide ride = DriverActiveRide.fromMap(
+      rideId: 'ride-waiting',
+      data: <String, dynamic>{
+        'status': 'in_progress',
+        'pickup': <String, dynamic>{'address': 'Pickup'},
+        'destination': <String, dynamic>{'address': 'Destination'},
+        'rideOptionId': 'standard',
+        'paymentMethod': 'cash',
+        'estimatedFare': 42000,
+        'currencyCode': 'SSP',
+        'isWaiting': true,
+        'waitingStartedAt': Timestamp.fromDate(
+          now.subtract(const Duration(minutes: 3)),
+        ),
+        'waitingSeconds': 0,
+        'billableWaitingSeconds': 0,
+        'waitingCharge': 0,
+        'waitingGraceSeconds': 120,
+        'waitingRatePerMinute': 450,
+      },
+    );
+
+    expect(ride.waitingSecondsAt(now), 180);
+    expect(ride.billableWaitingSecondsAt(now), 60);
+    expect(ride.waitingChargeAt(now), 500);
+    expect(ride.fareAt(now), 42500);
   });
 }
