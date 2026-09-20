@@ -77,6 +77,58 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
     }
   }
 
+  Future<void> _toggleWaiting(DriverActiveRide ride) async {
+    if (ride.status != 'in_progress' || _busyRideId != null) return;
+
+    if (!ride.isWaiting) {
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Start customer waiting?'),
+            content: const Text(
+              'Use this only when the passenger asks you to stop. Normal traffic and red lights must not be recorded as customer waiting. The first 2 minutes are free.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Start waiting'),
+              ),
+            ],
+          );
+        },
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    setState(() {
+      _busyRideId = ride.rideId;
+      _errorMessage = null;
+    });
+
+    try {
+      await _rides.setCustomerWaiting(
+        rideId: ride.rideId,
+        isWaiting: !ride.isWaiting,
+      );
+    } on DriverRideLifecycleException catch (error) {
+      if (mounted) setState(() => _errorMessage = error.message);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _errorMessage =
+              'Waiting could not be updated. Check your connection and try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busyRideId = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<String?>(
@@ -112,8 +164,12 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                       elevation: 18,
                       shadowColor: Colors.black45,
                       borderRadius: BorderRadius.circular(28),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.sizeOf(context).height * 0.72,
+                        ),
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,7 +211,7 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                                   ),
                                 ),
                                 Text(
-                                  '${ride.estimatedFare} ${ride.currencyCode}',
+                                  '${_formatAmount(ride.fareAt(DateTime.now()))} ${ride.currencyCode}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -193,6 +249,10 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                                 ),
                               ],
                             ),
+                            if (ride.status == 'in_progress') ...<Widget>[
+                              const SizedBox(height: 12),
+                              _DriverWaitingStatus(ride: ride),
+                            ],
                             if (_errorMessage != null) ...<Widget>[
                               const SizedBox(height: 10),
                               Text(
@@ -205,6 +265,27 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                               ),
                             ],
                             const SizedBox(height: 16),
+                            if (ride.status == 'in_progress') ...<Widget>[
+                              SizedBox(
+                                height: 48,
+                                child: OutlinedButton.icon(
+                                  key: const Key('toggleCustomerWaiting'),
+                                  onPressed:
+                                      busy ? null : () => _toggleWaiting(ride),
+                                  icon: Icon(
+                                    ride.isWaiting
+                                        ? Icons.play_arrow_rounded
+                                        : Icons.timer_outlined,
+                                  ),
+                                  label: Text(
+                                    ride.isWaiting
+                                        ? 'End wait and resume'
+                                        : 'Start customer wait',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
                             SizedBox(
                               height: 52,
                               child: ElevatedButton(
@@ -221,6 +302,7 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                               ),
                             ),
                           ],
+                        ),
                         ),
                       ),
                     ),
@@ -241,6 +323,93 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
       'standard' => 'Alpha Standard',
       _ => rideOptionId,
     };
+  }
+
+  static String _formatAmount(int amount) {
+    final String digits = amount.abs().toString();
+    final StringBuffer formatted = StringBuffer();
+    for (int index = 0; index < digits.length; index++) {
+      if (index > 0 && (digits.length - index) % 3 == 0) {
+        formatted.write(',');
+      }
+      formatted.write(digits[index]);
+    }
+    return amount < 0 ? '-$formatted' : formatted.toString();
+  }
+}
+
+class _DriverWaitingStatus extends StatelessWidget {
+  const _DriverWaitingStatus({required this.ride});
+
+  final DriverActiveRide ride;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!ride.isWaiting) {
+      return Text(
+        'Customer waiting: first 2 minutes free, then ${ride.waitingRatePerMinute} ${ride.currencyCode}/min.',
+        style: Theme.of(context).textTheme.bodySmall,
+      );
+    }
+
+    return StreamBuilder<int>(
+      stream: Stream<int>.periodic(
+        const Duration(seconds: 1),
+        (int tick) => tick,
+      ),
+      initialData: 0,
+      builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
+        final DateTime now = DateTime.now();
+        final int totalSeconds = ride.waitingSecondsAt(now);
+        final int activeSeconds = ride.waitingStartedAt == null
+            ? 0
+            : now
+                .difference(ride.waitingStartedAt!)
+                .inSeconds
+                .clamp(0, 4 * 60 * 60)
+                .toInt();
+        final int freeRemaining =
+            (ride.waitingGraceSeconds - activeSeconds)
+                .clamp(0, 999999)
+                .toInt();
+        final int charge = ride.waitingChargeAt(now);
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.55),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'Waiting ${_clock(totalSeconds)}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                freeRemaining > 0
+                    ? '${_clock(freeRemaining)} free waiting remains'
+                    : '$charge ${ride.currencyCode} waiting added so far',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static String _clock(int totalSeconds) {
+    final int safeSeconds = totalSeconds < 0 ? 0 : totalSeconds;
+    final int minutes = safeSeconds ~/ 60;
+    final int seconds = safeSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 }
 
