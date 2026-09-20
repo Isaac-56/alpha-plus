@@ -35,72 +35,19 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
       final bool? confirmed = await showDialog<bool>(
         context: context,
         builder: (BuildContext context) {
-          final ColorScheme colors = Theme.of(context).colorScheme;
           return AlertDialog(
-            backgroundColor: colors.surface,
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-              side: BorderSide(color: Theme.of(context).dividerColor),
-            ),
-            icon: Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.16),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle_outline_rounded,
-                color: AppColors.primary,
-                size: 30,
-              ),
-            ),
             title: const Text('Complete this trip?'),
             content: const Text(
               'Only complete the trip after the passenger has reached the destination.',
             ),
-            actionsPadding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
             actions: <Widget>[
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: colors.onSurface,
-                          side: BorderSide(
-                            color: Theme.of(context).dividerColor,
-                            width: 1.4,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Keep trip open'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.ink,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Complete trip'),
-                      ),
-                    ),
-                  ),
-                ],
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Not yet'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Complete trip'),
               ),
             ],
           );
