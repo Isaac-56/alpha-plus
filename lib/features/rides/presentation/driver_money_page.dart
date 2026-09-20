@@ -224,13 +224,13 @@ class DriverMoneyPage extends StatelessWidget {
                 _DetailLine(
                   icon: Icons.my_location_rounded,
                   label: 'Pickup',
-                  value: _safeAddress(trip.pickupAddress),
+                  value: trip.pickupDisplayAddress,
                 ),
                 const SizedBox(height: 14),
                 _DetailLine(
                   icon: Icons.flag_rounded,
                   label: 'Destination',
-                  value: _safeAddress(trip.destinationAddress),
+                  value: trip.destinationDisplayAddress,
                 ),
                 const SizedBox(height: 18),
                 const Divider(height: 1),
@@ -568,12 +568,12 @@ class _TripCard extends StatelessWidget {
               const SizedBox(height: 14),
               _RouteLine(
                 icon: Icons.my_location_rounded,
-                value: _safeAddress(trip.pickupAddress),
+                value: trip.pickupDisplayAddress,
               ),
               const SizedBox(height: 8),
               _RouteLine(
                 icon: Icons.flag_rounded,
-                value: _safeAddress(trip.destinationAddress),
+                value: trip.destinationDisplayAddress,
               ),
             ],
           ),
@@ -716,9 +716,6 @@ String _money(int value) {
   }
   return value < 0 ? '-$buffer' : buffer.toString();
 }
-
-String _safeAddress(String value) =>
-    value.trim().isEmpty ? 'Address unavailable' : value.trim();
 
 String _titleCase(String value) {
   final String normalized = value.trim();

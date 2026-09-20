@@ -71,6 +71,33 @@ void main() {
     expect(trip.grossFare, 4500);
   });
 
+  test('generic current location displays the exact stored coordinates', () {
+    final DriverTripRecord trip = DriverTripRecord.fromMap(
+      rideId: 'ride-location',
+      data: <String, dynamic>{
+        'status': 'completed',
+        'pickup': <String, dynamic>{
+          'address': 'Current location',
+          'latitude': 4.8517,
+          'longitude': 31.5825,
+        },
+        'destination': <String, dynamic>{
+          'address': 'Gudele, Juba',
+          'latitude': 4.872,
+          'longitude': 31.601,
+        },
+        'rideOptionId': 'standard',
+        'paymentMethod': 'cash',
+        'estimatedFare': 12000,
+        'finalFare': 12000,
+        'currencyCode': 'SSP',
+      },
+    );
+
+    expect(trip.pickupDisplayAddress, '4.851700, 31.582500');
+    expect(trip.destinationDisplayAddress, 'Gudele, Juba');
+  });
+
   test('active rides cannot appear as terminal trip activity', () {
     for (final String status in <String>[
       'requested',
