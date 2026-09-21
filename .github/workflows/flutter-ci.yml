@@ -32,3 +32,11 @@ jobs:
 
       - name: Test
         run: flutter test
+
+      - name: Build optimized Android app bundle
+        env:
+          MAPS_API_KEY: CI_PLACEHOLDER
+        run: flutter build appbundle --release
+
+      - name: Report app bundle size
+        run: du -h build/app/outputs/bundle/release/app-release.aab
