@@ -33,7 +33,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 900),
     );
 
     _logoEntrance = CurvedAnimation(
@@ -42,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _controller.forward();
-    _navigationTimer = Timer(const Duration(milliseconds: 2450), _finish);
+    _navigationTimer = Timer(const Duration(milliseconds: 1000), _finish);
   }
 
   void _finish() {

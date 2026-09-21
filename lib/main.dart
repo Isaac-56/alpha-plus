@@ -22,7 +22,7 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AppThemeController.initialize();
+  final Future<void> themeInitialization = AppThemeController.initialize();
 
   Object? firebaseInitializationError;
   try {
@@ -32,6 +32,7 @@ Future<void> main() async {
   } on Object catch (error) {
     firebaseInitializationError = error;
   }
+  await themeInitialization;
 
   runApp(
     AlphaPlusApp(firebaseInitializationError: firebaseInitializationError),
@@ -167,7 +168,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
   void initState() {
     super.initState();
     _minimumSplashDuration = Future<void>.delayed(
-      const Duration(milliseconds: 2450),
+      const Duration(milliseconds: 900),
     );
 
     if (widget.firebaseInitializationError == null) {

@@ -39,15 +39,34 @@ class DriverShell extends StatefulWidget {
 
 class _DriverShellState extends State<DriverShell> {
   int _index = 0;
+  late List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = _buildPages();
+  }
+
+  @override
+  void didUpdateWidget(covariant DriverShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.driverId != widget.driverId ||
+        oldWidget.driverName != widget.driverName ||
+        oldWidget.reviewStatus != widget.reviewStatus ||
+        oldWidget.registration != widget.registration ||
+        oldWidget.onSignOut != widget.onSignOut ||
+        oldWidget.mapBuilder != widget.mapBuilder) {
+      _pages = _buildPages();
+    }
+  }
 
   Future<void> _signOut() async {
     await DriverPresenceService.instance.goOffline();
     await widget.onSignOut?.call();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final List<Widget> pages = <Widget>[
+  List<Widget> _buildPages() {
+    return <Widget>[
       _RequestsPage(
         driverId: widget.driverId,
         driverName: widget.driverName,
@@ -68,11 +87,14 @@ class _DriverShellState extends State<DriverShell> {
         onSignOut: widget.onSignOut == null ? null : _signOut,
       ),
     ];
+  }
 
+  @override
+  Widget build(BuildContext context) {
     final Widget shell = PopScope(
       canPop: false,
       child: Scaffold(
-        body: IndexedStack(index: _index, children: pages),
+        body: IndexedStack(index: _index, children: _pages),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
           onDestinationSelected: (int value) => setState(() => _index = value),

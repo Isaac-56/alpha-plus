@@ -34,7 +34,6 @@ dependencies:
 
   cloud_firestore: ^6.7.1
   cloud_functions: 6.3.6
-  cupertino_icons: ^1.0.8
   firebase_auth: ^6.5.6
   firebase_core: 4.13.0
   firebase_database: ^12.1.0
@@ -69,7 +68,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/branding/alpha_plus_car_frame.png
     - assets/branding/alpha_plus_logo.png
 
   # To add assets to your application, add an assets section, like this:
