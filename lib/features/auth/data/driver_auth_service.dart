@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'driver_account_role_service.dart';
 import 'driver_session_service.dart';
 import 'driver_biometric_controller.dart';
 
@@ -65,7 +66,9 @@ class FirebaseDriverAuthService implements DriverAuthService {
   Future<PhoneVerificationSession> requestCode({
     required String phoneNumber,
     int? forceResendingToken,
-  }) {
+  }) async {
+    await DriverAccountRoleService.instance.preflightDriverRole(phoneNumber);
+
     final Completer<PhoneVerificationSession> completer =
         Completer<PhoneVerificationSession>();
 
