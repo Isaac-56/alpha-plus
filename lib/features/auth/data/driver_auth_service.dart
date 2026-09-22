@@ -51,6 +51,7 @@ class FirebaseDriverAuthService implements DriverAuthService {
   final FirebaseAuth _auth;
   final DriverSessionService _sessionService;
   final DriverBiometricController _biometricController;
+  Completer<void>? _activationTransition;
 
   @override
   String? get currentUserId => _auth.currentUser?.uid;
@@ -59,8 +60,20 @@ class FirebaseDriverAuthService implements DriverAuthService {
   String? get currentPhoneNumber => _auth.currentUser?.phoneNumber;
 
   @override
-  Stream<String?> get userIdChanges =>
-      _auth.userChanges().map((User? user) => user?.uid).distinct();
+  Stream<String?> get userIdChanges => _auth.userChanges().asyncMap((
+    User? observedUser,
+  ) async {
+    // Firebase emits a signed-in user before Alpha's role and device-session
+    // checks finish. Keep the login UI mounted until that whole transition has
+    // succeeded so a rejected passenger account can display its warning.
+    final Completer<void>? transition = _activationTransition;
+    if (transition != null) {
+      await transition.future;
+    }
+
+    final User? currentUser = _auth.currentUser;
+    return currentUser?.uid == observedUser?.uid ? currentUser?.uid : null;
+  }).distinct();
 
   @override
   Future<PhoneVerificationSession> requestCode({
@@ -140,6 +153,8 @@ class FirebaseDriverAuthService implements DriverAuthService {
 
   Future<void> _signInAndActivateSession(PhoneAuthCredential credential) async {
     _sessionService.beginSignIn();
+    final Completer<void> transition = Completer<void>();
+    _activationTransition = transition;
 
     try {
       final UserCredential result = await _auth.signInWithCredential(
@@ -157,6 +172,13 @@ class FirebaseDriverAuthService implements DriverAuthService {
       _sessionService.cancelSignIn();
       await _auth.signOut();
       rethrow;
+    } finally {
+      if (!transition.isCompleted) {
+        transition.complete();
+      }
+      if (identical(_activationTransition, transition)) {
+        _activationTransition = null;
+      }
     }
   }
 }
