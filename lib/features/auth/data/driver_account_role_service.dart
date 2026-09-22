@@ -20,6 +20,14 @@ class DriverAccountRoleService {
 
   final FirebaseFunctions _functions;
 
+  Future<void> preflightDriverRole(String phoneNumber) =>
+      _callRoleFunction(
+        'preflightAccountRole',
+        'driver',
+        requireClaim: false,
+        phoneNumber: phoneNumber,
+      );
+
   Future<void> ensureDriverEligible() =>
       _callRoleFunction('checkAccountRole', 'driver', requireClaim: false);
 
@@ -30,11 +38,15 @@ class DriverAccountRoleService {
     String functionName,
     String role, {
     required bool requireClaim,
+    String? phoneNumber,
   }) async {
     try {
       final HttpsCallableResult<dynamic> result =
           await _functions.httpsCallable(functionName).call<dynamic>(
-        <String, dynamic>{'role': role},
+        <String, dynamic>{
+          'role': role,
+          'phoneNumber': phoneNumber,
+        },
       );
       final Object? data = result.data;
 
