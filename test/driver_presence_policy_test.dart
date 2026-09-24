@@ -10,7 +10,7 @@ void main() {
       expect(DriverAvailabilityPolicy.canGoOnline('rejected'), isFalse);
     });
 
-    test('normalizes passenger-map vehicle categories', () {
+    test('normalizes only supported dispatch vehicle classes', () {
       expect(DriverAvailabilityPolicy.normalizedVehicleType('Car'), 'standard');
       expect(
         DriverAvailabilityPolicy.normalizedVehicleType('Alpha Boda'),
@@ -19,6 +19,18 @@ void main() {
       expect(
         DriverAvailabilityPolicy.normalizedVehicleType('Tuk Tuk'),
         'rickshaw',
+      );
+      expect(
+        DriverAvailabilityPolicy.normalizedVehicleType('Scooter'),
+        'boda',
+      );
+      expect(
+        DriverAvailabilityPolicy.normalizedVehicleType('Comfort'),
+        'comfort',
+      );
+      expect(
+        DriverAvailabilityPolicy.normalizedVehicleType('SUV / 4x4'),
+        isEmpty,
       );
     });
 
