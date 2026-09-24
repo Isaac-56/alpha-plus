@@ -11,6 +11,7 @@ import '../../onboarding/models/driver_registration.dart';
 import '../../rides/presentation/driver_money_page.dart';
 import '../../rides/presentation/driver_pool_page.dart';
 import '../../rides/presentation/driver_ride_offer_layer.dart';
+import '../../wallet/data/driver_wallet_service.dart';
 import '../data/driver_presence_service.dart';
 import 'driver_map_camera.dart';
 import 'driver_ui_pages.dart';
@@ -372,8 +373,8 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
   static const Duration _availabilityChangeTimeout = Duration(seconds: 20);
 
   DriverPresenceService? _presence;
-
   bool _changing = false;
+  bool _forcingWalletOffline = false;
 
   DriverPresenceService get _service =>
       _presence ??= DriverPresenceService.instance;
@@ -387,6 +388,9 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
     setState(() => _changing = true);
     try {
       if (online) {
+        await DriverWalletService.instance
+            .confirmCanGoOnline()
+            .timeout(_availabilityChangeTimeout);
         await _service
             .goOnline(
               driverId: widget.driverId,
@@ -399,34 +403,43 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
       }
     } on TimeoutException {
       unawaited(_service.goOffline().catchError((Object _) {}));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Alpha Plus could not confirm your availability. Check your connection and try again.',
-            ),
-          ),
-        );
-      }
+      _showMessage(
+        'Alpha Plus could not confirm your availability. Check your connection and try again.',
+      );
+    } on DriverWalletException catch (error) {
+      unawaited(_service.goOffline().catchError((Object _) {}));
+      _showMessage(error.message);
     } on DriverPresenceException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
-      }
+      _showMessage(error.message);
     } on Object {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Alpha Plus could not update your availability. Check your connection and try again.',
-            ),
-          ),
-        );
-      }
+      _showMessage(
+        'Alpha Plus could not update your availability. Check your connection and try again.',
+      );
     } finally {
       if (mounted) setState(() => _changing = false);
     }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _forceOfflineIfNeeded({
+    required bool isOnline,
+    required DriverWallet wallet,
+  }) {
+    if (!isOnline || wallet.canGoOnline || _forcingWalletOffline) return;
+    _forcingWalletOffline = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        _service.goOffline().whenComplete(() {
+          _forcingWalletOffline = false;
+        }),
+      );
+    });
   }
 
   @override
@@ -463,58 +476,82 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
       );
     }
 
-    return StreamBuilder<bool>(
-      stream: _service.watchOnlineState(widget.driverId),
-      initialData: false,
-      builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-        final bool isOnline = snapshot.data ?? false;
+    return StreamBuilder<DriverWallet>(
+      stream: DriverWalletService.instance.watchWallet(widget.driverId),
+      initialData: const DriverWallet.empty(),
+      builder: (
+        BuildContext context,
+        AsyncSnapshot<DriverWallet> walletSnapshot,
+      ) {
+        final DriverWallet wallet =
+            walletSnapshot.data ?? const DriverWallet.empty();
 
-        return _AvailabilitySurface(
-          child: Row(
-            children: <Widget>[
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: isOnline ? AppColors.primary : Colors.grey,
-                  shape: BoxShape.circle,
-                  boxShadow: isOnline
-                      ? <BoxShadow>[
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.45),
-                            blurRadius: 10,
-                          ),
-                        ]
-                      : null,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      isOnline ? 'You are online' : 'You are offline',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+        return StreamBuilder<bool>(
+          stream: _service.watchOnlineState(widget.driverId),
+          initialData: false,
+          builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+            final bool isOnline = snapshot.data ?? false;
+            _forceOfflineIfNeeded(isOnline: isOnline, wallet: wallet);
+            final bool walletBlocked = !wallet.canGoOnline;
+            final String offlineMessage = wallet.isSuspended
+                ? 'Wallet suspended — contact the Alpha office'
+                : wallet.balance <= 0
+                ? 'Recharge your wallet at the Alpha office to work'
+                : wallet.isLowBalance
+                ? 'Low wallet balance — recharge soon'
+                : 'Go online when you are ready to drive';
+
+            return _AvailabilitySurface(
+              child: Row(
+                children: <Widget>[
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: isOnline ? AppColors.primary : Colors.grey,
+                      shape: BoxShape.circle,
+                      boxShadow: isOnline
+                          ? <BoxShadow>[
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.45),
+                                blurRadius: 10,
+                              ),
+                            ]
+                          : null,
                     ),
-                    Text(
-                      isOnline
-                          ? 'Your live location is visible for nearby requests'
-                          : 'Go online when you are ready to drive',
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          isOnline ? 'You are online' : 'You are offline',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          isOnline
+                              ? 'Your live location is visible for nearby requests'
+                              : offlineMessage,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  if (_changing)
+                    const SizedBox.square(
+                      dimension: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                    )
+                  else
+                    Switch.adaptive(
+                      value: isOnline && !walletBlocked,
+                      onChanged: walletBlocked ? null : _setOnline,
+                    ),
+                ],
               ),
-              if (_changing)
-                const SizedBox.square(
-                  dimension: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2.4),
-                )
-              else
-                Switch.adaptive(value: isOnline, onChanged: _setOnline),
-            ],
-          ),
+            );
+          },
         );
       },
     );
