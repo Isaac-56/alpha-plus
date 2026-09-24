@@ -3,11 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'driver registration serializes service with vehicle and licence data',
+    'driver registration serializes vehicle body separately from Alpha class',
     () {
       final DriverRegistration registration = DriverRegistration()
         ..serviceType = DriverRegistration.ridesService
-        ..vehicleType = 'Car'
+        ..vehicleType = 'Sedan'
+        ..vehicleClass = 'comfort'
         ..make = 'Toyota'
         ..model = 'Corolla'
         ..color = 'White'
@@ -22,14 +23,14 @@ void main() {
       final Map<String, dynamic> map = registration.toMap();
 
       expect(map['serviceType'], DriverRegistration.ridesService);
-
-      expect(map['vehicleType'], 'Car');
+      expect(map['vehicleType'], 'Sedan');
+      expect(map['vehicleClass'], 'comfort');
+      expect(registration.effectiveVehicleClass, 'comfort');
       expect(map['make'], 'Toyota');
       expect(map['model'], 'Corolla');
       expect(map['color'], 'White');
       expect(map['manufactureYear'], '2020');
       expect(map['plateNumber'], 'SSD 1234');
-
       expect(map['licenceCountry'], 'South Sudan');
       expect(map['licenceFirstName'], 'Test');
       expect(map['licenceLastName'], 'Driver');
@@ -42,9 +43,10 @@ void main() {
     final DriverRegistration registration =
         DriverRegistration.fromMap(<String, dynamic>{
           'serviceType': DriverRegistration.ridesService,
-          'vehicleType': 'Car',
+          'vehicleType': 'SUV / 4x4',
+          'vehicleClass': 'premium',
           'make': 'Toyota',
-          'model': 'Corolla',
+          'model': 'Land Cruiser',
           'color': 'White',
           'manufactureYear': '2020',
           'plateNumber': 'SSD 1234',
@@ -55,27 +57,43 @@ void main() {
           'licenceIssueDate': '24/08/2026',
         });
 
-    expect(registration.serviceType, DriverRegistration.ridesService);
-
     expect(registration.serviceComplete, isTrue);
-
-    expect(registration.vehicleType, 'Car');
-    expect(registration.make, 'Toyota');
-    expect(registration.model, 'Corolla');
-    expect(registration.color, 'White');
-    expect(registration.manufactureYear, '2020');
-    expect(registration.plateNumber, 'SSD 1234');
+    expect(registration.vehicleType, 'SUV / 4x4');
+    expect(registration.vehicleClass, 'premium');
+    expect(registration.effectiveVehicleClass, 'premium');
+    expect(registration.requiresAdminVehicleClass, isTrue);
     expect(registration.vehicleComplete, isTrue);
-
-    expect(registration.licenceCountry, 'South Sudan');
-    expect(registration.licenceFirstName, 'Test');
-    expect(registration.licenceLastName, 'Driver');
-    expect(registration.licenceNumber, 'DL-12345');
-    expect(registration.licenceIssueDate, '24/08/2026');
     expect(registration.licenceComplete, isTrue);
   });
 
-  test('older registrations without service type safely default to rides', () {
+  test('fixed local vehicle categories cannot choose a commercial car tier', () {
+    final Map<String, String> expected = <String, String>{
+      'Boda boda (motorcycle)': 'boda',
+      'Bajaj / Tuk-tuk (three-wheeler)': 'rickshaw',
+      'Scooter': 'boda',
+    };
+
+    for (final MapEntry<String, String> entry in expected.entries) {
+      final DriverRegistration registration = DriverRegistration()
+        ..vehicleType = entry.key
+        ..vehicleClass = 'premium';
+
+      expect(registration.fixedVehicleClass, entry.value);
+      expect(registration.effectiveVehicleClass, entry.value);
+      expect(registration.requiresAdminVehicleClass, isFalse);
+    }
+  });
+
+  test('new regular vehicles wait for an Alpha administrator class', () {
+    final DriverRegistration registration = DriverRegistration()
+      ..vehicleType = 'Sedan';
+
+    expect(registration.requiresAdminVehicleClass, isTrue);
+    expect(registration.effectiveVehicleClass, isEmpty);
+    expect(registration.vehicleClassLabel, 'Assigned after Alpha review');
+  });
+
+  test('legacy Car registrations remain Standard until reclassified', () {
     final DriverRegistration registration =
         DriverRegistration.fromMap(<String, dynamic>{
           'vehicleType': 'Car',
@@ -92,8 +110,8 @@ void main() {
         });
 
     expect(registration.serviceType, DriverRegistration.ridesService);
-
-    expect(registration.serviceComplete, isTrue);
+    expect(registration.vehicleClass, 'standard');
+    expect(registration.effectiveVehicleClass, 'standard');
     expect(registration.vehicleComplete, isTrue);
     expect(registration.licenceComplete, isTrue);
   });
@@ -101,10 +119,9 @@ void main() {
   test('empty registration remains incomplete except default service', () {
     final DriverRegistration registration = DriverRegistration();
 
-    expect(registration.serviceType, DriverRegistration.ridesService);
-
     expect(registration.serviceComplete, isTrue);
     expect(registration.vehicleComplete, isFalse);
     expect(registration.licenceComplete, isFalse);
+    expect(registration.effectiveVehicleClass, isEmpty);
   });
 }
