@@ -112,7 +112,11 @@ void main() {
     expect(find.text('SUV / 4x4'), findsOneWidget);
     expect(find.text('Boda boda (motorcycle)'), findsOneWidget);
     expect(find.text('Bajaj / Tuk-tuk (three-wheeler)'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Scooter'), 120);
+    await tester.scrollUntilVisible(
+      find.text('Scooter'),
+      120,
+      scrollable: find.byType(ListView).last,
+    );
     expect(find.text('Scooter'), findsOneWidget);
     expect(find.text('Standard'), findsNothing);
     expect(find.text('Comfort'), findsNothing);
