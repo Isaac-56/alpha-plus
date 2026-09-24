@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('money page shows completed count, Alpha fee and driver net', (
+  testWidgets('money page shows prepaid wallet, completed count and driver net', (
     WidgetTester tester,
   ) async {
     final DriverTripRecord trip = DriverTripRecord.fromMap(
@@ -23,7 +23,7 @@ void main() {
         'platformFee': 2000,
         'driverNetFare': 18000,
         'cashCollectedByDriver': 20000,
-        'settlementStatus': 'platform_fee_due',
+        'settlementStatus': 'wallet_deducted',
       },
     );
 
@@ -41,11 +41,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('1 completed trip'), findsOneWidget);
-    expect(find.text('Alpha fee due'), findsOneWidget);
-    expect(find.text('2,000 SSP'), findsOneWidget);
+    expect(find.text('Alpha driver wallet'), findsOneWidget);
+    expect(find.text('Gross earnings'), findsOneWidget);
+    expect(find.text('20,000 SSP'), findsAtLeastNWidgets(1));
     expect(find.text('Driver net'), findsOneWidget);
     expect(find.text('18,000 SSP'), findsOneWidget);
-    expect(find.textContaining('launch commission is 10%'), findsOneWidget);
+    expect(find.textContaining('deducts its 10% platform fee'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -70,8 +71,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Alpha fee due'), findsOneWidget);
+    expect(find.text('Alpha driver wallet'), findsOneWidget);
+    expect(find.text('Gross earnings'), findsOneWidget);
     expect(find.text('Driver net'), findsOneWidget);
+    expect(find.text('Balance limit'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

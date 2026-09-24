@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../dashboard/presentation/driver_detail_screens.dart';
+import '../../wallet/data/driver_wallet_service.dart';
 import '../data/driver_trip_history_service.dart';
 
 class DriverMoneyPage extends StatelessWidget {
@@ -46,11 +46,6 @@ class DriverMoneyPage extends StatelessWidget {
             0,
             (int total, DriverTripRecord trip) => total + trip.grossFare,
           );
-          final int platformFeeDue = accounted.fold<int>(
-            0,
-            (int total, DriverTripRecord trip) =>
-                total + (trip.isPlatformFeeDue ? trip.platformFee! : 0),
-          );
           final int driverNetAll = accounted.fold<int>(
             0,
             (int total, DriverTripRecord trip) =>
@@ -71,17 +66,14 @@ class DriverMoneyPage extends StatelessWidget {
                 children: <Widget>[
                   const _MoneyHeader(),
                   const SizedBox(height: 16),
-                  _GrossFareCard(
-                    amount: grossAll,
-                    completedTrips: completed.length,
-                  ),
+                  _DriverWalletCard(driverId: driverId),
                   const SizedBox(height: 12),
                   _MetricPair(
                     first: _MetricCard(
-                      key: const Key('driverPlatformFeeDue'),
-                      label: 'Alpha fee due',
-                      value: '${_money(platformFeeDue)} SSP',
-                      icon: Icons.account_balance_outlined,
+                      key: const Key('driverGrossEarnings'),
+                      label: 'Gross earnings',
+                      value: '${_money(grossAll)} SSP',
+                      icon: Icons.payments_outlined,
                     ),
                     second: _MetricCard(
                       key: const Key('driverNetEarnings'),
@@ -89,6 +81,11 @@ class DriverMoneyPage extends StatelessWidget {
                       value: '${_money(driverNetAll)} SSP',
                       icon: Icons.savings_outlined,
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  _GrossFareCard(
+                    amount: grossAll,
+                    completedTrips: completed.length,
                   ),
                   const SizedBox(height: 20),
                   Row(
@@ -261,8 +258,10 @@ class DriverMoneyPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   _ValueRow(
-                    label: 'Settlement',
-                    value: trip.isPlatformFeeDue ? 'Fee due' : 'Recorded',
+                    label: 'Wallet settlement',
+                    value: trip.settlementStatus == 'wallet_deducted'
+                        ? 'Paid from wallet'
+                        : 'Legacy record',
                   ),
                 ],
                 const SizedBox(height: 20),
@@ -292,7 +291,7 @@ class _MoneyHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget title = Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
@@ -303,40 +302,10 @@ class _MoneyHeader extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Completed rides, earnings and cash settlement.',
+          'Wallet credit, completed rides and earnings.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],
-    );
-    final Widget balanceButton = TextButton.icon(
-      onPressed: () => Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(builder: (_) => const BalanceLimitScreen()),
-      ),
-      icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
-      label: const Text('Balance limit'),
-    );
-
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        if (constraints.maxWidth < 430) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              title,
-              const SizedBox(height: 6),
-              balanceButton,
-            ],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Expanded(child: title),
-            const SizedBox(width: 8),
-            balanceButton,
-          ],
-        );
-      },
     );
   }
 }
@@ -367,6 +336,125 @@ class _MetricPair extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(child: second),
           ],
+        );
+      },
+    );
+  }
+}
+
+class _DriverWalletCard extends StatelessWidget {
+  const _DriverWalletCard({required this.driverId});
+
+  final String driverId;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DriverWallet>(
+      stream: DriverWalletService.instance.watchWallet(driverId),
+      initialData: const DriverWallet.empty(),
+      builder: (
+        BuildContext context,
+        AsyncSnapshot<DriverWallet> snapshot,
+      ) {
+        final DriverWallet wallet =
+            snapshot.data ?? const DriverWallet.empty();
+        final bool blocked = wallet.isSuspended || wallet.balance <= 0;
+        final Color accent = blocked
+            ? Theme.of(context).colorScheme.error
+            : AppColors.primary;
+        final String status = wallet.isSuspended
+            ? 'Suspended'
+            : wallet.balance <= 0
+            ? 'Recharge required'
+            : wallet.isLowBalance
+            ? 'Low balance'
+            : 'Ready for rides';
+
+        return Container(
+          key: const Key('driverWalletCard'),
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: AppColors.ink,
+            borderRadius: BorderRadius.circular(26),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: accent,
+                    size: 21,
+                  ),
+                  const SizedBox(width: 9),
+                  const Expanded(
+                    child: Text(
+                      'Alpha driver wallet',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Flexible(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          status,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${_money(wallet.balance)} ${wallet.currencyCode}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                blocked
+                    ? 'Visit the Alpha office to recharge or resolve your wallet before going online.'
+                    : wallet.isLowBalance
+                    ? 'Recharge soon. You can keep working while your balance covers the next ride fee.'
+                    : 'The 10% Alpha fee is deducted automatically after each completed ride.',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (snapshot.hasError) ...<Widget>[
+                const SizedBox(height: 10),
+                const Text(
+                  'Wallet status is temporarily unavailable. Pull down to retry.',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ],
+            ],
+          ),
         );
       },
     );
@@ -490,8 +578,8 @@ class _SettlementNotice extends StatelessWidget {
           Expanded(
             child: Text(
               hasLegacyCompletedRides
-                  ? 'Alpha applies a 10% fee to newly completed cash rides. Older rides without trusted settlement fields remain in the gross total but are not estimated in fee or net totals.'
-                  : 'Alpha’s launch commission is 10%. You keep 90% of each completed fare. Because you collect the cash, the Alpha fee is recorded as your settlement balance.',
+                  ? 'Alpha deducts its 10% fee from your prepaid wallet after each newly completed ride. Older rides without trusted accounting remain visible only as legacy records.'
+                  : 'Alpha deducts its 10% platform fee automatically from your prepaid wallet after each completed ride. Recharge securely at the Alpha office before the balance reaches zero.',
               style: const TextStyle(
                 height: 1.4,
                 fontWeight: FontWeight.w600,
