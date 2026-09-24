@@ -115,7 +115,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Scooter'),
       120,
-      scrollable: find.byType(ListView).last,
+      scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('Scooter'), findsOneWidget);
     expect(find.text('Standard'), findsNothing);
