@@ -1093,7 +1093,7 @@ void main() {
     }
   });
 
-  testWidgets('money balance limit opens its explanation', (
+  testWidgets('money shows the prepaid wallet without a balance limit', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -1109,11 +1109,11 @@ void main() {
 
     await tester.tap(find.text('Money'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Balance limit'));
-    await tester.pumpAndSettle();
 
-    expect(find.text('Check your account\nbalance limit'), findsOneWidget);
-    expect(find.text('Got it'), findsOneWidget);
+    expect(find.text('Alpha driver wallet'), findsOneWidget);
+    expect(find.text('Balance limit'), findsNothing);
+    expect(find.text('Recharge required'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 
