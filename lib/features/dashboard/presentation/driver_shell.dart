@@ -72,7 +72,7 @@ class _DriverShellState extends State<DriverShell> {
         driverId: widget.driverId,
         driverName: widget.driverName,
         reviewStatus: widget.reviewStatus,
-        vehicleType: widget.registration.vehicleType,
+        vehicleType: widget.registration.effectiveVehicleClass,
         mapBuilder: widget.mapBuilder,
       ),
       _PoolPage(
