@@ -108,15 +108,20 @@ class DriverWalletService {
   DriverWalletService({
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _functions =
-           functions ??
-           FirebaseFunctions.instanceFor(region: 'africa-south1');
+  }) : _firestoreOverride = firestore,
+       _functionsOverride = functions;
 
   static final DriverWalletService instance = DriverWalletService();
 
-  final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
+  final FirebaseFirestore? _firestoreOverride;
+  final FirebaseFunctions? _functionsOverride;
+
+  FirebaseFirestore get _firestore =>
+      _firestoreOverride ?? FirebaseFirestore.instance;
+
+  FirebaseFunctions get _functions =>
+      _functionsOverride ??
+      FirebaseFunctions.instanceFor(region: 'africa-south1');
 
   Stream<DriverWallet> watchWallet(String driverId) {
     if (driverId.trim().isEmpty) {
