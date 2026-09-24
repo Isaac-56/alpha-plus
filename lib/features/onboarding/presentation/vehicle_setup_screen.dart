@@ -32,7 +32,8 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _plateController = TextEditingController();
 
-  static const List<String> _vehicleTypes = <String>['Car', 'Boda', 'Rickshaw'];
+  static const List<String> _vehicleTypes =
+      DriverRegistration.supportedVehicleTypes;
 
   static const List<String> _makes = <String>[
     'Toyota',
@@ -145,7 +146,8 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
   Widget build(BuildContext context) {
     return OnboardingScaffold(
       title: 'Enter your vehicle details',
-      subtitle: 'Tell us about the vehicle you own or rent for trips.',
+      subtitle:
+          'Choose the physical vehicle you drive. Alpha assigns car service classes after document review.',
       bottom: ElevatedButton(
         key: const Key('continueVehicleSetup'),
         onPressed: _continue,
@@ -167,15 +169,17 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
               child: Column(
                 children: <Widget>[
                   _PickerRow(
-                    label: 'Type of vehicle',
+                    label: 'Vehicle category',
                     value: _registration.vehicleType,
                     icon: Icons.local_taxi_rounded,
                     onTap: () => _pick(
-                      title: 'Vehicle type',
+                      title: 'Vehicle category',
                       options: _vehicleTypes,
                       selected: _registration.vehicleType,
                       onSelected: (String value) {
-                        _registration.vehicleType = value;
+                        _registration
+                          ..vehicleType = value
+                          ..vehicleClass = '';
                       },
                     ),
                   ),
@@ -264,11 +268,18 @@ class _VehicleIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final IconData icon = switch (type) {
-      'Boda' => Icons.two_wheeler_rounded,
-      'Rickshaw' => Icons.electric_rickshaw_rounded,
-      _ => Icons.directions_car_filled_rounded,
-    };
+    final String normalized = type.toLowerCase();
+    final IconData icon =
+        normalized.contains('tuk') ||
+            normalized.contains('rickshaw') ||
+            normalized.contains('three') ||
+            normalized.contains('bajaj')
+        ? Icons.electric_rickshaw_rounded
+        : normalized.contains('boda') ||
+              normalized.contains('motorcycle') ||
+              normalized.contains('scooter')
+        ? Icons.two_wheeler_rounded
+        : Icons.directions_car_filled_rounded;
 
     return Container(
       height: 150,

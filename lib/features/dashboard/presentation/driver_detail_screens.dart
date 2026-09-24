@@ -121,10 +121,14 @@ class DriverVehicleScreen extends StatelessWidget {
             value: vehicle.isEmpty ? 'Not provided' : vehicle,
           ),
           _DataRow(
-            label: 'Type',
+            label: 'Vehicle category',
             value: registration.vehicleType.isEmpty
                 ? 'Not provided'
                 : registration.vehicleType,
+          ),
+          _DataRow(
+            label: 'Alpha ride class',
+            value: registration.vehicleClassLabel,
           ),
           _DataRow(
             label: 'Color',

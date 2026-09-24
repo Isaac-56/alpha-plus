@@ -99,7 +99,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Enter your vehicle details'), findsOneWidget);
-    expect(find.text('Type of vehicle'), findsOneWidget);
+    expect(find.text('Vehicle category'), findsOneWidget);
     expect(find.text('Vehicle plate number'), findsOneWidget);
+
+    final Finder category = find.text('Vehicle category');
+    await tester.ensureVisible(category);
+    await tester.pumpAndSettle();
+    await tester.tap(category);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sedan'), findsOneWidget);
+    expect(find.text('SUV / 4x4'), findsOneWidget);
+    expect(find.text('Boda boda (motorcycle)'), findsOneWidget);
+    expect(find.text('Bajaj / Tuk-tuk (three-wheeler)'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Scooter'),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Scooter'), findsOneWidget);
+    expect(find.text('Standard'), findsNothing);
+    expect(find.text('Comfort'), findsNothing);
   });
 }

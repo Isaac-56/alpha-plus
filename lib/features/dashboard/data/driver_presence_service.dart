@@ -61,17 +61,26 @@ class DriverAvailabilityPolicy {
 
   static String normalizedVehicleType(String vehicleType) {
     final String normalized = vehicleType.trim().toLowerCase();
+    if (normalized.isEmpty) return '';
 
-    if (normalized.contains('boda') || normalized.contains('motor')) {
-      return 'boda';
-    }
     if (normalized.contains('rickshaw') ||
         normalized.contains('tuk') ||
-        normalized.contains('three')) {
+        normalized.contains('three') ||
+        normalized.contains('bajaj')) {
       return 'rickshaw';
     }
+    if (normalized.contains('boda') ||
+        normalized.contains('motor') ||
+        normalized.contains('scooter')) {
+      return 'boda';
+    }
+    if (normalized == 'standard' || normalized == 'car') return 'standard';
+    if (normalized == 'comfort') return 'comfort';
+    if (normalized == 'ev' || normalized.contains('electric')) return 'ev';
+    if (normalized == 'premium') return 'premium';
+    if (normalized == 'corporate') return 'corporate';
 
-    return 'standard';
+    return '';
   }
 }
 
@@ -181,6 +190,14 @@ class DriverPresenceService {
       );
     }
 
+    final String normalizedVehicleType =
+        DriverAvailabilityPolicy.normalizedVehicleType(vehicleType);
+    if (normalizedVehicleType.isEmpty) {
+      throw const DriverPresenceException(
+        'Alpha must assign your ride category before you can go online.',
+      );
+    }
+
     final User? user = _auth.currentUser;
     if (user == null || user.uid != driverId) {
       throw const DriverPresenceException(
@@ -215,8 +232,6 @@ class DriverPresenceService {
     _onlineAttempt = onlineAttempt;
     final String presenceId = _createPresenceId();
     final DatabaseReference reference = _driverReference(driverId);
-    final String normalizedVehicleType =
-        DriverAvailabilityPolicy.normalizedVehicleType(vehicleType);
     final LocationSettings settings = _onlineLocationSettings();
 
     final Position initialPosition = await Geolocator.getCurrentPosition(

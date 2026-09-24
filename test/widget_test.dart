@@ -144,7 +144,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Enter your vehicle details'), findsOneWidget);
-    expect(find.text('Type of vehicle'), findsOneWidget);
+    expect(find.text('Vehicle category'), findsOneWidget);
     expect(find.text('Vehicle plate number'), findsOneWidget);
   });
 
