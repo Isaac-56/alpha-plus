@@ -102,7 +102,10 @@ void main() {
     expect(find.text('Vehicle category'), findsOneWidget);
     expect(find.text('Vehicle plate number'), findsOneWidget);
 
-    await tester.tap(find.text('Vehicle category'));
+    final Finder category = find.text('Vehicle category');
+    await tester.ensureVisible(category);
+    await tester.pumpAndSettle();
+    await tester.tap(category);
     await tester.pumpAndSettle();
 
     expect(find.text('Sedan'), findsOneWidget);
