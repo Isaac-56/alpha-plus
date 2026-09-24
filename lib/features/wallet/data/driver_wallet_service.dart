@@ -122,18 +122,22 @@ class DriverWalletService {
     if (driverId.trim().isEmpty) {
       return Stream<DriverWallet>.value(const DriverWallet.empty());
     }
-    return _firestore
-        .collection('driver_wallets')
-        .doc(driverId)
-        .snapshots()
-        .map(
-          (DocumentSnapshot<Map<String, dynamic>> snapshot) =>
-              snapshot.exists
-              ? DriverWallet.fromMap(
-                  snapshot.data() ?? const <String, dynamic>{},
-                )
-              : const DriverWallet.empty(),
-        );
+    try {
+      return _firestore
+          .collection('driver_wallets')
+          .doc(driverId)
+          .snapshots()
+          .map(
+            (DocumentSnapshot<Map<String, dynamic>> snapshot) =>
+                snapshot.exists
+                ? DriverWallet.fromMap(
+                    snapshot.data() ?? const <String, dynamic>{},
+                  )
+                : const DriverWallet.empty(),
+          );
+    } on Object {
+      return Stream<DriverWallet>.value(const DriverWallet.empty());
+    }
   }
 
   Stream<List<DriverWalletTransaction>> watchTransactions(String driverId) {
@@ -142,18 +146,24 @@ class DriverWalletService {
         const <DriverWalletTransaction>[],
       );
     }
-    return _firestore
-        .collection('driver_wallets')
-        .doc(driverId)
-        .collection('transactions')
-        .orderBy('createdAt', descending: true)
-        .limit(20)
-        .snapshots()
-        .map(
-          (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
-              .map(DriverWalletTransaction.fromDocument)
-              .toList(growable: false),
-        );
+    try {
+      return _firestore
+          .collection('driver_wallets')
+          .doc(driverId)
+          .collection('transactions')
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .snapshots()
+          .map(
+            (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
+                .map(DriverWalletTransaction.fromDocument)
+                .toList(growable: false),
+          );
+    } on Object {
+      return Stream<List<DriverWalletTransaction>>.value(
+        const <DriverWalletTransaction>[],
+      );
+    }
   }
 
   Future<DriverWallet> confirmCanGoOnline() async {
