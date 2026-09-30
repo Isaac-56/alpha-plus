@@ -72,7 +72,7 @@ void main() {
         'destination': <String, dynamic>{'address': 'Destination'},
         'rideOptionId': 'standard',
         'paymentMethod': 'cash',
-        'estimatedFare': 42000,
+        'estimatedFare': 100000,
         'currencyCode': 'SSP',
         'isWaiting': true,
         'waitingStartedAt': Timestamp.fromDate(
@@ -81,14 +81,14 @@ void main() {
         'waitingSeconds': 0,
         'billableWaitingSeconds': 0,
         'waitingCharge': 0,
-        'waitingGraceSeconds': 120,
-        'waitingRatePerMinute': 450,
+        'waitingGraceSeconds': 0,
+        'waitingRatePerMinute': 100,
       },
     );
 
     expect(ride.waitingSecondsAt(now), 180);
-    expect(ride.billableWaitingSecondsAt(now), 60);
-    expect(ride.waitingChargeAt(now), 500);
-    expect(ride.fareAt(now), 42500);
+    expect(ride.billableWaitingSecondsAt(now), 180);
+    expect(ride.waitingChargeAt(now), 300);
+    expect(ride.fareAt(now), 100300);
   });
 }
