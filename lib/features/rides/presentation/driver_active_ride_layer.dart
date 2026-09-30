@@ -86,8 +86,10 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
         builder: (BuildContext context) {
           return AlertDialog(
             title: const Text('Start customer waiting?'),
-            content: const Text(
-              'Use this only when the passenger asks you to stop. Normal traffic and red lights must not be recorded as customer waiting. The first 2 minutes are free.',
+            content: Text(
+              'Use this only when the passenger asks you to stop. Normal traffic and red lights must not be recorded as customer waiting. '
+              '${ride.waitingGraceSeconds > 0 ? '${(ride.waitingGraceSeconds / 60).ceil()} minutes are free, then ' : ''}'
+              '${ride.waitingRatePerMinute} ${ride.currencyCode}/min applies.',
             ),
             actions: <Widget>[
               TextButton(
@@ -346,8 +348,11 @@ class _DriverWaitingStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!ride.isWaiting) {
+      final String waitingPolicy = ride.waitingGraceSeconds > 0
+          ? 'Customer waiting: first ${(ride.waitingGraceSeconds / 60).ceil()} minutes free, then ${ride.waitingRatePerMinute} ${ride.currencyCode}/min.'
+          : 'Customer waiting: ${ride.waitingRatePerMinute} ${ride.currencyCode}/min begins immediately.';
       return Text(
-        'Customer waiting: first 2 minutes free, then ${ride.waitingRatePerMinute} ${ride.currencyCode}/min.',
+        waitingPolicy,
         style: Theme.of(context).textTheme.bodySmall,
       );
     }
