@@ -282,7 +282,9 @@ class DriverPresenceService {
   }) async {
     if (_activePresenceId != presenceId) return;
 
-    await reference.set(<String, Object?>{
+    // Preserve backend-owned fields such as activeRideId while refreshing the
+    // driver's public location and heartbeat data.
+    await reference.update(<String, Object?>{
       'driverId': _activeDriverId,
       'presenceId': presenceId,
       'latitude': position.latitude,
