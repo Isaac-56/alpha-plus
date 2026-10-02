@@ -21,6 +21,10 @@ class DriverActiveRide {
     required this.paymentMethod,
     required this.estimatedFare,
     required this.currencyCode,
+    this.bookingSource = 'app',
+    this.customerName = '',
+    this.customerPhone = '',
+    this.customerNote = '',
     this.isWaiting = false,
     this.waitingStartedAt,
     this.waitingSeconds = 0,
@@ -45,6 +49,10 @@ class DriverActiveRide {
   final String paymentMethod;
   final int estimatedFare;
   final String currencyCode;
+  final String bookingSource;
+  final String customerName;
+  final String customerPhone;
+  final String customerNote;
   final bool isWaiting;
   final DateTime? waitingStartedAt;
   final int waitingSeconds;
@@ -54,6 +62,7 @@ class DriverActiveRide {
   final int waitingRatePerMinute;
 
   bool get isActive => activeStatuses.contains(status);
+  bool get isPhoneBooking => bookingSource == 'call_center';
 
   String? get nextStatus => switch (status) {
         'accepted' => 'driver_arriving',
@@ -145,6 +154,11 @@ class DriverActiveRide {
         data['currencyCode'],
         'currencyCode',
       ).toUpperCase(),
+      bookingSource: _optionalValue(data['bookingSource'], fallback: 'app')
+          .toLowerCase(),
+      customerName: _optionalValue(data['customerName']),
+      customerPhone: _optionalValue(data['customerPhone']),
+      customerNote: _optionalValue(data['customerNote']),
       isWaiting: data['isWaiting'] == true,
       waitingStartedAt: _optionalTimestamp(data['waitingStartedAt']),
       waitingSeconds: _nonNegativeInt(data['waitingSeconds']),
@@ -265,6 +279,10 @@ String _requiredValue(Object? value, String field) {
     throw FormatException('Ride field "$field" must be a non-empty string.');
   }
   return value.trim();
+}
+
+String _optionalValue(Object? value, {String fallback = ''}) {
+  return value is String && value.trim().isNotEmpty ? value.trim() : fallback;
 }
 
 int _positiveInt(Object? value, String field) {
