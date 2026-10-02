@@ -24,6 +24,7 @@ class DriverRideOffer {
     required this.currencyCode,
     required this.distanceToPickupMeters,
     required this.expiresAt,
+    this.bookingSource = 'app',
   });
 
   final String rideId;
@@ -37,6 +38,9 @@ class DriverRideOffer {
   final String currencyCode;
   final int distanceToPickupMeters;
   final DateTime expiresAt;
+  final String bookingSource;
+
+  bool get isPhoneBooking => bookingSource == 'call_center';
 
   bool isPendingAt(DateTime now) =>
       status == 'pending' && expiresAt.isAfter(now);
@@ -84,6 +88,10 @@ class DriverRideOffer {
         'distanceToPickupMeters',
       ),
       expiresAt: _requiredDateTime(data['expiresAt'], 'expiresAt'),
+      bookingSource: _optionalString(
+        data['bookingSource'],
+        fallback: 'app',
+      ).toLowerCase(),
     );
 
     if (offer.rideId.isEmpty) {
@@ -177,6 +185,10 @@ String _requiredString(Object? value, String field) {
     );
   }
   return value.trim();
+}
+
+String _optionalString(Object? value, {String fallback = ''}) {
+  return value is String && value.trim().isNotEmpty ? value.trim() : fallback;
 }
 
 int _requiredPositiveInt(Object? value, String field) {

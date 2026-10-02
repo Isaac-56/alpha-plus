@@ -162,6 +162,38 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                                 ),
                               ],
                             ),
+                            if (offer.isPhoneBooking) ...<Widget>[
+                              const SizedBox(height: 12),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  key: const Key('phoneBookingOfferBadge'),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.14,
+                                    ),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      Icon(Icons.phone_in_talk_rounded, size: 16),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Phone booking',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 18),
                             _LocationLine(
                               icon: Icons.my_location_rounded,

@@ -91,4 +91,28 @@ void main() {
     expect(ride.waitingChargeAt(now), 300);
     expect(ride.fareAt(now), 100300);
   });
+
+  test('phone booking exposes contact only on the assigned active ride', () {
+    final DriverActiveRide ride = DriverActiveRide.fromMap(
+      rideId: 'call-ride',
+      data: <String, dynamic>{
+        'status': 'accepted',
+        'bookingSource': 'call_center',
+        'customerName': 'Mary James',
+        'customerPhone': '+211921234567',
+        'customerNote': 'Blue gate',
+        'pickup': <String, dynamic>{'address': 'Juba Airport'},
+        'destination': <String, dynamic>{'address': 'Hai Malakal'},
+        'rideOptionId': 'standard',
+        'paymentMethod': 'cash',
+        'estimatedFare': 15000,
+        'currencyCode': 'SSP',
+      },
+    );
+
+    expect(ride.isPhoneBooking, isTrue);
+    expect(ride.customerName, 'Mary James');
+    expect(ride.customerPhone, '+211921234567');
+    expect(ride.customerNote, 'Blue gate');
+  });
 }

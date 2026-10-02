@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../data/driver_active_ride_service.dart';
@@ -131,6 +132,17 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
     }
   }
 
+  Future<void> _copyCustomerPhone(DriverActiveRide ride) async {
+    if (ride.customerPhone.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: ride.customerPhone));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text('Customer phone number copied.')),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<String?>(
@@ -232,6 +244,14 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                               label: 'Destination',
                               value: ride.destinationAddress,
                             ),
+                            if (ride.isPhoneBooking &&
+                                ride.customerPhone.isNotEmpty) ...<Widget>[
+                              const SizedBox(height: 12),
+                              _PhoneBookingContact(
+                                ride: ride,
+                                onCopy: () => _copyCustomerPhone(ride),
+                              ),
+                            ],
                             const SizedBox(height: 12),
                             Row(
                               children: <Widget>[
@@ -337,6 +357,77 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
       formatted.write(digits[index]);
     }
     return amount < 0 ? '-$formatted' : formatted.toString();
+  }
+}
+
+class _PhoneBookingContact extends StatelessWidget {
+  const _PhoneBookingContact({required this.ride, required this.onCopy});
+
+  final DriverActiveRide ride;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('phoneBookingContact'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Row(
+            children: <Widget>[
+              Icon(Icons.support_agent_rounded, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Phone booking',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            ride.customerName.isEmpty
+                ? 'Call the customer when you arrive.'
+                : '${ride.customerName} · Call when you arrive.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: SelectableText(
+                  ride.customerPhone,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              IconButton(
+                key: const Key('copyPhoneBookingContact'),
+                tooltip: 'Copy phone number',
+                onPressed: onCopy,
+                icon: const Icon(Icons.copy_rounded),
+              ),
+            ],
+          ),
+          if (ride.customerNote.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 5),
+            Text(
+              'Note: ${ride.customerNote}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
