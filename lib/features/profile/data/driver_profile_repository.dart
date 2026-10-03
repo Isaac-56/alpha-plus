@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../auth/data/driver_account_role_service.dart';
 import '../../onboarding/models/driver_registration.dart';
@@ -22,11 +23,37 @@ abstract class DriverProfileStore {
   });
 }
 
+class VerifiedDriverIdentityPolicy {
+  const VerifiedDriverIdentityPolicy._();
+
+  static String normalizedPhone(String value) =>
+      value.trim().replaceAll(RegExp(r'[\s()-]'), '');
+
+  static bool matches({
+    required String expectedUid,
+    required String expectedPhoneNumber,
+    required String? authenticatedUid,
+    required String? authenticatedPhoneNumber,
+  }) {
+    if (authenticatedUid == null || authenticatedPhoneNumber == null) {
+      return false;
+    }
+    return authenticatedUid == expectedUid &&
+        normalizedPhone(authenticatedPhoneNumber) ==
+            normalizedPhone(expectedPhoneNumber) &&
+        normalizedPhone(authenticatedPhoneNumber).isNotEmpty;
+  }
+}
+
 class FirebaseDriverProfileStore implements DriverProfileStore {
-  FirebaseDriverProfileStore({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirebaseDriverProfileStore({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
   DocumentReference<Map<String, dynamic>> _driver(String uid) =>
       _firestore.collection('drivers').doc(uid);
@@ -62,6 +89,18 @@ class FirebaseDriverProfileStore implements DriverProfileStore {
     required String firstName,
     required String lastName,
   }) async {
+    final User? authenticatedUser = _auth.currentUser;
+    if (!VerifiedDriverIdentityPolicy.matches(
+      expectedUid: uid,
+      expectedPhoneNumber: phoneNumber,
+      authenticatedUid: authenticatedUser?.uid,
+      authenticatedPhoneNumber: authenticatedUser?.phoneNumber,
+    )) {
+      throw StateError(
+        'Complete Firebase SMS verification before creating a driver profile.',
+      );
+    }
+
     await DriverAccountRoleService.instance.claimDriverRole();
 
     final DocumentReference<Map<String, dynamic>> driver = _driver(uid);
@@ -70,7 +109,7 @@ class FirebaseDriverProfileStore implements DriverProfileStore {
           .get(driver);
       final Map<String, dynamic> data = <String, dynamic>{
         'uid': uid,
-        'phoneNumber': phoneNumber,
+        'phoneNumber': authenticatedUser!.phoneNumber,
         'firstName': firstName.trim(),
         'lastName': lastName.trim(),
         'onboardingCompleted': false,
