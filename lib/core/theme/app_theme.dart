@@ -40,7 +40,7 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: canvas,
       canvasColor: canvas,
       dividerColor: border,
-      splashFactory: InkSparkle.splashFactory,
+      splashFactory: InkRipple.splashFactory,
       textTheme: base.copyWith(
         displaySmall: base.displaySmall?.copyWith(
           color: ink,

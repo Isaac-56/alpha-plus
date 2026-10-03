@@ -374,69 +374,119 @@ class _PassengerContact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final Color surface = theme.colorScheme.surface;
+    final Color border = theme.dividerColor;
+    final String contactTitle = ride.isPhoneBooking
+        ? 'Phone booking customer'
+        : (ride.customerName.isEmpty ? 'Passenger' : ride.customerName);
+
     return Container(
       key: const Key('passengerContact'),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.5),
-        ),
+        color: surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(
-                ride.isPhoneBooking
-                    ? Icons.support_agent_rounded
-                    : Icons.person_rounded,
-                size: 20,
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.18),
+                foregroundColor: theme.colorScheme.onSurface,
+                child: Icon(
+                  ride.isPhoneBooking
+                      ? Icons.support_agent_rounded
+                      : Icons.person_rounded,
+                  size: 21,
+                ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                ride.isPhoneBooking
-                    ? 'Phone booking contact'
-                    : 'Passenger contact',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      contactTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Call when you arrive at the pickup point',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            ride.customerName.isEmpty
-                ? 'Call the customer when you arrive.'
-                : '${ride.customerName} · Call when you arrive.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 7),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: SelectableText(
-                  ride.customerPhone,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
+          const SizedBox(height: 12),
+          Semantics(
+            button: true,
+            excludeSemantics: true,
+            label: 'Call passenger $contactTitle at ${ride.customerPhone}',
+            child: Material(
+              color: AppColors.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: const Key('callPassenger'),
+                onTap: onCall,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      const CircleAvatar(
+                        radius: 17,
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.ink,
+                        child: Icon(Icons.call_rounded, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            const Text(
+                              'Call passenger',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              ride.customerPhone,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 15,
+                      ),
+                    ],
                   ),
                 ),
               ),
-              IconButton(
-                key: const Key('callPassenger'),
-                tooltip: 'Call passenger',
-                onPressed: onCall,
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.ink,
-                ),
-                icon: const Icon(Icons.call_rounded),
-              ),
-            ],
+            ),
           ),
           if (ride.customerNote.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 5),
+            const SizedBox(height: 10),
             Text(
               'Note: ${ride.customerNote}',
               style: const TextStyle(fontWeight: FontWeight.w600),
