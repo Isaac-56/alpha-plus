@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../data/driver_active_ride_service.dart';
@@ -132,14 +132,21 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
     }
   }
 
-  Future<void> _copyCustomerPhone(DriverActiveRide ride) async {
+  Future<void> _callCustomerPhone(DriverActiveRide ride) async {
     if (ride.customerPhone.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: ride.customerPhone));
-    if (!mounted) return;
+
+    final Uri phoneUri = Uri(scheme: 'tel', path: ride.customerPhone);
+    try {
+      final bool opened = await launchUrl(phoneUri);
+      if (opened || !mounted) return;
+    } on Object {
+      if (!mounted) return;
+    }
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(content: Text('Customer phone number copied.')),
+        const SnackBar(content: Text('The phone dialer could not be opened.')),
       );
   }
 
@@ -244,12 +251,11 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                               label: 'Destination',
                               value: ride.destinationAddress,
                             ),
-                            if (ride.isPhoneBooking &&
-                                ride.customerPhone.isNotEmpty) ...<Widget>[
+                            if (ride.customerPhone.isNotEmpty) ...<Widget>[
                               const SizedBox(height: 12),
-                              _PhoneBookingContact(
+                              _PassengerContact(
                                 ride: ride,
-                                onCopy: () => _copyCustomerPhone(ride),
+                                onCall: () => _callCustomerPhone(ride),
                               ),
                             ],
                             const SizedBox(height: 12),
@@ -360,16 +366,16 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
   }
 }
 
-class _PhoneBookingContact extends StatelessWidget {
-  const _PhoneBookingContact({required this.ride, required this.onCopy});
+class _PassengerContact extends StatelessWidget {
+  const _PassengerContact({required this.ride, required this.onCall});
 
   final DriverActiveRide ride;
-  final VoidCallback onCopy;
+  final VoidCallback onCall;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: const Key('phoneBookingContact'),
+      key: const Key('passengerContact'),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.12),
@@ -381,13 +387,20 @@ class _PhoneBookingContact extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Row(
+          Row(
             children: <Widget>[
-              Icon(Icons.support_agent_rounded, size: 20),
-              SizedBox(width: 8),
+              Icon(
+                ride.isPhoneBooking
+                    ? Icons.support_agent_rounded
+                    : Icons.person_rounded,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
               Text(
-                'Phone booking',
-                style: TextStyle(fontWeight: FontWeight.w800),
+                ride.isPhoneBooking
+                    ? 'Phone booking contact'
+                    : 'Passenger contact',
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -411,10 +424,14 @@ class _PhoneBookingContact extends StatelessWidget {
                 ),
               ),
               IconButton(
-                key: const Key('copyPhoneBookingContact'),
-                tooltip: 'Copy phone number',
-                onPressed: onCopy,
-                icon: const Icon(Icons.copy_rounded),
+                key: const Key('callPassenger'),
+                tooltip: 'Call passenger',
+                onPressed: onCall,
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.ink,
+                ),
+                icon: const Icon(Icons.call_rounded),
               ),
             ],
           ),
