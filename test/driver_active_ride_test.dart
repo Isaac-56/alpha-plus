@@ -115,4 +115,23 @@ void main() {
     expect(ride.customerPhone, '+211921234567');
     expect(ride.customerNote, 'Blue gate');
   });
+
+  test('app booking exposes passenger phone after assignment', () {
+    final DriverActiveRide ride = DriverActiveRide.fromMap(
+      rideId: 'app-ride',
+      data: <String, dynamic>{
+        'status': 'accepted',
+        'customerPhone': '+211912345678',
+        'pickup': <String, dynamic>{'address': 'Juba Airport'},
+        'destination': <String, dynamic>{'address': 'Hai Malakal'},
+        'rideOptionId': 'standard',
+        'paymentMethod': 'cash',
+        'estimatedFare': 15000,
+        'currencyCode': 'SSP',
+      },
+    );
+
+    expect(ride.isPhoneBooking, isFalse);
+    expect(ride.customerPhone, '+211912345678');
+  });
 }
