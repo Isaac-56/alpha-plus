@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,31 @@ class DriverPresenceException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class PreparedDriverAvailability {
+  const PreparedDriverAvailability({
+    required this.vehicleType,
+    required this.activeRideId,
+  });
+
+  final String vehicleType;
+  final String? activeRideId;
+
+  factory PreparedDriverAvailability.fromCallable(Object? value) {
+    if (value is! Map<Object?, Object?>) {
+      throw const FormatException('Driver availability response is invalid.');
+    }
+    final String vehicleType = value['vehicleType']?.toString().trim() ?? '';
+    final String activeRide = value['activeRideId']?.toString().trim() ?? '';
+    if (vehicleType.isEmpty) {
+      throw const FormatException('Driver vehicle category is missing.');
+    }
+    return PreparedDriverAvailability(
+      vehicleType: vehicleType,
+      activeRideId: activeRide.isEmpty ? null : activeRide,
+    );
+  }
 }
 
 class DriverAvailabilityPolicy {
@@ -137,14 +163,20 @@ class DriverHeadingPolicy {
 /// information, names and other private profile fields never leave the private
 /// `drivers/{uid}` document.
 class DriverPresenceService {
-  DriverPresenceService({FirebaseAuth? auth, FirebaseDatabase? database})
-    : _auth = auth ?? FirebaseAuth.instance,
-      _database = database ?? FirebaseDatabase.instance;
+  DriverPresenceService({
+    FirebaseAuth? auth,
+    FirebaseDatabase? database,
+    FirebaseFunctions? functions,
+  }) : _auth = auth ?? FirebaseAuth.instance,
+      _database = database ?? FirebaseDatabase.instance,
+      _functions = functions ??
+          FirebaseFunctions.instanceFor(region: 'africa-south1');
 
   static final DriverPresenceService instance = DriverPresenceService();
 
   final FirebaseAuth _auth;
   final FirebaseDatabase _database;
+  final FirebaseFunctions _functions;
 
   StreamSubscription<Position>? _positionSubscription;
   StreamSubscription<DatabaseEvent>? _connectionSubscription;
@@ -184,17 +216,11 @@ class DriverPresenceService {
     required String reviewStatus,
     required String vehicleType,
   }) async {
+    final String requestedVehicleType =
+        DriverAvailabilityPolicy.normalizedVehicleType(vehicleType);
     if (!DriverAvailabilityPolicy.canGoOnline(reviewStatus)) {
       throw const DriverPresenceException(
         'Your driver account must be approved before you can go online.',
-      );
-    }
-
-    final String normalizedVehicleType =
-        DriverAvailabilityPolicy.normalizedVehicleType(vehicleType);
-    if (normalizedVehicleType.isEmpty) {
-      throw const DriverPresenceException(
-        'Alpha must assign your ride category before you can go online.',
       );
     }
 
@@ -227,6 +253,23 @@ class DriverPresenceService {
     }
 
     await goOffline();
+
+    final PreparedDriverAvailability prepared =
+        await _prepareAvailability();
+    final String normalizedVehicleType =
+        DriverAvailabilityPolicy.normalizedVehicleType(prepared.vehicleType);
+    if (normalizedVehicleType.isEmpty) {
+      throw const DriverPresenceException(
+        'Alpha must assign your ride category before you can go online.',
+      );
+    }
+    if (requestedVehicleType.isNotEmpty &&
+        requestedVehicleType != normalizedVehicleType) {
+      debugPrint(
+        'Driver category refreshed from server: '
+        '$requestedVehicleType -> $normalizedVehicleType',
+      );
+    }
 
     final Object onlineAttempt = Object();
     _onlineAttempt = onlineAttempt;
@@ -271,6 +314,29 @@ class DriverPresenceService {
       vehicleType: normalizedVehicleType,
       settings: settings,
     );
+  }
+
+  Future<PreparedDriverAvailability> _prepareAvailability() async {
+    try {
+      final HttpsCallableResult<dynamic> result = await _functions
+          .httpsCallable('prepareDriverAvailability')
+          .call<dynamic>()
+          .timeout(const Duration(seconds: 12));
+      return PreparedDriverAvailability.fromCallable(result.data);
+    } on FirebaseFunctionsException catch (error) {
+      throw DriverPresenceException(
+        error.message ??
+            'Alpha Plus could not verify your availability right now.',
+      );
+    } on TimeoutException {
+      throw const DriverPresenceException(
+        'Alpha Plus could not verify your availability. Try again.',
+      );
+    } on FormatException {
+      throw const DriverPresenceException(
+        'Alpha Plus received an invalid availability response.',
+      );
+    }
   }
 
   Future<void> _publishPosition({

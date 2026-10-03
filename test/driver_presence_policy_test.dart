@@ -2,6 +2,26 @@ import 'package:alpha_plus/features/dashboard/data/driver_presence_service.dart'
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('PreparedDriverAvailability', () {
+    test('uses the server vehicle category and optional active ride', () {
+      final PreparedDriverAvailability prepared =
+          PreparedDriverAvailability.fromCallable(<Object?, Object?>{
+        'vehicleType': 'boda',
+        'activeRideId': '',
+      });
+
+      expect(prepared.vehicleType, 'boda');
+      expect(prepared.activeRideId, isNull);
+    });
+
+    test('rejects availability responses without a vehicle category', () {
+      expect(
+        () => PreparedDriverAvailability.fromCallable(<Object?, Object?>{}),
+        throwsFormatException,
+      );
+    });
+  });
+
   group('DriverAvailabilityPolicy', () {
     test('only approved drivers can go online', () {
       expect(DriverAvailabilityPolicy.canGoOnline('approved'), isTrue);
