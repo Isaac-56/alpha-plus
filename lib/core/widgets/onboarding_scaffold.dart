@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'alpha_back_button.dart';
+import 'alpha_components.dart';
 
 class OnboardingScaffold extends StatelessWidget {
   const OnboardingScaffold({
@@ -92,8 +93,31 @@ class OnboardingScaffold extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          if (showBackButton)
-                            AlphaBackButton(onPressed: onBack),
+                          Row(
+                            children: <Widget>[
+                              if (showBackButton)
+                                AlphaBackButton(onPressed: onBack)
+                              else
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: colors.primary.withValues(alpha: 0.16),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.drive_eta_rounded,
+                                    color: colors.onSurface,
+                                  ),
+                                ),
+                              const Spacer(),
+                              const AlphaStatusPill(
+                                label: 'Alpha Plus',
+                                icon: Icons.verified_user_outlined,
+                              ),
+                            ],
+                          ),
                           SizedBox(
                             height: authStyle && keyboardVisible
                                 ? 18
@@ -122,7 +146,10 @@ class OnboardingScaffold extends StatelessWidget {
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: -0.7,
                                     )
-                                  : pageTheme.textTheme.displaySmall,
+                                  : pageTheme.textTheme.headlineLarge?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -0.65,
+                                    ),
                             ),
                           ),
                           if (subtitle != null) ...<Widget>[
@@ -160,20 +187,10 @@ class OnboardingScaffold extends StatelessWidget {
                     DecoratedBox(
                       decoration: BoxDecoration(
                         color: pageTheme.scaffoldBackgroundColor,
-                        border: authStyle
-                            ? Border(
-                                top: BorderSide(color: pageTheme.dividerColor),
-                              )
-                            : null,
-                        boxShadow: authStyle
-                            ? null
-                            : <BoxShadow>[
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.06),
-                                  blurRadius: 22,
-                                  offset: const Offset(0, -8),
-                                ),
-                              ],
+                        border: Border(
+                          top: BorderSide(color: pageTheme.dividerColor),
+                        ),
+                        boxShadow: null,
                       ),
                       child: SafeArea(
                         top: false,

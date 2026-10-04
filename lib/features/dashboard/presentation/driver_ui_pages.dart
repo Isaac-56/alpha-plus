@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/alpha_back_button.dart';
+import '../../../core/widgets/alpha_components.dart';
 import '../../auth/data/driver_legal_content.dart';
 import '../../auth/presentation/driver_biometric_settings_screen.dart';
 import '../../auth/presentation/driver_legal_details_screen.dart';
@@ -1228,32 +1229,16 @@ class _TabScaffold extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          title,
-                          style: Theme.of(context).textTheme.displaySmall,
-                        ),
-                        if (subtitle != null) ...<Widget>[
-                          const SizedBox(height: 6),
-                          Text(
-                            subtitle!,
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (trailing != null) ...<Widget>[
-                    const SizedBox(width: 12),
-                    trailing!,
-                  ],
-                ],
+              AlphaFlowHeader(
+                title: title,
+                subtitle: subtitle,
+                trailing: trailing,
+              ),
+              const SizedBox(height: 18),
+              const AlphaFlowProgress(
+                currentStep: 1,
+                totalSteps: 1,
+                label: 'Live workspace',
               ),
               const SizedBox(height: 22),
               ...children,
@@ -1278,12 +1263,15 @@ class _DetailPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
           children: <Widget>[
-            const Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: AlphaBackButton(),
+            AlphaFlowHeader(
+              title: title,
+              compact: true,
+              leading: const AlphaBackButton(),
+              trailing: const AlphaStatusPill(
+                label: 'Alpha Plus',
+                icon: Icons.local_taxi_outlined,
+              ),
             ),
-            const SizedBox(height: 32),
-            Text(title, style: Theme.of(context).textTheme.displaySmall),
             const SizedBox(height: 28),
             ...children,
           ],
