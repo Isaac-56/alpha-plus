@@ -123,47 +123,27 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                           children: <Widget>[
                             const AlphaSheetHandle(),
                             const SizedBox(height: 16),
-                            Row(
-                              children: <Widget>[
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.local_taxi_rounded,
-                                    color: AppColors.ink,
-                                  ),
+                            AlphaFlowHeader(
+                              title: 'New ride request',
+                              subtitle:
+                                  '${_distanceLabel(offer.distanceToPickupMeters)} to pickup',
+                              compact: true,
+                              leading: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      const Text(
-                                        'New ride request',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${_rideName(offer.rideOptionId)} • ${_distanceLabel(offer.distanceToPickupMeters)} away',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodyMedium,
-                                      ),
-                                    ],
-                                  ),
+                                child: const Icon(
+                                  Icons.navigation_rounded,
+                                  color: AppColors.ink,
                                 ),
-                                AlphaStatusPill(
-                                  label: _rideName(offer.rideOptionId),
-                                  icon: _rideIcon(offer.rideOptionId),
-                                ),
-                              ],
+                              ),
+                              trailing: AlphaStatusPill(
+                                label: _rideName(offer.rideOptionId),
+                                icon: _rideIcon(offer.rideOptionId),
+                              ),
                             ),
                             if (offer.isPhoneBooking) ...<Widget>[
                               const SizedBox(height: 12),
@@ -197,6 +177,30 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                                 ),
                               ),
                             ],
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: <Widget>[
+                                AlphaMetricChip(
+                                  icon: Icons.route_rounded,
+                                  label:
+                                      '${_distanceLabel(offer.distanceToPickupMeters)} away',
+                                  emphasized: true,
+                                ),
+                                AlphaMetricChip(
+                                  icon: Icons.payments_outlined,
+                                  label:
+                                      '${offer.estimatedFare} ${offer.currencyCode}',
+                                ),
+                                AlphaMetricChip(
+                                  icon: Icons.account_balance_wallet_outlined,
+                                  label: offer.paymentMethod == 'cash'
+                                      ? 'Cash'
+                                      : offer.paymentMethod,
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 18),
                             AlphaRouteRow(
                               icon: Icons.my_location_rounded,
