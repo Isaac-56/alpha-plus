@@ -63,6 +63,24 @@ void main() {
       );
     });
 
+    test('uses a recent cached location to publish online immediately', () {
+      final DateTime now = DateTime(2026, 10, 4, 9);
+      expect(
+        DriverAvailabilityPolicy.isCachedPositionFresh(
+          now.subtract(const Duration(minutes: 2)),
+          now: now,
+        ),
+        isTrue,
+      );
+      expect(
+        DriverAvailabilityPolicy.isCachedPositionFresh(
+          now.subtract(const Duration(minutes: 4)),
+          now: now,
+        ),
+        isFalse,
+      );
+    });
+
     test('matches backend presence freshness boundaries', () {
       const int now = 2_000_000;
 
