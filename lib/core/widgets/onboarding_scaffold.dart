@@ -111,10 +111,19 @@ class OnboardingScaffold extends StatelessWidget {
                                     color: colors.onSurface,
                                   ),
                                 ),
-                              const Spacer(),
-                              const AlphaStatusPill(
-                                label: 'Alpha Plus',
-                                icon: Icons.verified_user_outlined,
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: AlphaStatusPill(
+                                      label: 'Alpha Plus',
+                                      icon: Icons.verified_user_outlined,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
