@@ -96,36 +96,50 @@ class _DriverShellState extends State<DriverShell> {
       canPop: false,
       child: Scaffold(
         body: IndexedStack(index: _index, children: _pages),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: (int value) => setState(() => _index = value),
-          destinations: const <NavigationDestination>[
-            NavigationDestination(
-              icon: Icon(Icons.navigation_outlined),
-              selectedIcon: Icon(Icons.navigation_rounded),
-              label: 'Requests',
+        bottomNavigationBar: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+          child: Material(
+            color: Theme.of(context).colorScheme.surface,
+            elevation: 16,
+            shadowColor: Colors.black38,
+            borderRadius: BorderRadius.circular(24),
+            clipBehavior: Clip.antiAlias,
+            child: NavigationBar(
+              height: 72,
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              selectedIndex: _index,
+              onDestinationSelected: (int value) =>
+                  setState(() => _index = value),
+              destinations: const <NavigationDestination>[
+                NavigationDestination(
+                  icon: Icon(Icons.navigation_outlined),
+                  selectedIcon: Icon(Icons.navigation_rounded),
+                  label: 'Requests',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  selectedIcon: Icon(Icons.receipt_long_rounded),
+                  label: 'Pool',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.account_balance_wallet_outlined),
+                  selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+                  label: 'Money',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.chat_bubble_outline_rounded),
+                  selectedIcon: Icon(Icons.chat_bubble_rounded),
+                  label: 'Inbox',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.account_circle_outlined),
+                  selectedIcon: Icon(Icons.account_circle_rounded),
+                  label: 'Profile',
+                ),
+              ],
             ),
-            NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined),
-              selectedIcon: Icon(Icons.receipt_long_rounded),
-              label: 'Pool',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.account_balance_wallet_outlined),
-              selectedIcon: Icon(Icons.account_balance_wallet_rounded),
-              label: 'Money',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.chat_bubble_outline_rounded),
-              selectedIcon: Icon(Icons.chat_bubble_rounded),
-              label: 'Inbox',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.account_circle_outlined),
-              selectedIcon: Icon(Icons.account_circle_rounded),
-              label: 'Profile',
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -374,6 +388,7 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
 
   DriverPresenceService? _presence;
   bool _changing = false;
+  bool? _requestedOnline;
   bool _forcingWalletOffline = false;
 
   DriverPresenceService get _service =>
@@ -385,12 +400,15 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
   Future<void> _setOnline(bool online) async {
     if (_changing) return;
 
-    setState(() => _changing = true);
+    setState(() {
+      _changing = true;
+      _requestedOnline = online;
+    });
     try {
       if (online) {
-        await DriverWalletService.instance
-            .confirmCanGoOnline()
-            .timeout(_availabilityChangeTimeout);
+        // The live wallet snapshot already gates this control and the backend
+        // validates the wallet again before dispatch. Avoid a second callable
+        // round trip here so Online becomes visible immediately.
         await _service
             .goOnline(
               driverId: widget.driverId,
@@ -416,7 +434,12 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
         'Alpha Plus could not update your availability. Check your connection and try again.',
       );
     } finally {
-      if (mounted) setState(() => _changing = false);
+      if (mounted) {
+        setState(() {
+          _changing = false;
+          _requestedOnline = null;
+        });
+      }
     }
   }
 
@@ -493,6 +516,17 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
             final bool isOnline = snapshot.data ?? false;
             _forceOfflineIfNeeded(isOnline: isOnline, wallet: wallet);
             final bool walletBlocked = !wallet.canGoOnline;
+            final bool displayOnline =
+                isOnline || (_changing && _requestedOnline == true);
+            final String vehicleLabel = widget.vehicleType
+                .trim()
+                .split(RegExp(r'[_\s-]+'))
+                .where((String word) => word.isNotEmpty)
+                .map(
+                  (String word) =>
+                      '${word[0].toUpperCase()}${word.substring(1)}',
+                )
+                .join(' ');
             final String offlineMessage = wallet.isSuspended
                 ? 'Wallet suspended — contact the Alpha office'
                 : wallet.balance <= 0
@@ -502,52 +536,136 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
                 : 'Go online when you are ready to drive';
 
             return _AvailabilitySurface(
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: isOnline ? AppColors.primary : Colors.grey,
-                      shape: BoxShape.circle,
-                      boxShadow: isOnline
-                          ? <BoxShadow>[
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.45),
-                                blurRadius: 10,
+                  Row(
+                    children: <Widget>[
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: displayOnline
+                              ? AppColors.primary
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerLow,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          displayOnline
+                              ? Icons.navigation_rounded
+                              : Icons.power_settings_new_rounded,
+                          color: displayOnline
+                              ? AppColors.ink
+                              : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              _changing
+                                  ? _requestedOnline == true
+                                      ? 'Going online…'
+                                      : 'Going offline…'
+                                  : displayOnline
+                                  ? 'You are online'
+                                  : 'You are offline',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.3,
                               ),
-                            ]
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          isOnline ? 'You are online' : 'You are offline',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              displayOnline
+                                  ? 'Visible to nearby passengers now'
+                                  : offlineMessage,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        Text(
-                          isOnline
-                              ? 'Your live location is visible for nearby requests'
-                              : offlineMessage,
-                        ),
-                      ],
-                    ),
+                      ),
+                      Switch.adaptive(
+                        value: displayOnline && !walletBlocked,
+                        onChanged:
+                            walletBlocked || _changing ? null : _setOnline,
+                      ),
+                    ],
                   ),
-                  if (_changing)
-                    const SizedBox.square(
-                      dimension: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2.4),
-                    )
-                  else
-                    Switch.adaptive(
-                      value: isOnline && !walletBlocked,
-                      onChanged: walletBlocked ? null : _setOnline,
-                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const Icon(
+                              Icons.directions_car_filled_rounded,
+                              size: 15,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              vehicleLabel.isEmpty ? 'Vehicle' : vehicleLabel,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        width: 9,
+                        height: 9,
+                        decoration: BoxDecoration(
+                          color: displayOnline
+                              ? AppColors.primary
+                              : Colors.grey,
+                          shape: BoxShape.circle,
+                          boxShadow: displayOnline
+                              ? <BoxShadow>[
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    blurRadius: 9,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        displayOnline ? 'LIVE' : 'OFFLINE',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                          color: displayOnline
+                              ? Theme.of(context).colorScheme.onSurface
+                              : Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             );
@@ -566,10 +684,10 @@ class _AvailabilitySurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),

@@ -47,6 +47,8 @@ class DriverAvailabilityPolicy {
   // Keep this aligned with PRESENCE_FRESH_MS in the dispatch backend.
   static const Duration presenceFreshnessWindow = Duration(seconds: 90);
   static const Duration heartbeatInterval = Duration(seconds: 30);
+  static const Duration cachedPositionMaximumAge = Duration(minutes: 3);
+  static const Duration initialPositionTimeout = Duration(seconds: 7);
 
   static bool canGoOnline(String reviewStatus) =>
       reviewStatus.trim().toLowerCase() == 'approved';
@@ -60,6 +62,15 @@ class DriverAvailabilityPolicy {
     final int age =
         (nowMilliseconds ?? DateTime.now().millisecondsSinceEpoch) - updatedAt;
     return age >= 0 && age <= presenceFreshnessWindow.inMilliseconds;
+  }
+
+  static bool isCachedPositionFresh(
+    DateTime? timestamp, {
+    DateTime? now,
+  }) {
+    if (timestamp == null) return false;
+    final Duration age = (now ?? DateTime.now()).difference(timestamp);
+    return !age.isNegative && age <= cachedPositionMaximumAge;
   }
 
   static bool isCurrentPresenceOnline({
@@ -189,6 +200,8 @@ class DriverPresenceService {
   Position? _lastPublishedPosition;
   double? _lastPublishedHeading;
   Object? _onlineAttempt;
+  PreparedDriverAvailability? _cachedAvailability;
+  DateTime? _cachedAvailabilityAt;
 
   DatabaseReference _driverReference(String driverId) =>
       _database.ref('driver_locations/$driverId');
@@ -252,10 +265,15 @@ class DriverPresenceService {
       );
     }
 
+    // The secure profile check, old-presence cleanup and GPS lookup are
+    // independent. Running them together removes the long sequential wait the
+    // driver previously saw after tapping Online.
+    final Future<PreparedDriverAvailability> availabilityFuture =
+        _availabilityForOnlineAttempt();
+    final Future<Position> positionFuture = _resolveInitialPosition();
     await goOffline();
 
-    final PreparedDriverAvailability prepared =
-        await _prepareAvailability();
+    final PreparedDriverAvailability prepared = await availabilityFuture;
     final String normalizedVehicleType =
         DriverAvailabilityPolicy.normalizedVehicleType(prepared.vehicleType);
     if (normalizedVehicleType.isEmpty) {
@@ -276,10 +294,7 @@ class DriverPresenceService {
     final String presenceId = _createPresenceId();
     final DatabaseReference reference = _driverReference(driverId);
     final LocationSettings settings = _onlineLocationSettings();
-
-    final Position initialPosition = await Geolocator.getCurrentPosition(
-      locationSettings: settings,
-    );
+    final Position initialPosition = await positionFuture;
     if (_onlineAttempt != onlineAttempt) return;
 
     _activeDriverId = driverId;
@@ -339,6 +354,47 @@ class DriverPresenceService {
     }
   }
 
+  Future<PreparedDriverAvailability> _availabilityForOnlineAttempt() async {
+    final PreparedDriverAvailability? cached = _cachedAvailability;
+    final DateTime? cachedAt = _cachedAvailabilityAt;
+    if (cached != null &&
+        cachedAt != null &&
+        DateTime.now().difference(cachedAt) <= const Duration(minutes: 5)) {
+      return cached;
+    }
+
+    final PreparedDriverAvailability prepared = await _prepareAvailability();
+    _cachedAvailability = prepared;
+    _cachedAvailabilityAt = DateTime.now();
+    return prepared;
+  }
+
+  Future<Position> _resolveInitialPosition() async {
+    final Position? cached = await Geolocator.getLastKnownPosition();
+    if (cached != null &&
+        DriverAvailabilityPolicy.isCachedPositionFresh(cached.timestamp)) {
+      return cached;
+    }
+
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: DriverAvailabilityPolicy.initialPositionTimeout,
+        ),
+      );
+    } on TimeoutException {
+      // A balanced fallback normally returns quickly indoors while the high
+      // accuracy stream continues improving the live marker afterwards.
+      return Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: DriverAvailabilityPolicy.initialPositionTimeout,
+        ),
+      );
+    }
+  }
+
   Future<void> _publishPosition({
     required DatabaseReference reference,
     required String presenceId,
@@ -358,8 +414,11 @@ class DriverPresenceService {
       'heading': DriverHeadingPolicy.normalizedHeading(heading),
       'accuracy': position.accuracy,
       'isOnline': true,
+      'online': true,
       'vehicleType': vehicleType,
+      'vehicleClass': vehicleType,
       'updatedAt': ServerValue.timestamp,
+      'lastUpdated': ServerValue.timestamp,
     });
 
     if (_activePresenceId != presenceId) {
