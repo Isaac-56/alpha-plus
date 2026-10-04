@@ -1115,6 +1115,37 @@ void main() {
     expect(find.text('Recharge required'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('system back returns secondary driver tabs to Requests', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: DriverShell(
+          driverName: 'Test Driver',
+          registration: DriverRegistration(),
+          mapBuilder: (_) => const ColoredBox(color: Colors.white),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      4,
+    );
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      0,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _FakeDriverAuthService implements DriverAuthService {
