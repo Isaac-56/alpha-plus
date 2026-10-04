@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/alpha_components.dart';
 import '../data/driver_ride_offer_service.dart';
 
 class DriverRideOfferLayer extends StatefulWidget {
@@ -110,13 +111,18 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                       color: Theme.of(context).colorScheme.surface,
                       elevation: 18,
                       shadowColor: Colors.black45,
-                      borderRadius: BorderRadius.circular(28),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(AppSpacing.sheetRadius),
+                        bottom: Radius.circular(AppSpacing.cardRadius),
+                      ),
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: <Widget>[
+                            const AlphaSheetHandle(),
+                            const SizedBox(height: 16),
                             Row(
                               children: <Widget>[
                                 Container(
@@ -153,12 +159,9 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                                     ],
                                   ),
                                 ),
-                                Text(
-                                  '${offer.estimatedFare} ${offer.currencyCode}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                                AlphaStatusPill(
+                                  label: _rideName(offer.rideOptionId),
+                                  icon: _rideIcon(offer.rideOptionId),
                                 ),
                               ],
                             ),
@@ -195,18 +198,24 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                               ),
                             ],
                             const SizedBox(height: 18),
-                            _LocationLine(
+                            AlphaRouteRow(
                               icon: Icons.my_location_rounded,
                               label: 'Pickup',
                               value: offer.pickupAddress,
                             ),
-                            const SizedBox(height: 12),
-                            _LocationLine(
+                            const SizedBox(height: 8),
+                            AlphaRouteRow(
                               icon: Icons.flag_rounded,
                               label: 'Destination',
                               value: offer.destinationAddress,
                             ),
                             const SizedBox(height: 14),
+                            Text(
+                              '${offer.estimatedFare} ${offer.currencyCode}',
+                              key: const Key('rideOfferFare'),
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                            const SizedBox(height: 10),
                             Row(
                               children: <Widget>[
                                 const Icon(
@@ -268,7 +277,7 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                                               strokeWidth: 2.3,
                                             ),
                                           )
-                                        : const Text('Accept'),
+                                        : const Text('Accept ride'),
                                   ),
                                 ),
                               ],
@@ -299,48 +308,10 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
     final double kilometers = meters / 1000;
     return '${kilometers.toStringAsFixed(kilometers < 10 ? 1 : 0)} km';
   }
-}
 
-class _LocationLine extends StatelessWidget {
-  const _LocationLine({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(icon, size: 20, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  height: 1.25,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  static IconData _rideIcon(String rideOptionId) => switch (rideOptionId) {
+    'boda' => Icons.two_wheeler_rounded,
+    'rickshaw' => Icons.electric_rickshaw_rounded,
+    _ => Icons.local_taxi_rounded,
+  };
 }

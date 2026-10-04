@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/alpha_components.dart';
 import '../data/driver_active_ride_service.dart';
 
 class DriverActiveRideLayer extends StatefulWidget {
@@ -184,17 +185,22 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                       color: Theme.of(context).colorScheme.surface,
                       elevation: 18,
                       shadowColor: Colors.black45,
-                      borderRadius: BorderRadius.circular(28),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(AppSpacing.sheetRadius),
+                        bottom: Radius.circular(AppSpacing.cardRadius),
+                      ),
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
                           maxHeight: MediaQuery.sizeOf(context).height * 0.72,
                         ),
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: <Widget>[
+                            const AlphaSheetHandle(),
+                            const SizedBox(height: 16),
                             Row(
                               children: <Widget>[
                                 Container(
@@ -231,22 +237,20 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                                     ],
                                   ),
                                 ),
-                                Text(
-                                  '${_formatAmount(ride.fareAt(DateTime.now()))} ${ride.currencyCode}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                                AlphaStatusPill(
+                                  label: _rideName(ride.rideOptionId),
+                                  icon: _rideIcon(ride.rideOptionId),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 16),
-                            _RideLocation(
+                            AlphaRouteRow(
                               icon: Icons.my_location_rounded,
                               label: 'Pickup',
                               value: ride.pickupAddress,
                             ),
-                            const SizedBox(height: 10),
-                            _RideLocation(
+                            const SizedBox(height: 8),
+                            AlphaRouteRow(
                               icon: Icons.flag_rounded,
                               label: 'Destination',
                               value: ride.destinationAddress,
@@ -259,6 +263,12 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                               ),
                             ],
                             const SizedBox(height: 12),
+                            Text(
+                              '${_formatAmount(ride.fareAt(DateTime.now()))} ${ride.currencyCode}',
+                              key: const Key('activeRideFare'),
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                            const SizedBox(height: 10),
                             Row(
                               children: <Widget>[
                                 const Icon(
@@ -315,7 +325,7 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                               const SizedBox(height: 10),
                             ],
                             SizedBox(
-                              height: 52,
+                              height: AppSpacing.actionHeight,
                               child: ElevatedButton(
                                 key: const Key('advanceDriverRide'),
                                 onPressed: busy ? null : () => _advance(ride),
@@ -364,6 +374,12 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
     }
     return amount < 0 ? '-$formatted' : formatted.toString();
   }
+
+  static IconData _rideIcon(String rideOptionId) => switch (rideOptionId) {
+    'boda' => Icons.two_wheeler_rounded,
+    'rickshaw' => Icons.electric_rickshaw_rounded,
+    _ => Icons.local_taxi_rounded,
+  };
 }
 
 class _PassengerContact extends StatelessWidget {
@@ -573,49 +589,5 @@ class _DriverWaitingStatus extends StatelessWidget {
     final int minutes = safeSeconds ~/ 60;
     final int seconds = safeSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-}
-
-class _RideLocation extends StatelessWidget {
-  const _RideLocation({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(icon, size: 20, color: AppColors.primary),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  height: 1.25,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
   }
 }
