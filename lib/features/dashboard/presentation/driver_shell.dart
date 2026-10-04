@@ -93,7 +93,12 @@ class _DriverShellState extends State<DriverShell> {
   @override
   Widget build(BuildContext context) {
     final Widget shell = PopScope(
-      canPop: false,
+      canPop: _index == 0,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (!didPop && _index != 0) {
+          setState(() => _index = 0);
+        }
+      },
       child: Scaffold(
         body: IndexedStack(index: _index, children: _pages),
         bottomNavigationBar: SafeArea(
