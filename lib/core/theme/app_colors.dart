@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 abstract final class AppColors {
   static const Color primary = Color(0xFF39FF14);
+  static const Color primaryPressed = Color(0xFF29DF08);
   static const Color ink = Color(0xFF111311);
   static const Color muted = Color(0xFF6C726C);
-  static const Color canvas = Color(0xFFF7F9F7);
+  static const Color canvas = Color(0xFFFFFFFF);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color softSurface = Color(0xFFF0F3F0);
   static const Color border = Color(0xFFE3E8E3);
@@ -13,4 +14,15 @@ abstract final class AppColors {
   static const Color darkSoftSurface = Color(0xFF222622);
   static const Color darkBorder = Color(0xFF303630);
   static const Color danger = Color(0xFFE5484D);
+  static const Color warning = Color(0xFFF4B740);
+  static const Color success = Color(0xFF20B83B);
+}
+
+abstract final class AppSpacing {
+  static const double page = 16;
+  static const double controlHeight = 48;
+  static const double actionHeight = 56;
+  static const double sheetRadius = 24;
+  static const double cardRadius = 20;
+  static const double controlRadius = 14;
 }
