@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/alpha_back_button.dart';
+import '../../../core/widgets/alpha_components.dart';
 import '../../auth/presentation/driver_biometric_settings_screen.dart';
 import '../../onboarding/models/driver_registration.dart';
 import '../data/driver_photo_check_service.dart';
@@ -1108,13 +1109,16 @@ class _DetailScaffold extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const AlphaBackButton(),
-                    const SizedBox(height: 34),
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.displaySmall,
+                    AlphaFlowHeader(
+                      title: title,
+                      compact: true,
+                      leading: const AlphaBackButton(),
+                      trailing: const AlphaStatusPill(
+                        label: 'Driver',
+                        icon: Icons.verified_user_outlined,
+                      ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 26),
                     child,
                   ],
                 ),

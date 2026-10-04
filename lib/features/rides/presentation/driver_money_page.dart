@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/alpha_components.dart';
 import '../../wallet/data/driver_wallet_service.dart';
 import '../data/driver_trip_history_service.dart';
 
@@ -291,21 +292,13 @@ class _MoneyHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          'Money',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Wallet credit, completed rides and earnings.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ],
+    return const AlphaFlowHeader(
+      title: 'Money',
+      subtitle: 'Wallet credit, completed rides and earnings.',
+      trailing: AlphaStatusPill(
+        label: 'Live balance',
+        icon: Icons.account_balance_wallet_outlined,
+      ),
     );
   }
 }

@@ -201,49 +201,53 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                           children: <Widget>[
                             const AlphaSheetHandle(),
                             const SizedBox(height: 16),
-                            Row(
+                            AlphaFlowHeader(
+                              title: ride.statusLabel,
+                              subtitle: _rideName(ride.rideOptionId),
+                              compact: true,
+                              leading: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.navigation_rounded,
+                                  color: AppColors.ink,
+                                ),
+                              ),
+                              trailing: AlphaStatusPill(
+                                label: ride.isWaiting ? 'Waiting' : 'Live',
+                                icon: ride.isWaiting
+                                    ? Icons.timer_outlined
+                                    : Icons.circle,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
                               children: <Widget>[
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.navigation_rounded,
-                                    color: AppColors.ink,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      Text(
-                                        ride.statusLabel,
-                                        style: const TextStyle(
-                                          fontSize: 19,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      Text(
-                                        _rideName(ride.rideOptionId),
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodyMedium,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                AlphaStatusPill(
-                                  label: _rideName(ride.rideOptionId),
+                                AlphaMetricChip(
                                   icon: _rideIcon(ride.rideOptionId),
+                                  label: _rideName(ride.rideOptionId),
+                                ),
+                                AlphaMetricChip(
+                                  icon: Icons.payments_outlined,
+                                  label:
+                                      '${_formatAmount(ride.fareAt(DateTime.now()))} ${ride.currencyCode}',
+                                  emphasized: true,
+                                ),
+                                AlphaMetricChip(
+                                  icon: Icons.account_balance_wallet_outlined,
+                                  label: ride.paymentMethod == 'cash'
+                                      ? 'Cash'
+                                      : ride.paymentMethod,
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             AlphaRouteRow(
                               icon: Icons.my_location_rounded,
                               label: 'Pickup',
