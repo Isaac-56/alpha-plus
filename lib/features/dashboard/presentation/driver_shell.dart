@@ -395,6 +395,7 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
   bool _changing = false;
   bool? _requestedOnline;
   bool _forcingWalletOffline = false;
+  Object? _availabilityAttempt;
 
   DriverPresenceService get _service =>
       _presence ??= DriverPresenceService.instance;
@@ -403,8 +404,15 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
       DriverAvailabilityPolicy.canGoOnline(widget.reviewStatus);
 
   Future<void> _setOnline(bool online) async {
-    if (_changing) return;
+    if (_changing) {
+      if (!online && _requestedOnline == true) {
+        await _cancelPendingOnlineAttempt();
+      }
+      return;
+    }
 
+    final Object attempt = Object();
+    _availabilityAttempt = attempt;
     setState(() {
       _changing = true;
       _requestedOnline = online;
@@ -439,7 +447,31 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
         'Alpha Plus could not update your availability. Check your connection and try again.',
       );
     } finally {
-      if (mounted) {
+      if (mounted && identical(_availabilityAttempt, attempt)) {
+        setState(() {
+          _changing = false;
+          _requestedOnline = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _cancelPendingOnlineAttempt() async {
+    final Object cancellation = Object();
+    _availabilityAttempt = cancellation;
+    setState(() {
+      _changing = true;
+      _requestedOnline = false;
+    });
+
+    try {
+      await _service.goOffline().timeout(_availabilityChangeTimeout);
+    } on Object {
+      _showMessage(
+        'Alpha Plus could not finish going offline. Check your connection and try again.',
+      );
+    } finally {
+      if (mounted && identical(_availabilityAttempt, cancellation)) {
         setState(() {
           _changing = false;
           _requestedOnline = null;
@@ -457,9 +489,17 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
 
   void _forceOfflineIfNeeded({
     required bool isOnline,
+    required bool walletLoaded,
     required DriverWallet wallet,
   }) {
-    if (!isOnline || wallet.canGoOnline || _forcingWalletOffline) return;
+    if (!DriverAvailabilityPolicy.shouldForceWalletOffline(
+          isOnline: isOnline,
+          walletLoaded: walletLoaded,
+          walletCanGoOnline: wallet.canGoOnline,
+        ) ||
+        _forcingWalletOffline) {
+      return;
+    }
     _forcingWalletOffline = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(
@@ -506,21 +546,24 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
 
     return StreamBuilder<DriverWallet>(
       stream: DriverWalletService.instance.watchWallet(widget.driverId),
-      initialData: const DriverWallet.empty(),
       builder: (
         BuildContext context,
         AsyncSnapshot<DriverWallet> walletSnapshot,
       ) {
         final DriverWallet wallet =
             walletSnapshot.data ?? const DriverWallet.empty();
+        final bool walletLoaded = walletSnapshot.hasData;
 
         return StreamBuilder<bool>(
           stream: _service.watchOnlineState(widget.driverId),
           initialData: false,
           builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
             final bool isOnline = snapshot.data ?? false;
-            _forceOfflineIfNeeded(isOnline: isOnline, wallet: wallet);
-            final bool walletBlocked = !wallet.canGoOnline;
+            _forceOfflineIfNeeded(
+              isOnline: isOnline,
+              walletLoaded: walletLoaded,
+              wallet: wallet,
+            );
             final bool displayOnline =
                 isOnline || (_changing && _requestedOnline == true);
             final String vehicleLabel = widget.vehicleType
@@ -532,7 +575,9 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
                       '${word[0].toUpperCase()}${word.substring(1)}',
                 )
                 .join(' ');
-            final String offlineMessage = wallet.isSuspended
+            final String offlineMessage = !walletLoaded
+                ? 'Checking your wallet balance…'
+                : wallet.isSuspended
                 ? 'Wallet suspended — contact the Alpha office'
                 : wallet.balance <= 0
                 ? 'Recharge your wallet at the Alpha office to work'
@@ -597,9 +642,17 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
                         ),
                       ),
                       Switch.adaptive(
-                        value: displayOnline && !walletBlocked,
+                        key: const Key('driverOnlineSwitch'),
+                        value: displayOnline,
                         onChanged:
-                            walletBlocked || _changing ? null : _setOnline,
+                            DriverAvailabilityPolicy.canChangeOnlineSwitch(
+                              walletLoaded: walletLoaded,
+                              walletCanGoOnline: wallet.canGoOnline,
+                              changing: _changing,
+                              requestedOnline: _requestedOnline,
+                            )
+                            ? _setOnline
+                            : null,
                       ),
                     ],
                   ),
