@@ -53,6 +53,23 @@ class DriverAvailabilityPolicy {
   static bool canGoOnline(String reviewStatus) =>
       reviewStatus.trim().toLowerCase() == 'approved';
 
+  static bool canChangeOnlineSwitch({
+    required bool walletLoaded,
+    required bool walletCanGoOnline,
+    required bool changing,
+    required bool? requestedOnline,
+  }) {
+    if (!walletLoaded || !walletCanGoOnline) return false;
+    return !changing || requestedOnline == true;
+  }
+
+  static bool shouldForceWalletOffline({
+    required bool isOnline,
+    required bool walletLoaded,
+    required bool walletCanGoOnline,
+  }) =>
+      isOnline && walletLoaded && !walletCanGoOnline;
+
   static bool isPresenceFresh(
     int? updatedAt, {
     int? nowMilliseconds,
@@ -265,15 +282,25 @@ class DriverPresenceService {
       );
     }
 
-    // The secure profile check, old-presence cleanup and GPS lookup are
-    // independent. Running them together removes the long sequential wait the
-    // driver previously saw after tapping Online.
+    final Object onlineAttempt = Object();
+    _onlineAttempt = onlineAttempt;
+    await _clearPresence(cancelOnlineAttempt: false);
+    if (_onlineAttempt != onlineAttempt) return;
+
+    // The secure profile check and GPS lookup are independent. Running them
+    // together removes the long sequential wait after tapping Online.
     final Future<PreparedDriverAvailability> availabilityFuture =
         _availabilityForOnlineAttempt();
     final Future<Position> positionFuture = _resolveInitialPosition();
-    await goOffline();
 
-    final PreparedDriverAvailability prepared = await availabilityFuture;
+    late final PreparedDriverAvailability prepared;
+    try {
+      prepared = await availabilityFuture;
+    } on Object {
+      if (_onlineAttempt != onlineAttempt) return;
+      rethrow;
+    }
+    if (_onlineAttempt != onlineAttempt) return;
     final String normalizedVehicleType =
         DriverAvailabilityPolicy.normalizedVehicleType(prepared.vehicleType);
     if (normalizedVehicleType.isEmpty) {
@@ -289,12 +316,16 @@ class DriverPresenceService {
       );
     }
 
-    final Object onlineAttempt = Object();
-    _onlineAttempt = onlineAttempt;
     final String presenceId = _createPresenceId();
     final DatabaseReference reference = _driverReference(driverId);
     final LocationSettings settings = _onlineLocationSettings();
-    final Position initialPosition = await positionFuture;
+    late final Position initialPosition;
+    try {
+      initialPosition = await positionFuture;
+    } on Object {
+      if (_onlineAttempt != onlineAttempt) return;
+      rethrow;
+    }
     if (_onlineAttempt != onlineAttempt) return;
 
     _activeDriverId = driverId;
@@ -660,8 +691,10 @@ class DriverPresenceService {
     });
   }
 
-  Future<void> goOffline() async {
-    _onlineAttempt = null;
+  Future<void> goOffline() => _clearPresence(cancelOnlineAttempt: true);
+
+  Future<void> _clearPresence({required bool cancelOnlineAttempt}) async {
+    if (cancelOnlineAttempt) _onlineAttempt = null;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
     _positionRestartTimer?.cancel();

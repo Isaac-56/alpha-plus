@@ -30,6 +30,46 @@ void main() {
       expect(DriverAvailabilityPolicy.canGoOnline('rejected'), isFalse);
     });
 
+    test('online switch can cancel a pending online attempt', () {
+      expect(
+        DriverAvailabilityPolicy.canChangeOnlineSwitch(
+          walletLoaded: true,
+          walletCanGoOnline: true,
+          changing: true,
+          requestedOnline: true,
+        ),
+        isTrue,
+      );
+      expect(
+        DriverAvailabilityPolicy.canChangeOnlineSwitch(
+          walletLoaded: true,
+          walletCanGoOnline: true,
+          changing: true,
+          requestedOnline: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('wallet cannot force a driver offline before it finishes loading', () {
+      expect(
+        DriverAvailabilityPolicy.shouldForceWalletOffline(
+          isOnline: true,
+          walletLoaded: false,
+          walletCanGoOnline: false,
+        ),
+        isFalse,
+      );
+      expect(
+        DriverAvailabilityPolicy.shouldForceWalletOffline(
+          isOnline: true,
+          walletLoaded: true,
+          walletCanGoOnline: false,
+        ),
+        isTrue,
+      );
+    });
+
     test('normalizes only supported dispatch vehicle classes', () {
       expect(DriverAvailabilityPolicy.normalizedVehicleType('Car'), 'standard');
       expect(
