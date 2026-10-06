@@ -6,7 +6,7 @@
       ".read": "auth != null",
       "$driverId": {
         ".write": "auth != null && auth.uid === $driverId",
-        ".validate": "!newData.exists() || newData.hasChildren(['driverId', 'presenceId', 'latitude', 'longitude', 'heading', 'accuracy', 'isOnline', 'vehicleType', 'updatedAt'])",
+        ".validate": "!newData.exists() || (newData.child('isOnline').val() === false && newData.hasChildren(['isOnline', 'updatedAt'])) || newData.hasChildren(['driverId', 'presenceId', 'latitude', 'longitude', 'heading', 'accuracy', 'isOnline', 'vehicleType', 'updatedAt'])",
         "driverId": {
           ".validate": "newData.isString() && newData.val() === $driverId"
         },
@@ -29,10 +29,22 @@
           ".validate": "newData.isBoolean()"
         },
         "vehicleType": {
-          ".validate": "newData.isString() && (newData.val() === 'standard' || newData.val() === 'boda' || newData.val() === 'rickshaw')"
+          ".validate": "newData.isString() && (newData.val() === 'standard' || newData.val() === 'boda' || newData.val() === 'rickshaw' || newData.val() === 'comfort' || newData.val() === 'premium')"
         },
         "updatedAt": {
           ".validate": "newData.isNumber()"
+        },
+        "online": {
+          ".validate": "newData.isBoolean()"
+        },
+        "vehicleClass": {
+          ".validate": "newData.isString() && (newData.val() === 'standard' || newData.val() === 'boda' || newData.val() === 'rickshaw' || newData.val() === 'comfort' || newData.val() === 'premium')"
+        },
+        "lastUpdated": {
+          ".validate": "newData.isNumber()"
+        },
+        "activeRideId": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 128"
         },
         "$other": {
           ".validate": false

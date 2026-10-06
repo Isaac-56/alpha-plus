@@ -333,12 +333,9 @@ class DriverPresenceService {
     _activeReference = reference;
     final double initialHeading = _resolveHeading(initialPosition);
 
-    await reference.onDisconnect().update(<String, Object?>{
-      'isOnline': false,
-      'updatedAt': ServerValue.timestamp,
-    });
-    if (_onlineAttempt != onlineAttempt) return;
-
+    // Create the complete presence first. Realtime Database validates an
+    // onDisconnect update against the current record when it is registered,
+    // so registering it against an empty path is rejected by strict rules.
     await _publishPosition(
       reference: reference,
       presenceId: presenceId,
@@ -346,6 +343,12 @@ class DriverPresenceService {
       position: initialPosition,
       heading: initialHeading,
     );
+    if (_onlineAttempt != onlineAttempt) return;
+
+    await reference.onDisconnect().update(<String, Object?>{
+      'isOnline': false,
+      'updatedAt': ServerValue.timestamp,
+    });
     if (_onlineAttempt != onlineAttempt) return;
 
     _startHeartbeat(reference: reference, presenceId: presenceId);
@@ -445,11 +448,8 @@ class DriverPresenceService {
       'heading': DriverHeadingPolicy.normalizedHeading(heading),
       'accuracy': position.accuracy,
       'isOnline': true,
-      'online': true,
       'vehicleType': vehicleType,
-      'vehicleClass': vehicleType,
       'updatedAt': ServerValue.timestamp,
-      'lastUpdated': ServerValue.timestamp,
     });
 
     if (_activePresenceId != presenceId) {
