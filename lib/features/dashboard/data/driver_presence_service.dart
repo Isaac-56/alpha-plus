@@ -587,11 +587,10 @@ class DriverPresenceService {
         '(attempt $_positionRestartAttempts): $error',
       );
 
-      if (_positionRestartAttempts >= 3) {
-        await goOffline();
-        return;
-      }
-
+      // Temporary indoor GPS gaps must not unexpectedly take a working
+      // driver offline. Keep the last verified presence and heartbeat alive
+      // while the stream continues recovering.
+      _positionRestartAttempts = min(_positionRestartAttempts, 10);
       _schedulePositionRestart(
         reference: reference,
         presenceId: presenceId,

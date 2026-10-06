@@ -396,6 +396,7 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
   bool? _requestedOnline;
   bool _forcingWalletOffline = false;
   Object? _availabilityAttempt;
+  DateTime? _optimisticOnlineUntil;
 
   DriverPresenceService get _service =>
       _presence ??= DriverPresenceService.instance;
@@ -429,7 +430,11 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
               vehicleType: widget.vehicleType,
             )
             .timeout(_availabilityChangeTimeout);
+        _optimisticOnlineUntil = DateTime.now().add(
+          const Duration(seconds: 12),
+        );
       } else {
+        _optimisticOnlineUntil = null;
         await _service.goOffline().timeout(_availabilityChangeTimeout);
       }
     } on TimeoutException {
@@ -559,13 +564,16 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
           initialData: false,
           builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
             final bool isOnline = snapshot.data ?? false;
+            if (isOnline) _optimisticOnlineUntil = null;
             _forceOfflineIfNeeded(
               isOnline: isOnline,
               walletLoaded: walletLoaded,
               wallet: wallet,
             );
-            final bool displayOnline =
-                isOnline || (_changing && _requestedOnline == true);
+            final bool optimisticOnline = _optimisticOnlineUntil != null &&
+                DateTime.now().isBefore(_optimisticOnlineUntil!);
+            final bool displayOnline = isOnline || optimisticOnline ||
+                (_changing && _requestedOnline == true);
             final String vehicleLabel = widget.vehicleType
                 .trim()
                 .split(RegExp(r'[_\s-]+'))
@@ -772,7 +780,8 @@ class _DriverMap extends StatefulWidget {
   State<_DriverMap> createState() => _DriverMapState();
 }
 
-class _DriverMapState extends State<_DriverMap> {
+class _DriverMapState extends State<_DriverMap>
+    with WidgetsBindingObserver {
   static const LatLng _jubaCenter = LatLng(4.8517, 31.5825);
   static const double _overviewZoom = 16;
   static const double _focusedZoom = 17;
@@ -797,6 +806,7 @@ class _DriverMapState extends State<_DriverMap> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (_supportsGoogleMap) {
       _locateDriver(requestPermission: false);
     }
@@ -837,8 +847,16 @@ class _DriverMapState extends State<_DriverMap> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mapController?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _supportsGoogleMap) {
+      unawaited(_locateDriver(requestPermission: false));
+    }
   }
 
   Future<void> _locateDriver({required bool requestPermission}) async {
