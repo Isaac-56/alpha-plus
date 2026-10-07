@@ -47,8 +47,10 @@ class DriverAvailabilityPolicy {
   // Keep this aligned with PRESENCE_FRESH_MS in the dispatch backend.
   static const Duration presenceFreshnessWindow = Duration(seconds: 90);
   static const Duration heartbeatInterval = Duration(seconds: 30);
-  static const Duration cachedPositionMaximumAge = Duration(minutes: 3);
-  static const Duration initialPositionTimeout = Duration(seconds: 7);
+  // Match the backend presence window so a quick Online transition never
+  // publishes a several-minutes-old position outside the passenger's radius.
+  static const Duration cachedPositionMaximumAge = Duration(seconds: 90);
+  static const Duration initialPositionTimeout = Duration(seconds: 3);
 
   static bool canGoOnline(String reviewStatus) =>
       reviewStatus.trim().toLowerCase() == 'approved';
@@ -219,6 +221,8 @@ class DriverPresenceService {
   Object? _onlineAttempt;
   PreparedDriverAvailability? _cachedAvailability;
   DateTime? _cachedAvailabilityAt;
+  Future<PreparedDriverAvailability>? _availabilityInFlight;
+  Position? _prewarmedPosition;
 
   DatabaseReference _driverReference(String driverId) =>
       _database.ref('driver_locations/$driverId');
@@ -239,6 +243,53 @@ class DriverPresenceService {
         rawOnline: rawOnline,
       );
     }).distinct();
+  }
+
+  /// Warms the two slow dependencies used by the Online switch while the
+  /// driver is already looking at the dashboard.
+  Future<void> warmUp({
+    required String driverId,
+    required String reviewStatus,
+  }) async {
+    if (!DriverAvailabilityPolicy.canGoOnline(reviewStatus) ||
+        _auth.currentUser?.uid != driverId) {
+      return;
+    }
+
+    await Future.wait<void>(<Future<void>>[
+      _availabilityForOnlineAttempt().then<void>((_) {}).catchError(
+        (Object error) {
+          debugPrint('Unable to preflight driver availability: $error');
+        },
+      ),
+      _prewarmPosition(),
+    ]);
+  }
+
+  Future<void> _prewarmPosition() async {
+    try {
+      final Position? cached = await Geolocator.getLastKnownPosition();
+      if (cached != null &&
+          DriverAvailabilityPolicy.isCachedPositionFresh(cached.timestamp)) {
+        _prewarmedPosition = cached;
+        return;
+      }
+
+      if (!await Geolocator.isLocationServiceEnabled()) return;
+      final LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+      _prewarmedPosition = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: DriverAvailabilityPolicy.initialPositionTimeout,
+        ),
+      );
+    } on Object catch (error) {
+      debugPrint('Unable to prewarm the driver location: $error');
+    }
   }
 
   Future<void> goOnline({
@@ -345,23 +396,37 @@ class DriverPresenceService {
     );
     if (_onlineAttempt != onlineAttempt) return;
 
-    await reference.onDisconnect().update(<String, Object?>{
-      'isOnline': false,
-      'updatedAt': ServerValue.timestamp,
-    });
-    if (_onlineAttempt != onlineAttempt) return;
-
     _startHeartbeat(reference: reference, presenceId: presenceId);
     _startConnectionRecovery(
       reference: reference,
       presenceId: presenceId,
       vehicleType: normalizedVehicleType,
     );
-    await _startPositionUpdates(
-      reference: reference,
-      presenceId: presenceId,
-      vehicleType: normalizedVehicleType,
-      settings: settings,
+    // The authoritative presence is already visible at this point. Register
+    // disconnect cleanup and the high-accuracy stream in the background so
+    // the switch does not wait on two more network/plugin round trips.
+    unawaited(
+      reference
+          .onDisconnect()
+          .update(<String, Object?>{
+            'isOnline': false,
+            'online': false,
+            'updatedAt': ServerValue.timestamp,
+            'lastUpdated': ServerValue.timestamp,
+          })
+          .catchError((Object error) {
+            debugPrint('Unable to register driver disconnect cleanup: $error');
+          }),
+    );
+    unawaited(
+      _startPositionUpdates(
+        reference: reference,
+        presenceId: presenceId,
+        vehicleType: normalizedVehicleType,
+        settings: settings,
+      ).catchError((Object error) {
+        debugPrint('Unable to start live driver location updates: $error');
+      }),
     );
   }
 
@@ -393,17 +458,32 @@ class DriverPresenceService {
     final DateTime? cachedAt = _cachedAvailabilityAt;
     if (cached != null &&
         cachedAt != null &&
-        DateTime.now().difference(cachedAt) <= const Duration(minutes: 5)) {
+        DateTime.now().difference(cachedAt) <= const Duration(seconds: 90)) {
       return cached;
     }
 
-    final PreparedDriverAvailability prepared = await _prepareAvailability();
-    _cachedAvailability = prepared;
-    _cachedAvailabilityAt = DateTime.now();
-    return prepared;
+    final Future<PreparedDriverAvailability> request =
+        _availabilityInFlight ??= _prepareAvailability();
+    try {
+      final PreparedDriverAvailability prepared = await request;
+      _cachedAvailability = prepared;
+      _cachedAvailabilityAt = DateTime.now();
+      return prepared;
+    } finally {
+      if (identical(_availabilityInFlight, request)) {
+        _availabilityInFlight = null;
+      }
+    }
   }
 
   Future<Position> _resolveInitialPosition() async {
+    final Position? prewarmed = _prewarmedPosition;
+    if (prewarmed != null &&
+        DriverAvailabilityPolicy.isCachedPositionFresh(prewarmed.timestamp)) {
+      _prewarmedPosition = null;
+      return prewarmed;
+    }
+
     final Position? cached = await Geolocator.getLastKnownPosition();
     if (cached != null &&
         DriverAvailabilityPolicy.isCachedPositionFresh(cached.timestamp)) {
@@ -448,8 +528,11 @@ class DriverPresenceService {
       'heading': DriverHeadingPolicy.normalizedHeading(heading),
       'accuracy': position.accuracy,
       'isOnline': true,
+      'online': true,
       'vehicleType': vehicleType,
+      'vehicleClass': vehicleType,
       'updatedAt': ServerValue.timestamp,
+      'lastUpdated': ServerValue.timestamp,
     });
 
     if (_activePresenceId != presenceId) {

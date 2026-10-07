@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../onboarding/models/driver_registration.dart';
+import '../../notifications/data/driver_push_notification_service.dart';
 import '../../rides/presentation/driver_money_page.dart';
 import '../../rides/presentation/driver_pool_page.dart';
 import '../../rides/presentation/driver_ride_offer_layer.dart';
@@ -46,6 +47,7 @@ class _DriverShellState extends State<DriverShell> {
   void initState() {
     super.initState();
     _pages = _buildPages();
+    _syncRideNotifications();
   }
 
   @override
@@ -58,11 +60,22 @@ class _DriverShellState extends State<DriverShell> {
         oldWidget.onSignOut != widget.onSignOut ||
         oldWidget.mapBuilder != widget.mapBuilder) {
       _pages = _buildPages();
+      _syncRideNotifications();
+    }
+  }
+
+  void _syncRideNotifications() {
+    if (widget.driverId.trim().isNotEmpty &&
+        widget.reviewStatus.trim().toLowerCase() == 'approved') {
+      unawaited(
+        DriverPushNotificationService.instance.start(widget.driverId),
+      );
     }
   }
 
   Future<void> _signOut() async {
     await DriverPresenceService.instance.goOffline();
+    await DriverPushNotificationService.instance.stop(unregister: true);
     await widget.onSignOut?.call();
   }
 
@@ -403,6 +416,32 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
 
   bool get _approved =>
       DriverAvailabilityPolicy.canGoOnline(widget.reviewStatus);
+
+  @override
+  void initState() {
+    super.initState();
+    _warmOnlineDependencies();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DriverAvailabilityCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.driverId != widget.driverId ||
+        oldWidget.reviewStatus != widget.reviewStatus) {
+      _warmOnlineDependencies();
+    }
+  }
+
+  void _warmOnlineDependencies() {
+    unawaited(
+      _service
+          .warmUp(
+            driverId: widget.driverId,
+            reviewStatus: widget.reviewStatus,
+          )
+          .catchError((Object _) {}),
+    );
+  }
 
   Future<void> _setOnline(bool online) async {
     if (_changing) {

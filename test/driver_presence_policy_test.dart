@@ -114,7 +114,7 @@ void main() {
       );
       expect(
         DriverAvailabilityPolicy.isCachedPositionFresh(
-          now.subtract(const Duration(minutes: 4)),
+          now.subtract(const Duration(minutes: 2)),
           now: now,
         ),
         isFalse,
