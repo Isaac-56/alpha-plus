@@ -16,6 +16,7 @@ import 'features/auth/presentation/phone_login_screen.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/dashboard/data/driver_presence_service.dart';
 import 'features/dashboard/presentation/driver_shell.dart';
+import 'features/notifications/data/driver_push_notification_service.dart';
 import 'features/profile/data/driver_profile_repository.dart';
 import 'features/profile/models/driver_profile.dart';
 import 'firebase_options.dart';
@@ -94,6 +95,9 @@ class _AlphaPlusAppState extends State<AlphaPlusApp> {
     if (!mounted || uid == _activeUid) return;
     if (_activeUid != null && Firebase.apps.isNotEmpty) {
       unawaited(DriverPresenceService.instance.goOffline());
+      unawaited(
+        DriverPushNotificationService.instance.stop(unregister: true),
+      );
     }
     // Discard ALL routes on sign-in, logout, or account replacement. Merely
     // changing the home widget leaves pushed private pages on the old stack.
