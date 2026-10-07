@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'driver_account_role_service.dart';
+import 'verified_driver_identity_policy.dart';
 
 /// Enforces one active Alpha Plus installation for each Firebase driver UID.
 ///
@@ -44,6 +45,16 @@ class DriverSessionService {
 
   Future<void> activateSession(User user) async {
     _signInInProgress = true;
+
+    if (!VerifiedDriverIdentityPolicy.isVerifiedSouthSudanPhone(
+      user.phoneNumber,
+    )) {
+      _signInInProgress = false;
+      throw FirebaseAuthException(
+        code: 'phone-number-not-verified',
+        message: 'A Firebase-verified South Sudan phone number is required.',
+      );
+    }
 
     final SharedPreferences preferences = await SharedPreferences.getInstance();
     final String localKey = _localSessionKey(user.uid);

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'driver_account_role_service.dart';
 import 'driver_session_service.dart';
 import 'driver_biometric_controller.dart';
+import 'verified_driver_identity_policy.dart';
 
 class PhoneVerificationSession {
   const PhoneVerificationSession({
@@ -166,6 +167,19 @@ class FirebaseDriverAuthService implements DriverAuthService {
         throw StateError('Firebase did not return a signed-in driver.');
       }
 
+      if (!VerifiedDriverIdentityPolicy.isVerifiedSouthSudanPhone(
+        user.phoneNumber,
+      )) {
+        throw FirebaseAuthException(
+          code: 'phone-number-not-verified',
+          message: 'Firebase did not verify this South Sudan phone number.',
+        );
+      }
+
+      // Refresh before calling protected backend services so the callable
+      // receives the newly issued `phone_number` claim on the first attempt.
+      await user.getIdToken(true);
+
       await _sessionService.activateSession(user);
       _biometricController.confirmPhoneSignIn(user.uid);
     } on Object {
@@ -200,6 +214,8 @@ String readableAuthError(Object error) {
         return 'SMS verification is temporarily unavailable. Try again later.';
       case 'app-not-authorized':
         return 'This app is not authorized for Firebase phone sign-in.';
+      case 'phone-number-not-verified':
+        return 'Firebase could not verify this phone number. Request a new SMS code.';
       default:
         return error.message ?? 'Phone verification failed. Please try again.';
     }
