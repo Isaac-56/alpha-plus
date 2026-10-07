@@ -107,7 +107,7 @@ void main() {
       final DateTime now = DateTime(2026, 10, 4, 9);
       expect(
         DriverAvailabilityPolicy.isCachedPositionFresh(
-          now.subtract(const Duration(minutes: 2)),
+          now.subtract(const Duration(minutes: 1)),
           now: now,
         ),
         isTrue,
