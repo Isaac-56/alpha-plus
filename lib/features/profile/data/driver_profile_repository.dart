@@ -2,8 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../auth/data/driver_account_role_service.dart';
+import '../../auth/data/verified_driver_identity_policy.dart';
 import '../../onboarding/models/driver_registration.dart';
 import '../models/driver_profile.dart';
+
+export '../../auth/data/verified_driver_identity_policy.dart';
 
 abstract class DriverProfileStore {
   Stream<DriverProfile?> watchProfile(String uid);
@@ -21,28 +24,6 @@ abstract class DriverProfileStore {
     required String uid,
     required DriverRegistration registration,
   });
-}
-
-class VerifiedDriverIdentityPolicy {
-  const VerifiedDriverIdentityPolicy._();
-
-  static String normalizedPhone(String value) =>
-      value.trim().replaceAll(RegExp(r'[\s()-]'), '');
-
-  static bool matches({
-    required String expectedUid,
-    required String expectedPhoneNumber,
-    required String? authenticatedUid,
-    required String? authenticatedPhoneNumber,
-  }) {
-    if (authenticatedUid == null || authenticatedPhoneNumber == null) {
-      return false;
-    }
-    return authenticatedUid == expectedUid &&
-        normalizedPhone(authenticatedPhoneNumber) ==
-            normalizedPhone(expectedPhoneNumber) &&
-        normalizedPhone(authenticatedPhoneNumber).isNotEmpty;
-  }
 }
 
 class FirebaseDriverProfileStore implements DriverProfileStore {
@@ -127,8 +108,26 @@ class FirebaseDriverProfileStore implements DriverProfileStore {
   Future<void> completeOnboarding({
     required String uid,
     required DriverRegistration registration,
-  }) {
-    return _driver(uid).set(<String, dynamic>{
+  }) async {
+    final User? authenticatedUser = _auth.currentUser;
+    final DocumentSnapshot<Map<String, dynamic>> snapshot = await _driver(
+      uid,
+    ).get();
+    final String expectedPhoneNumber =
+        snapshot.data()?['phoneNumber'] as String? ?? '';
+
+    if (!VerifiedDriverIdentityPolicy.matches(
+      expectedUid: uid,
+      expectedPhoneNumber: expectedPhoneNumber,
+      authenticatedUid: authenticatedUser?.uid,
+      authenticatedPhoneNumber: authenticatedUser?.phoneNumber,
+    )) {
+      throw StateError(
+        'Complete Firebase SMS verification before submitting registration.',
+      );
+    }
+
+    await _driver(uid).set(<String, dynamic>{
       'registration': registration.toMap(),
       'onboardingCompleted': true,
       'reviewStatus': 'pending',

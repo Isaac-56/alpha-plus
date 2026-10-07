@@ -47,5 +47,24 @@ void main() {
         isFalse,
       );
     });
+
+    test('requires a normalized South Sudan E.164 phone identity', () {
+      expect(
+        VerifiedDriverIdentityPolicy.isVerifiedSouthSudanPhone(
+          '+211 912 345 678',
+        ),
+        isTrue,
+      );
+      expect(
+        VerifiedDriverIdentityPolicy.isVerifiedSouthSudanPhone(
+          '+251912345678',
+        ),
+        isFalse,
+      );
+      expect(
+        VerifiedDriverIdentityPolicy.isVerifiedSouthSudanPhone('+211123'),
+        isFalse,
+      );
+    });
   });
 }
