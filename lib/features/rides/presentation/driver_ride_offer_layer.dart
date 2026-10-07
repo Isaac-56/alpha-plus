@@ -28,10 +28,12 @@ class DriverRideOfferLayer extends StatelessWidget {
       stream: _activeRides.watchActiveRideId(driverId),
       builder: (BuildContext context, AsyncSnapshot<String?> snapshot) {
         if (!snapshot.hasError && snapshot.data != null) {
-          return DriverActiveRideLayer(
-            driverId: driverId,
-            service: activeRideService,
-            child: child,
+          return DriverActiveRideScope(
+            child: DriverActiveRideLayer(
+              driverId: driverId,
+              service: activeRideService,
+              child: child,
+            ),
           );
         }
 

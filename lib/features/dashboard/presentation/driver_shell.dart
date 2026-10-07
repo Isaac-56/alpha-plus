@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../onboarding/models/driver_registration.dart';
 import '../../notifications/data/driver_push_notification_service.dart';
+import '../../rides/presentation/driver_active_ride_layer.dart';
 import '../../rides/presentation/driver_money_page.dart';
 import '../../rides/presentation/driver_pool_page.dart';
 import '../../rides/presentation/driver_ride_offer_layer.dart';
@@ -561,6 +562,12 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
 
   @override
   Widget build(BuildContext context) {
+    if (DriverActiveRideScope.isActive(context)) {
+      return const SizedBox.shrink(
+        key: Key('driverAvailabilityHiddenDuringActiveRide'),
+      );
+    }
+
     if (!_approved || widget.driverId.isEmpty) {
       final bool rejected = widget.reviewStatus.toLowerCase() == 'rejected';
       return _AvailabilitySurface(

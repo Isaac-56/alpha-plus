@@ -41,6 +41,7 @@ void main() {
     expect(rideFor('driver_arriving').nextStatus, 'arrived');
     expect(rideFor('arrived').nextStatus, 'in_progress');
     expect(rideFor('in_progress').nextStatus, 'completed');
+    expect(rideFor('in_progress').actionLabel, 'End trip here');
     expect(rideFor('completed').isActive, isFalse);
   });
 
