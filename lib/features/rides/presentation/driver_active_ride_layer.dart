@@ -1,9 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/alpha_components.dart';
 import '../data/driver_active_ride_service.dart';
+
+class DriverActiveRideScope extends InheritedWidget {
+  const DriverActiveRideScope({required super.child, super.key});
+
+  static bool isActive(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<DriverActiveRideScope>() !=
+      null;
+
+  @override
+  bool updateShouldNotify(DriverActiveRideScope oldWidget) => false;
+}
 
 class DriverActiveRideLayer extends StatefulWidget {
   const DriverActiveRideLayer({
@@ -29,6 +42,31 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
   DriverActiveRideService get _rides =>
       _service ??= widget.service ?? DriverActiveRideService.instance;
 
+  String? _trackingRideId;
+
+  void _syncProgressTracking(DriverActiveRide ride) {
+    final String? nextTrackingId = ride.status == 'in_progress'
+        ? ride.rideId
+        : null;
+    if (_trackingRideId == nextTrackingId) return;
+    final String? previousTrackingId = _trackingRideId;
+    _trackingRideId = nextTrackingId;
+    if (nextTrackingId != null) {
+      unawaited(_rides.startProgressTracking(nextTrackingId));
+    } else if (previousTrackingId != null) {
+      unawaited(_rides.stopProgressTracking(previousTrackingId));
+    }
+  }
+
+  @override
+  void dispose() {
+    final String? trackingRideId = _trackingRideId;
+    if (trackingRideId != null) {
+      unawaited(_rides.stopProgressTracking(trackingRideId));
+    }
+    super.dispose();
+  }
+
   Future<void> _advance(DriverActiveRide ride) async {
     final String? nextStatus = ride.nextStatus;
     if (nextStatus == null || _busyRideId != null) return;
@@ -38,9 +76,9 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Complete this trip?'),
+            title: const Text('End this trip here?'),
             content: const Text(
-              'Only complete the trip after the passenger has reached the destination.',
+              'The current location becomes the actual drop-off point. The final fare will be recalculated from the distance travelled, including any customer waiting charge.',
             ),
             actions: <Widget>[
               TextButton(
@@ -49,7 +87,7 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Complete trip'),
+                child: const Text('End trip here'),
               ),
             ],
           );
@@ -167,8 +205,15 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
           ) {
             final DriverActiveRide? ride = rideSnapshot.data;
             if (rideSnapshot.hasError || ride == null || !ride.isActive) {
+              if (_trackingRideId != null) {
+                final String trackingRideId = _trackingRideId!;
+                _trackingRideId = null;
+                unawaited(_rides.stopProgressTracking(trackingRideId));
+              }
               return widget.child;
             }
+
+            _syncProgressTracking(ride);
 
             final bool busy = _busyRideId == ride.rideId;
             return Stack(

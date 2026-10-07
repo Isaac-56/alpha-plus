@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 
 class DriverRideLifecycleException implements Exception {
   const DriverRideLifecycleException(this.message, {this.code});
@@ -85,7 +89,7 @@ class DriverActiveRide {
         'accepted' => 'Start pickup route',
         'driver_arriving' => "I've arrived",
         'arrived' => 'Start trip',
-        'in_progress' => 'Complete trip',
+        'in_progress' => 'End trip here',
         _ => 'Update ride',
       };
 
@@ -185,6 +189,10 @@ class DriverActiveRideService {
 
   final FirebaseFirestore _firestore;
   final FirebaseFunctions _functions;
+  StreamSubscription<Position>? _trackingSubscription;
+  String? _trackedRideId;
+  Position? _lastTrackedPosition;
+  bool _progressUpdateInFlight = false;
 
   Stream<String?> watchActiveRideId(String driverId) {
     final String normalized = driverId.trim();
@@ -222,12 +230,18 @@ class DriverActiveRideService {
     required String status,
   }) async {
     try {
-      await _functions.httpsCallable('updateRideStatus').call<dynamic>(
-        <String, dynamic>{
-          'rideId': rideId,
-          'status': status,
-        },
-      );
+      final Map<String, dynamic> request = <String, dynamic>{
+        'rideId': rideId,
+        'status': status,
+      };
+      if (status == 'completed') {
+        final Position? position = await _completionPosition();
+        if (position != null) {
+          request['completionPoint'] = _pointFromPosition(position);
+        }
+      }
+      await _functions.httpsCallable('updateRideStatus').call<dynamic>(request);
+      if (status == 'completed') await stopProgressTracking(rideId);
     } on FirebaseFunctionsException catch (error) {
       final String message = switch (error.code) {
         'unauthenticated' => 'Sign in again before updating the ride.',
@@ -241,6 +255,77 @@ class DriverActiveRideService {
       throw DriverRideLifecycleException(message, code: error.code);
     }
   }
+
+  Future<void> startProgressTracking(String rideId) async {
+    final String normalized = rideId.trim();
+    if (normalized.isEmpty || _trackedRideId == normalized) return;
+    await stopProgressTracking();
+    _trackedRideId = normalized;
+
+    _trackingSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen(
+      (Position position) {
+        _lastTrackedPosition = position;
+        unawaited(_recordProgress(normalized, position));
+      },
+      onError: (Object error) {
+        debugPrint('Active trip distance tracking paused: $error');
+      },
+    );
+  }
+
+  Future<void> stopProgressTracking([String? rideId]) async {
+    if (rideId != null && _trackedRideId != rideId) return;
+    _trackedRideId = null;
+    _lastTrackedPosition = null;
+    final StreamSubscription<Position>? subscription = _trackingSubscription;
+    _trackingSubscription = null;
+    await subscription?.cancel();
+  }
+
+  Future<void> _recordProgress(String rideId, Position position) async {
+    if (_trackedRideId != rideId || _progressUpdateInFlight) return;
+    if (!position.accuracy.isFinite || position.accuracy > 100) return;
+    _progressUpdateInFlight = true;
+    try {
+      await _functions.httpsCallable('recordRideProgress').call<dynamic>(
+        <String, dynamic>{
+          'rideId': rideId,
+          'point': _pointFromPosition(position),
+        },
+      );
+    } on Object catch (error) {
+      debugPrint('Unable to record active trip distance: $error');
+    } finally {
+      _progressUpdateInFlight = false;
+    }
+  }
+
+  Future<Position?> _completionPosition() async {
+    final Position? trackedPosition = _lastTrackedPosition;
+    if (trackedPosition != null) return trackedPosition;
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 3),
+        ),
+      );
+    } on Object {
+      return await Geolocator.getLastKnownPosition();
+    }
+  }
+
+  static Map<String, dynamic> _pointFromPosition(Position position) =>
+      <String, dynamic>{
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'accuracy': position.accuracy,
+      };
 
   Future<void> setCustomerWaiting({
     required String rideId,
