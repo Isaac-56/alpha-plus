@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -65,7 +66,8 @@ class _DriverShellState extends State<DriverShell> {
   }
 
   void _syncRideNotifications() {
-    if (widget.driverId.trim().isNotEmpty &&
+    if (Firebase.apps.isNotEmpty &&
+        widget.driverId.trim().isNotEmpty &&
         widget.reviewStatus.trim().toLowerCase() == 'approved') {
       unawaited(
         DriverPushNotificationService.instance.start(widget.driverId),
@@ -433,6 +435,9 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
   }
 
   void _warmOnlineDependencies() {
+    // Widget and golden tests intentionally render this card without starting
+    // Firebase. Production initializes Firebase before DriverShell is built.
+    if (Firebase.apps.isEmpty) return;
     unawaited(
       _service
           .warmUp(
