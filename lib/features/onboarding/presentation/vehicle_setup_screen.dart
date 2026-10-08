@@ -332,6 +332,7 @@ class _PickerRow extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.swatch,
+    super.key,
   });
 
   final String label;
