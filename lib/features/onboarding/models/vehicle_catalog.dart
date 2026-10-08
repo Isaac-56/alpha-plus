@@ -156,7 +156,13 @@ abstract final class VehicleCatalog {
           'Other': <String>['Other car model'],
         },
         tukTuk: <String, List<String>>{
-          'Bajaj': <String>['RE', 'RE Compact', 'Maxima', 'Maxima Cargo'],
+          'Bajaj': <String>[
+            'RE',
+            'RE4S',
+            'RE Compact',
+            'Maxima',
+            'Maxima Cargo',
+          ],
           'TVS': <String>['King', 'King Deluxe', 'King Kargo'],
           'Piaggio': <String>['Ape City', 'Ape Auto', 'Ape Xtra'],
           'Atul': <String>['Gem', 'Gem Paxx', 'Pakshi'],
@@ -165,6 +171,7 @@ abstract final class VehicleCatalog {
         },
         boda: <String, List<String>>{
           'Bajaj': <String>[
+            'Boxer',
             'Boxer 100',
             'Boxer 125',
             'Boxer 150',
@@ -181,7 +188,7 @@ abstract final class VehicleCatalog {
           ],
           'Honda': <String>['ACE 110', 'ACE 125', 'CG 125', 'CB 125'],
           'Haojue': <String>['HJ 110', 'HJ 125', 'DK 125', 'KA 150'],
-          'Senke': <String>['SK 125', 'SK 150', 'Other Senke'],
+          'Senke': <String>['SK125', 'SK 125', 'SK 150', 'Other Senke'],
           'Yamaha': <String>['YBR 125', 'Crux', 'XTZ 125'],
           'Dayun': <String>['DY 100', 'DY 125', 'DY 150'],
           'Lifan': <String>['LF 110', 'LF 125', 'LF 150'],
