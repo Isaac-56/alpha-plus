@@ -1,18 +1,11 @@
+import 'vehicle_catalog.dart';
+
 class DriverRegistration {
   DriverRegistration();
 
   static const String ridesService = 'rides';
 
-  static const List<String> supportedVehicleTypes = <String>[
-    'Sedan',
-    'Hatchback',
-    'SUV / 4x4',
-    'Minivan / MPV',
-    'Pickup',
-    'Boda boda (motorcycle)',
-    'Bajaj / Tuk-tuk (three-wheeler)',
-    'Scooter',
-  ];
+  static const List<String> supportedVehicleTypes = VehicleCatalog.categories;
 
   static const List<String> adminVehicleClasses = <String>[
     'standard',
@@ -45,12 +38,22 @@ class DriverRegistration {
   String licenceNumber = '';
   String licenceIssueDate = '';
 
+  /// New registrations treat the persisted licence date as the expiry date.
+  /// Keep the original property/key as a read fallback for existing profiles.
+  String get licenceExpiryDate => licenceIssueDate;
+  set licenceExpiryDate(String value) => licenceIssueDate = value;
+
   bool get serviceComplete => serviceType.trim().isNotEmpty;
 
   bool get vehicleComplete =>
       vehicleType.trim().isNotEmpty &&
       make.trim().isNotEmpty &&
       model.trim().isNotEmpty &&
+      VehicleCatalog.isValidCombination(
+        category: VehicleCatalog.normalizeCategory(vehicleType),
+        make: make,
+        model: model,
+      ) &&
       color.trim().isNotEmpty &&
       manufactureYear.length == 4 &&
       plateNumber.trim().length >= 4;
@@ -120,6 +123,7 @@ class DriverRegistration {
       'licenceLastName': licenceLastName,
       'licenceNumber': licenceNumber,
       'licenceIssueDate': licenceIssueDate,
+      'licenceExpiryDate': licenceIssueDate,
     };
   }
 
@@ -151,6 +155,9 @@ class DriverRegistration {
       ..licenceFirstName = values['licenceFirstName'] as String? ?? ''
       ..licenceLastName = values['licenceLastName'] as String? ?? ''
       ..licenceNumber = values['licenceNumber'] as String? ?? ''
-      ..licenceIssueDate = values['licenceIssueDate'] as String? ?? '';
+      ..licenceIssueDate =
+          values['licenceExpiryDate'] as String? ??
+          values['licenceIssueDate'] as String? ??
+          '';
   }
 }

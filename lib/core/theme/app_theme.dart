@@ -140,6 +140,10 @@ abstract final class AppTheme {
         ),
         hintStyle: TextStyle(color: muted),
         labelStyle: TextStyle(color: muted),
+        floatingLabelStyle: TextStyle(
+          color: ink,
+          fontWeight: FontWeight.w700,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.controlRadius),
           borderSide: BorderSide.none,

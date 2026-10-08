@@ -19,6 +19,7 @@ abstract final class AppColors {
 }
 
 abstract final class AppSpacing {
+  static const double contentMaxWidth = 760;
   static const double page = 16;
   static const double controlHeight = 48;
   static const double actionHeight = 56;

@@ -56,6 +56,8 @@ void main() {
           .text,
       '24/08/2026',
     );
+    expect(find.text('Expiry date'), findsOneWidget);
+    expect(find.text('Issue date'), findsNothing);
 
     expect(tester.takeException(), isNull);
   });
