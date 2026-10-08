@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/onboarding_scaffold.dart';
 import '../models/driver_registration.dart';
+import '../models/vehicle_catalog.dart';
 import 'licence_information_screen.dart';
 import 'registration_option_screen.dart';
 
@@ -35,33 +36,6 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
   static const List<String> _vehicleTypes =
       DriverRegistration.supportedVehicleTypes;
 
-  static const List<String> _makes = <String>[
-    'Toyota',
-    'Nissan',
-    'Honda',
-    'Hyundai',
-    'Kia',
-    'Suzuki',
-    'Bajaj',
-    'TVS',
-    'Other',
-  ];
-
-  static const List<String> _models = <String>[
-    'Corolla',
-    'Vitz',
-    'Yaris',
-    'Premio',
-    'Noah',
-    'Probox',
-    'Sunny',
-    'Tucson',
-    'Sportage',
-    'Boxer',
-    'RE4S',
-    'Other',
-  ];
-
   static const Map<String, Color> _colors = <String, Color>{
     'White': Color(0xFFF7F7F4),
     'Black': Color(0xFF171917),
@@ -84,6 +58,24 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
     // onboarding step instead of silently creating a replacement.
     _registration = widget.registration ?? DriverRegistration();
 
+    if (_registration.vehicleType.isNotEmpty) {
+      _registration.vehicleType = VehicleCatalog.normalizeCategory(
+        _registration.vehicleType,
+      );
+      if (!VehicleCatalog.makesFor(
+        _registration.vehicleType,
+      ).contains(_registration.make)) {
+        _registration
+          ..make = ''
+          ..model = '';
+      } else if (!VehicleCatalog.modelsFor(
+        _registration.vehicleType,
+        _registration.make,
+      ).contains(_registration.model)) {
+        _registration.model = '';
+      }
+    }
+
     // Restore any previously entered values if this screen is opened with an
     // existing registration object.
     _yearController.text = _registration.manufactureYear;
@@ -103,6 +95,7 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
     required ValueChanged<String> onSelected,
     String? selected,
     Map<String, Color> colors = const <String, Color>{},
+    Map<String, IconData> icons = const <String, IconData>{},
   }) async {
     final String? result = await Navigator.of(context).push<String>(
       MaterialPageRoute<String>(
@@ -111,6 +104,7 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
           options: options,
           selected: selected,
           colors: colors,
+          icons: icons,
         ),
       ),
     );
@@ -169,6 +163,7 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
               child: Column(
                 children: <Widget>[
                   _PickerRow(
+                    key: const Key('vehicleCategoryPicker'),
                     label: 'Vehicle category',
                     value: _registration.vehicleType,
                     icon: Icons.local_taxi_rounded,
@@ -176,28 +171,42 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                       title: 'Vehicle category',
                       options: _vehicleTypes,
                       selected: _registration.vehicleType,
+                      icons: const <String, IconData>{
+                        VehicleCatalog.car: Icons.directions_car_filled_rounded,
+                        VehicleCatalog.tukTuk:
+                            Icons.electric_rickshaw_rounded,
+                        VehicleCatalog.boda: Icons.two_wheeler_rounded,
+                      },
                       onSelected: (String value) {
                         _registration
                           ..vehicleType = value
-                          ..vehicleClass = '';
+                          ..vehicleClass = ''
+                          ..make = ''
+                          ..model = '';
                       },
                     ),
                   ),
                   _PickerRow(
+                    key: const Key('vehicleMakePicker'),
                     label: 'Make',
                     value: _registration.make,
                     icon: Icons.factory_outlined,
-                    onTap: () => _pick(
-                      title: 'Make',
-                      options: _makes,
-                      selected: _registration.make,
-                      onSelected: (String value) {
-                        _registration.make = value;
-                        _registration.model = '';
-                      },
-                    ),
+                    onTap: _registration.vehicleType.isEmpty
+                        ? null
+                        : () => _pick(
+                            title: 'Make',
+                            options: VehicleCatalog.makesFor(
+                              _registration.vehicleType,
+                            ),
+                            selected: _registration.make,
+                            onSelected: (String value) {
+                              _registration.make = value;
+                              _registration.model = '';
+                            },
+                          ),
                   ),
                   _PickerRow(
+                    key: const Key('vehicleModelPicker'),
                     label: 'Model',
                     value: _registration.model,
                     icon: Icons.directions_car_filled_rounded,
@@ -205,7 +214,10 @@ class _VehicleSetupScreenState extends State<VehicleSetupScreen> {
                         ? null
                         : () => _pick(
                             title: 'Model',
-                            options: _models,
+                            options: VehicleCatalog.modelsFor(
+                              _registration.vehicleType,
+                              _registration.make,
+                            ),
                             selected: _registration.model,
                             onSelected: (String value) {
                               _registration.model = value;

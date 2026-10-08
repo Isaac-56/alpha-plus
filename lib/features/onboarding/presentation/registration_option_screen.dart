@@ -9,12 +9,14 @@ class RegistrationOptionScreen extends StatefulWidget {
     super.key,
     this.selected,
     this.colors = const <String, Color>{},
+    this.icons = const <String, IconData>{},
   });
 
   final String title;
   final List<String> options;
   final String? selected;
   final Map<String, Color> colors;
+  final Map<String, IconData> icons;
 
   @override
   State<RegistrationOptionScreen> createState() =>
@@ -93,18 +95,33 @@ class _RegistrationOptionScreenState extends State<RegistrationOptionScreen> {
                             horizontal: 4,
                             vertical: 7,
                           ),
-                          leading: widget.colors[option] == null
+                          leading: widget.colors[option] == null &&
+                                  widget.icons[option] == null
                               ? null
                               : Container(
                                   width: 38,
                                   height: 38,
+                                  alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    color: widget.colors[option],
+                                    color:
+                                        widget.colors[option] ??
+                                        AppColors.primary.withValues(
+                                          alpha: 0.14,
+                                        ),
                                     shape: BoxShape.circle,
                                     border: Border.all(
                                       color: Theme.of(context).dividerColor,
                                     ),
                                   ),
+                                  child: widget.icons[option] == null
+                                      ? null
+                                      : Icon(
+                                          widget.icons[option],
+                                          size: 20,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
+                                        ),
                                 ),
                           title: Text(
                             option,

@@ -1,5 +1,6 @@
 import 'package:alpha_plus/core/theme/app_theme.dart';
 import 'package:alpha_plus/features/onboarding/presentation/service_registration_screen.dart';
+import 'package:alpha_plus/features/onboarding/presentation/vehicle_setup_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -108,17 +109,41 @@ void main() {
     await tester.tap(category);
     await tester.pumpAndSettle();
 
-    expect(find.text('Sedan'), findsOneWidget);
-    expect(find.text('SUV / 4x4'), findsOneWidget);
-    expect(find.text('Boda boda (motorcycle)'), findsOneWidget);
-    expect(find.text('Bajaj / Tuk-tuk (three-wheeler)'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Scooter'),
-      120,
-      scrollable: find.byType(Scrollable).last,
-    );
-    expect(find.text('Scooter'), findsOneWidget);
+    expect(find.text('Car'), findsOneWidget);
+    expect(find.text('Tuk-tuk (three-wheeler)'), findsOneWidget);
+    expect(find.text('Boda (motorcycle)'), findsOneWidget);
+    expect(find.text('Sedan'), findsNothing);
+    expect(find.text('Scooter'), findsNothing);
     expect(find.text('Standard'), findsNothing);
     expect(find.text('Comfort'), findsNothing);
+  });
+
+  testWidgets('vehicle makes and models stay inside the selected category', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const VehicleSetupScreen(driverName: 'Test Driver'),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('vehicleCategoryPicker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Car'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('vehicleMakePicker')));
+    await tester.pumpAndSettle();
+    expect(find.text('Toyota'), findsOneWidget);
+    expect(find.text('Bajaj'), findsNothing);
+    await tester.tap(find.text('Toyota'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('vehicleModelPicker')));
+    await tester.pumpAndSettle();
+    expect(find.text('Vitz'), findsOneWidget);
+    expect(find.text('Boxer 125'), findsNothing);
+    expect(find.text('RE'), findsNothing);
   });
 }

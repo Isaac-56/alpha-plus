@@ -1,4 +1,5 @@
 import 'package:alpha_plus/features/onboarding/models/driver_registration.dart';
+import 'package:alpha_plus/features/onboarding/models/vehicle_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -7,7 +8,7 @@ void main() {
     () {
       final DriverRegistration registration = DriverRegistration()
         ..serviceType = DriverRegistration.ridesService
-        ..vehicleType = 'Sedan'
+        ..vehicleType = VehicleCatalog.car
         ..vehicleClass = 'comfort'
         ..make = 'Toyota'
         ..model = 'Corolla'
@@ -23,7 +24,7 @@ void main() {
       final Map<String, dynamic> map = registration.toMap();
 
       expect(map['serviceType'], DriverRegistration.ridesService);
-      expect(map['vehicleType'], 'Sedan');
+      expect(map['vehicleType'], VehicleCatalog.car);
       expect(map['vehicleClass'], 'comfort');
       expect(registration.effectiveVehicleClass, 'comfort');
       expect(map['make'], 'Toyota');
@@ -43,7 +44,7 @@ void main() {
     final DriverRegistration registration =
         DriverRegistration.fromMap(<String, dynamic>{
           'serviceType': DriverRegistration.ridesService,
-          'vehicleType': 'SUV / 4x4',
+          'vehicleType': VehicleCatalog.car,
           'vehicleClass': 'premium',
           'make': 'Toyota',
           'model': 'Land Cruiser',
@@ -58,7 +59,7 @@ void main() {
         });
 
     expect(registration.serviceComplete, isTrue);
-    expect(registration.vehicleType, 'SUV / 4x4');
+    expect(registration.vehicleType, VehicleCatalog.car);
     expect(registration.vehicleClass, 'premium');
     expect(registration.effectiveVehicleClass, 'premium');
     expect(registration.requiresAdminVehicleClass, isTrue);
@@ -68,9 +69,8 @@ void main() {
 
   test('fixed local vehicle categories cannot choose a commercial car tier', () {
     final Map<String, String> expected = <String, String>{
-      'Boda boda (motorcycle)': 'boda',
-      'Bajaj / Tuk-tuk (three-wheeler)': 'rickshaw',
-      'Scooter': 'boda',
+      VehicleCatalog.boda: 'boda',
+      VehicleCatalog.tukTuk: 'rickshaw',
     };
 
     for (final MapEntry<String, String> entry in expected.entries) {
@@ -86,7 +86,7 @@ void main() {
 
   test('new regular vehicles wait for an Alpha administrator class', () {
     final DriverRegistration registration = DriverRegistration()
-      ..vehicleType = 'Sedan';
+      ..vehicleType = VehicleCatalog.car;
 
     expect(registration.requiresAdminVehicleClass, isTrue);
     expect(registration.effectiveVehicleClass, isEmpty);
@@ -123,5 +123,31 @@ void main() {
     expect(registration.vehicleComplete, isFalse);
     expect(registration.licenceComplete, isFalse);
     expect(registration.effectiveVehicleClass, isEmpty);
+  });
+
+  test('vehicle catalogue keeps models inside their physical category', () {
+    expect(VehicleCatalog.categories, <String>[
+      VehicleCatalog.car,
+      VehicleCatalog.tukTuk,
+      VehicleCatalog.boda,
+    ]);
+
+    expect(VehicleCatalog.modelsFor(VehicleCatalog.car, 'Toyota'), contains('Vitz'));
+    expect(
+      VehicleCatalog.modelsFor(VehicleCatalog.boda, 'Bajaj'),
+      isNot(contains('Vitz')),
+    );
+    expect(
+      VehicleCatalog.modelsFor(VehicleCatalog.tukTuk, 'Bajaj'),
+      contains('RE'),
+    );
+    expect(
+      VehicleCatalog.isValidCombination(
+        category: VehicleCatalog.boda,
+        make: 'Toyota',
+        model: 'Vitz',
+      ),
+      isFalse,
+    );
   });
 }
