@@ -128,19 +128,30 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const Key('vehicleCategoryPicker')));
+    final Finder categoryPicker = find.byKey(
+      const Key('vehicleCategoryPicker'),
+    );
+    await tester.ensureVisible(categoryPicker);
+    await tester.pumpAndSettle();
+    await tester.tap(categoryPicker);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Car'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('vehicleMakePicker')));
+    final Finder makePicker = find.byKey(const Key('vehicleMakePicker'));
+    await tester.ensureVisible(makePicker);
+    await tester.pumpAndSettle();
+    await tester.tap(makePicker);
     await tester.pumpAndSettle();
     expect(find.text('Toyota'), findsOneWidget);
     expect(find.text('Bajaj'), findsNothing);
     await tester.tap(find.text('Toyota'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('vehicleModelPicker')));
+    final Finder modelPicker = find.byKey(const Key('vehicleModelPicker'));
+    await tester.ensureVisible(modelPicker);
+    await tester.pumpAndSettle();
+    await tester.tap(modelPicker);
     await tester.pumpAndSettle();
     expect(find.text('Vitz'), findsOneWidget);
     expect(find.text('Boxer 125'), findsNothing);
