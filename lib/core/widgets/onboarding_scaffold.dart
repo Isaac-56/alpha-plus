@@ -74,7 +74,7 @@ class OnboardingScaffold extends StatelessWidget {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: authStyle ? 560 : double.infinity,
+              maxWidth: authStyle ? 560 : AppSpacing.contentMaxWidth,
             ),
             child: SizedBox(
               width: double.infinity,

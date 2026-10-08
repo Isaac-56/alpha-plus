@@ -1105,8 +1105,14 @@ class _DetailScaffold extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
-                child: Column(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: AppSpacing.contentMaxWidth,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
+                      child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     AlphaFlowHeader(
@@ -1121,6 +1127,9 @@ class _DetailScaffold extends StatelessWidget {
                     const SizedBox(height: 26),
                     child,
                   ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1138,8 +1147,17 @@ class _DetailScaffold extends StatelessWidget {
                 ),
                 child: SafeArea(
                   top: false,
-                  minimum: const EdgeInsets.fromLTRB(24, 14, 24, 18),
-                  child: bottom!,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: AppSpacing.contentMaxWidth,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 14, 24, 18),
+                        child: bottom!,
+                      ),
+                    ),
+                  ),
                 ),
               ),
           ],
