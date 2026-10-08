@@ -28,7 +28,7 @@ class _LicenceInformationScreenState extends State<LicenceInformationScreen> {
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _numberController = TextEditingController();
-  final TextEditingController _issueDateController = TextEditingController();
+  final TextEditingController _expiryDateController = TextEditingController();
 
   @override
   void initState() {
@@ -48,7 +48,7 @@ class _LicenceInformationScreenState extends State<LicenceInformationScreen> {
       _firstNameController.text = registration.licenceFirstName;
       _lastNameController.text = registration.licenceLastName;
       _numberController.text = registration.licenceNumber;
-      _issueDateController.text = registration.licenceIssueDate;
+      _expiryDateController.text = registration.licenceExpiryDate;
     } else {
       // First visit: seed the driver's verified profile name to reduce typing.
       final List<String> names = widget.driverName
@@ -69,7 +69,7 @@ class _LicenceInformationScreenState extends State<LicenceInformationScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _numberController.dispose();
-    _issueDateController.dispose();
+    _expiryDateController.dispose();
     super.dispose();
   }
 
@@ -98,8 +98,8 @@ class _LicenceInformationScreenState extends State<LicenceInformationScreen> {
     }
   }
 
-  DateTime? _existingIssueDate() {
-    final String value = _issueDateController.text.trim();
+  DateTime? _existingExpiryDate() {
+    final String value = _expiryDateController.text.trim();
 
     if (value.isEmpty) {
       return null;
@@ -130,26 +130,27 @@ class _LicenceInformationScreenState extends State<LicenceInformationScreen> {
     return DateTime.tryParse(value);
   }
 
-  Future<void> _pickIssueDate() async {
+  Future<void> _pickExpiryDate() async {
     final DateTime now = DateTime.now();
-    final DateTime? restoredDate = _existingIssueDate();
+    final DateTime? restoredDate = _existingExpiryDate();
 
-    DateTime initialDate = restoredDate ?? DateTime(now.year - 2);
+    DateTime initialDate = restoredDate ?? DateTime(now.year + 2);
 
-    if (initialDate.isAfter(now)) {
-      initialDate = now;
+    if (initialDate.isBefore(DateTime(now.year, now.month, now.day))) {
+      initialDate = DateTime(now.year, now.month, now.day);
     }
 
-    if (initialDate.isBefore(DateTime(1980))) {
-      initialDate = DateTime(1980);
+    final DateTime lastDate = DateTime(now.year + 15, 12, 31);
+    if (initialDate.isAfter(lastDate)) {
+      initialDate = lastDate;
     }
 
     final DateTime? date = await showDatePicker(
       context: context,
-      firstDate: DateTime(1980),
-      lastDate: now,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: lastDate,
       initialDate: initialDate,
-      helpText: 'Licence issue date',
+      helpText: 'Licence expiry date',
     );
 
     if (date == null || !mounted) {
@@ -160,7 +161,7 @@ class _LicenceInformationScreenState extends State<LicenceInformationScreen> {
     final String month = date.month.toString().padLeft(2, '0');
 
     setState(() {
-      _issueDateController.text = '$day/$month/${date.year}';
+      _expiryDateController.text = '$day/$month/${date.year}';
     });
   }
 
@@ -169,7 +170,7 @@ class _LicenceInformationScreenState extends State<LicenceInformationScreen> {
       ..licenceFirstName = _firstNameController.text.trim()
       ..licenceLastName = _lastNameController.text.trim()
       ..licenceNumber = _numberController.text.trim().toUpperCase()
-      ..licenceIssueDate = _issueDateController.text.trim();
+      ..licenceExpiryDate = _expiryDateController.text.trim();
 
     if (!widget.registration.licenceComplete) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -230,6 +231,7 @@ class _LicenceInformationScreenState extends State<LicenceInformationScreen> {
             key: const Key('licenceFirstNameField'),
             controller: _firstNameController,
             label: 'First name',
+            prefixIcon: Icons.person_outline_rounded,
             textCapitalization: TextCapitalization.words,
             onChanged: (_) => setState(() {}),
           ),
@@ -238,6 +240,7 @@ class _LicenceInformationScreenState extends State<LicenceInformationScreen> {
             key: const Key('licenceLastNameField'),
             controller: _lastNameController,
             label: 'Last name',
+            prefixIcon: Icons.person_outline_rounded,
             textCapitalization: TextCapitalization.words,
             onChanged: (_) => setState(() {}),
           ),
@@ -246,26 +249,29 @@ class _LicenceInformationScreenState extends State<LicenceInformationScreen> {
             key: const Key('licenceNumberField'),
             controller: _numberController,
             label: 'Driver’s licence number',
+            prefixIcon: Icons.badge_outlined,
             textCapitalization: TextCapitalization.characters,
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
-          TextField(
-            key: const Key('licenceIssueDateField'),
-            controller: _issueDateController,
-            readOnly: true,
-            decoration: InputDecoration(
-              labelText: 'Issue date',
-              hintText: 'DD/MM/YYYY',
-              prefixIcon: const Icon(Icons.calendar_month_outlined),
-              suffixIcon: _issueDateController.text.isEmpty
-                  ? const Icon(Icons.keyboard_arrow_right_rounded)
-                  : const Icon(
-                      Icons.check_circle_rounded,
-                      color: AppColors.primary,
-                    ),
+          _FieldShell(
+            label: 'Expiry date',
+            child: TextField(
+              key: const Key('licenceIssueDateField'),
+              controller: _expiryDateController,
+              readOnly: true,
+              decoration: InputDecoration(
+                hintText: 'DD/MM/YYYY',
+                prefixIcon: const Icon(Icons.event_available_outlined),
+                suffixIcon: _expiryDateController.text.isEmpty
+                    ? const Icon(Icons.keyboard_arrow_right_rounded)
+                    : const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primary,
+                      ),
+              ),
+              onTap: _pickExpiryDate,
             ),
-            onTap: _pickIssueDate,
           ),
           const SizedBox(height: 20),
           Row(
@@ -291,6 +297,7 @@ class _LicenceField extends StatelessWidget {
   const _LicenceField({
     required this.controller,
     required this.label,
+    required this.prefixIcon,
     required this.textCapitalization,
     required this.onChanged,
     super.key,
@@ -298,27 +305,60 @@ class _LicenceField extends StatelessWidget {
 
   final TextEditingController controller;
   final String label;
+  final IconData prefixIcon;
   final TextCapitalization textCapitalization;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      textCapitalization: textCapitalization,
-      decoration: InputDecoration(
-        labelText: label,
-        suffixIcon: controller.text.isEmpty
-            ? null
-            : IconButton(
-                onPressed: () {
-                  controller.clear();
-                  onChanged('');
-                },
-                icon: const Icon(Icons.cancel_rounded),
-              ),
+    return _FieldShell(
+      label: label,
+      child: TextField(
+        controller: controller,
+        textCapitalization: textCapitalization,
+        decoration: InputDecoration(
+          hintText: label,
+          prefixIcon: Icon(prefixIcon),
+          suffixIcon: controller.text.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Clear $label',
+                  onPressed: () {
+                    controller.clear();
+                    onChanged('');
+                  },
+                  icon: const Icon(Icons.cancel_rounded),
+                ),
+        ),
+        onChanged: onChanged,
       ),
-      onChanged: onChanged,
+    );
+  }
+}
+
+class _FieldShell extends StatelessWidget {
+  const _FieldShell({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        child,
+      ],
     );
   }
 }

@@ -727,7 +727,7 @@ class DriverLicenceDetailsScreen extends StatelessWidget {
               value: _safe(registration.licenceNumber),
             ),
             _DataLine(
-              label: 'Issue date',
+              label: 'Expiry date',
               value: _safe(registration.licenceIssueDate),
               showDivider: false,
             ),
@@ -1224,7 +1224,12 @@ class _TabScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: SingleChildScrollView(
-        child: Padding(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppSpacing.contentMaxWidth,
+            ),
+            child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 22, 20, 36),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1244,6 +1249,8 @@ class _TabScaffold extends StatelessWidget {
               ...children,
             ],
           ),
+            ),
+          ),
         ),
       ),
     );
@@ -1260,9 +1267,15 @@ class _DetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
-          children: <Widget>[
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppSpacing.contentMaxWidth,
+            ),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
+              children: <Widget>[
             AlphaFlowHeader(
               title: title,
               compact: true,
@@ -1274,7 +1287,9 @@ class _DetailPage extends StatelessWidget {
             ),
             const SizedBox(height: 28),
             ...children,
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );
