@@ -42,7 +42,9 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
   void didUpdateWidget(covariant DriverRideOfferLayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.driverId != widget.driverId ||
-        oldWidget.activeRideService != widget.activeRideService) _listen();
+        oldWidget.activeRideService != widget.activeRideService) {
+      _listen();
+    }
   }
 
   @override
@@ -53,8 +55,9 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
       child: StreamBuilder<String?>(
         stream: _activeRideIds,
         builder: (BuildContext context, AsyncSnapshot<String?> snapshot) {
-          if (snapshot.data != null)
+          if (snapshot.data != null) {
             return DriverActiveRideScope(child: widget.child);
+          }
           return offer_layer.DriverRideOfferLayer(
             driverId: widget.driverId,
             service: widget.service,

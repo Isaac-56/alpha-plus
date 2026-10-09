@@ -340,7 +340,9 @@ class DriverActiveRideService {
     final Position? trackedPosition = _lastTrackedPosition;
     if (trackedPosition != null &&
         DateTime.now().difference(trackedPosition.timestamp).inSeconds <= 5 &&
-        trackedPosition.accuracy <= 100) return trackedPosition;
+        trackedPosition.accuracy <= 100) {
+      return trackedPosition;
+    }
     try {
       final Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
