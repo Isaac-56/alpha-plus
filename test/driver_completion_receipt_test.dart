@@ -93,6 +93,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('End trip here'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('End trip here'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'End trip here'));
