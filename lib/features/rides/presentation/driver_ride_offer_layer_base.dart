@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -25,6 +27,34 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
   String? _busyRideId;
   String? _errorMessage;
   late Stream<List<DriverRideOffer>> _pendingOffers;
+  Timer? _expiryTimer;
+  String? _scheduledExpiry;
+  final Set<String> _expiredVersions = <String>{};
+
+  String _offerVersion(DriverRideOffer offer) =>
+      '${offer.rideId}:${offer.expiresAt.millisecondsSinceEpoch}';
+
+  void _scheduleExpiry(DriverRideOffer? offer) {
+    final String? version = offer == null ? null : _offerVersion(offer);
+    if (_scheduledExpiry == version) return;
+    _expiryTimer?.cancel();
+    _scheduledExpiry = version;
+    if (offer == null) return;
+    _expiryTimer = Timer(offer.expiresAt.difference(DateTime.now()), () {
+      if (!mounted) return;
+      setState(() {
+        _expiredVersions.add(version!);
+        _scheduledExpiry = null;
+        _errorMessage = null;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _expiryTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -50,6 +80,10 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
     required bool accept,
   }) async {
     if (_busyRideId != null) return;
+    if (!offer.isPendingAt(DateTime.now())) {
+      setState(() => _expiredVersions.add(_offerVersion(offer)));
+      return;
+    }
 
     setState(() {
       _busyRideId = offer.rideId;
@@ -100,8 +134,17 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
       initialData: const <DriverRideOffer>[],
       builder: (BuildContext context,
           AsyncSnapshot<List<DriverRideOffer>> snapshot) {
-        final List<DriverRideOffer> offers =
+        final List<DriverRideOffer> received =
             snapshot.data ?? const <DriverRideOffer>[];
+        final Set<String> versions = received.map(_offerVersion).toSet();
+        _expiredVersions
+            .removeWhere((String version) => !versions.contains(version));
+        final List<DriverRideOffer> offers = received
+            .where((DriverRideOffer offer) =>
+                offer.isPendingAt(DateTime.now()) &&
+                !_expiredVersions.contains(_offerVersion(offer)))
+            .toList();
+        _scheduleExpiry(offers.isEmpty ? null : offers.first);
         if (offers.isEmpty) return widget.child;
 
         final DriverRideOffer offer = offers.first;

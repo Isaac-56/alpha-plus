@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:alpha_plus/features/rides/data/driver_active_ride_service.dart';
 import 'package:alpha_plus/features/rides/data/driver_ride_offer_service.dart';
 import 'package:alpha_plus/features/rides/presentation/driver_ride_offer_layer.dart';
+import 'package:alpha_plus/features/rides/presentation/driver_ride_offer_layer_base.dart'
+    as offers_layer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
@@ -53,13 +55,45 @@ class _ActiveRides extends DriverActiveRideService {
 }
 
 class _Offers extends DriverRideOfferService {
-  _Offers() : super(firestore: _Firestore(), functions: _Functions());
+  _Offers([this.offers = const <DriverRideOffer>[]])
+      : super(firestore: _Firestore(), functions: _Functions());
+  final List<DriverRideOffer> offers;
   @override
   Stream<List<DriverRideOffer>> watchPendingOffers(String driverId) =>
-      Stream<List<DriverRideOffer>>.value(<DriverRideOffer>[]);
+      Stream<List<DriverRideOffer>>.value(offers);
 }
 
 void main() {
+  testWidgets('expired offers disappear without waiting for a backend snapshot',
+      (WidgetTester tester) async {
+    final DriverRideOffer offer = DriverRideOffer(
+      rideId: 'ride-expiry',
+      status: 'pending',
+      pickupAddress: 'Pickup',
+      destinationAddress: 'Destination',
+      rideOptionId: 'standard',
+      requiredVehicleType: 'standard',
+      paymentMethod: 'cash',
+      estimatedFare: 15000,
+      currencyCode: 'SSP',
+      distanceToPickupMeters: 50,
+      expiresAt: DateTime.now().add(const Duration(seconds: 2)),
+    );
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: offers_layer.DriverRideOfferLayer(
+      driverId: 'driver-1',
+      service: _Offers(<DriverRideOffer>[offer]),
+      child: const Text('Available'),
+    ))));
+    await tester.pump();
+    expect(find.byKey(const Key('liveRideOfferCard')), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    expect(find.byKey(const Key('liveRideOfferCard')), findsNothing);
+    expect(find.text('Available'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets(
     'final fare survives active-pointer removal before completion response',
     (WidgetTester tester) async {
