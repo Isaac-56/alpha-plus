@@ -9,6 +9,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val alphaPlusSigningProperties = AlphaPlusMapsBuildProperties()
+val alphaPlusSigningFile = rootProject.file("key.properties")
+if (alphaPlusSigningFile.exists()) {
+    alphaPlusSigningFile.inputStream().use { alphaPlusSigningProperties.load(it) }
+}
+
 android {
     namespace = "com.alpharide.driver"
     compileSdk = flutter.compileSdkVersion
@@ -30,11 +36,21 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (alphaPlusSigningFile.exists()) {
+            create("release") {
+                keyAlias = alphaPlusSigningProperties.getProperty("keyAlias")
+                keyPassword = alphaPlusSigningProperties.getProperty("keyPassword")
+                storeFile = file(alphaPlusSigningProperties.getProperty("storeFile"))
+                storePassword = alphaPlusSigningProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Use the same release certificate on every build machine/device.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -77,6 +93,10 @@ android {
                 "MAPS_API_KEY is missing. Add it to android/secrets.properties " +
                     "or set the MAPS_API_KEY environment variable before building.",
             )
+        }
+        if (gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) } &&
+            !alphaPlusSigningFile.exists() && alphaPlusMapsKey != "CI_PLACEHOLDER") {
+            throw GradleException("Production release requires android/key.properties and the existing release keystore. Register its SHA-1 for com.alpharide.driver on the Maps key.")
         }
         manifestPlaceholders["MAPS_API_KEY"] = alphaPlusMapsKey
     }

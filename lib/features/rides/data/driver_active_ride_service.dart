@@ -29,6 +29,7 @@ class DriverActiveRide {
     this.customerName = '',
     this.customerPhone = '',
     this.customerNote = '',
+    this.customerPhotoUrl = '',
     this.isWaiting = false,
     this.waitingStartedAt,
     this.waitingSeconds = 0,
@@ -57,6 +58,7 @@ class DriverActiveRide {
   final String customerName;
   final String customerPhone;
   final String customerNote;
+  final String customerPhotoUrl;
   final bool isWaiting;
   final DateTime? waitingStartedAt;
   final int waitingSeconds;
@@ -113,9 +115,7 @@ class DriverActiveRide {
         .clamp(0, 4 * 60 * 60)
         .toInt();
     return billableWaitingSeconds +
-        (activeSeconds - waitingGraceSeconds)
-            .clamp(0, 4 * 60 * 60)
-            .toInt();
+        (activeSeconds - waitingGraceSeconds).clamp(0, 4 * 60 * 60).toInt();
   }
 
   int waitingChargeAt(DateTime now) {
@@ -158,21 +158,24 @@ class DriverActiveRide {
         data['currencyCode'],
         'currencyCode',
       ).toUpperCase(),
-      bookingSource: _optionalValue(data['bookingSource'], fallback: 'app')
-          .toLowerCase(),
+      bookingSource: _optionalValue(
+        data['bookingSource'],
+        fallback: 'app',
+      ).toLowerCase(),
       customerName: _optionalValue(data['customerName']),
       customerPhone: _optionalValue(data['customerPhone']),
       customerNote: _optionalValue(data['customerNote']),
+      customerPhotoUrl: _optionalValue(data['customerPhotoUrl']),
       isWaiting: data['isWaiting'] == true,
       waitingStartedAt: _optionalTimestamp(data['waitingStartedAt']),
       waitingSeconds: _nonNegativeInt(data['waitingSeconds']),
-      billableWaitingSeconds:
-          _nonNegativeInt(data['billableWaitingSeconds']),
+      billableWaitingSeconds: _nonNegativeInt(data['billableWaitingSeconds']),
       waitingCharge: _nonNegativeInt(data['waitingCharge']),
-      waitingGraceSeconds:
-          _nonNegativeInt(data['waitingGraceSeconds'], fallback: 120),
-      waitingRatePerMinute:
-          _nonNegativeInt(data['waitingRatePerMinute']),
+      waitingGraceSeconds: _nonNegativeInt(
+        data['waitingGraceSeconds'],
+        fallback: 120,
+      ),
+      waitingRatePerMinute: _nonNegativeInt(data['waitingRatePerMinute']),
     );
   }
 }
@@ -193,6 +196,11 @@ class DriverActiveRideService {
   String? _trackedRideId;
   Position? _lastTrackedPosition;
   bool _progressUpdateInFlight = false;
+  String? _completedRideId;
+  Map<String, dynamic>? _completion;
+
+  Map<String, dynamic>? completionForRide(String rideId) =>
+      _completedRideId == rideId ? _completion : null;
 
   Stream<String?> watchActiveRideId(String driverId) {
     final String normalized = driverId.trim();
@@ -210,11 +218,9 @@ class DriverActiveRideService {
   }
 
   Stream<DriverActiveRide?> watchRide(String rideId) {
-    return _firestore
-        .collection('rides')
-        .doc(rideId)
-        .snapshots()
-        .map((DocumentSnapshot<Map<String, dynamic>> snapshot) {
+    return _firestore.collection('rides').doc(rideId).snapshots().map((
+      DocumentSnapshot<Map<String, dynamic>> snapshot,
+    ) {
       final Map<String, dynamic>? data = snapshot.data();
       if (!snapshot.exists || data == null) return null;
       try {
@@ -240,7 +246,13 @@ class DriverActiveRideService {
           request['completionPoint'] = _pointFromPosition(position);
         }
       }
-      await _functions.httpsCallable('updateRideStatus').call<dynamic>(request);
+      final HttpsCallableResult<dynamic> result = await _functions
+          .httpsCallable('updateRideStatus')
+          .call<dynamic>(request);
+      if (status == 'completed' && result.data is Map) {
+        _completedRideId = rideId;
+        _completion = Map<String, dynamic>.from(result.data as Map);
+      }
       if (status == 'completed') await stopProgressTracking(rideId);
     } on FirebaseFunctionsException catch (error) {
       final String message = switch (error.code) {
@@ -307,7 +319,9 @@ class DriverActiveRideService {
 
   Future<Position?> _completionPosition() async {
     final Position? trackedPosition = _lastTrackedPosition;
-    if (trackedPosition != null) return trackedPosition;
+    if (trackedPosition != null &&
+        DateTime.now().difference(trackedPosition.timestamp).inSeconds <= 5 &&
+        trackedPosition.accuracy <= 100) return trackedPosition;
     try {
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -316,7 +330,9 @@ class DriverActiveRideService {
         ),
       );
     } on Object {
-      return await Geolocator.getLastKnownPosition();
+      throw const DriverRideLifecycleException(
+        'A current location is needed to calculate the final fare. Enable location and try again.',
+      );
     }
   }
 
@@ -333,10 +349,7 @@ class DriverActiveRideService {
   }) async {
     try {
       await _functions.httpsCallable('setRideWaiting').call<dynamic>(
-        <String, dynamic>{
-          'rideId': rideId,
-          'isWaiting': isWaiting,
-        },
+        <String, dynamic>{'rideId': rideId, 'isWaiting': isWaiting},
       );
     } on FirebaseFunctionsException catch (error) {
       final String message = switch (error.code) {

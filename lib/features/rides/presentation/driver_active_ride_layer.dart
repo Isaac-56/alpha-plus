@@ -43,11 +43,31 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
       _service ??= widget.service ?? DriverActiveRideService.instance;
 
   String? _trackingRideId;
+  late Stream<String?> _activeRideIds;
+  String? _watchedRideId;
+  Stream<DriverActiveRide?>? _rideUpdates;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeRideIds = _rides.watchActiveRideId(widget.driverId);
+  }
+
+  @override
+  void didUpdateWidget(covariant DriverActiveRideLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.driverId != widget.driverId ||
+        oldWidget.service != widget.service) {
+      _service = widget.service;
+      _activeRideIds = _rides.watchActiveRideId(widget.driverId);
+      _watchedRideId = null;
+      _rideUpdates = null;
+    }
+  }
 
   void _syncProgressTracking(DriverActiveRide ride) {
-    final String? nextTrackingId = ride.status == 'in_progress'
-        ? ride.rideId
-        : null;
+    final String? nextTrackingId =
+        ride.status == 'in_progress' ? ride.rideId : null;
     if (_trackingRideId == nextTrackingId) return;
     final String? previousTrackingId = _trackingRideId;
     _trackingRideId = nextTrackingId;
@@ -103,6 +123,48 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
 
     try {
       await _rides.advanceRide(rideId: ride.rideId, status: nextStatus);
+      if (nextStatus == 'completed' && mounted) {
+        final Map<String, dynamic>? receipt = _rides.completionForRide(
+          ride.rideId,
+        );
+        if (receipt != null && receipt['finalFare'] is num) {
+          await showDialog<void>(
+            context: context,
+            builder: (BuildContext context) => AlertDialog(
+              title: const Text('Trip completed'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Final fare: ${receipt['finalFare']} ${ride.currencyCode}',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Payment: ${ride.paymentMethod}'),
+                  Text(
+                    'Waiting: ${receipt['waitingCharge'] ?? 0} ${ride.currencyCode}',
+                  ),
+                  Text(
+                    'Alpha fee: ${receipt['platformFee'] ?? 0} ${ride.currencyCode}',
+                  ),
+                  Text(
+                    'Your earnings: ${receipt['driverNetFare'] ?? 0} ${ride.currencyCode}',
+                  ),
+                  if (receipt['receiptNumber'] != null)
+                    Text('Receipt ${receipt['receiptNumber']}'),
+                ],
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Done'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
     } on DriverRideLifecycleException catch (error) {
       if (mounted) setState(() => _errorMessage = error.message);
     } on Object {
@@ -192,13 +254,17 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<String?>(
-      stream: _rides.watchActiveRideId(widget.driverId),
+      stream: _activeRideIds,
       builder: (BuildContext context, AsyncSnapshot<String?> activeSnapshot) {
         final String? rideId = activeSnapshot.data;
         if (activeSnapshot.hasError || rideId == null) return widget.child;
 
+        if (_watchedRideId != rideId) {
+          _watchedRideId = rideId;
+          _rideUpdates = _rides.watchRide(rideId);
+        }
         return StreamBuilder<DriverActiveRide?>(
-          stream: _rides.watchRide(rideId),
+          stream: _rideUpdates,
           builder: (
             BuildContext context,
             AsyncSnapshot<DriverActiveRide?> rideSnapshot,
@@ -239,157 +305,164 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                           maxHeight: MediaQuery.sizeOf(context).height * 0.72,
                         ),
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            const AlphaSheetHandle(),
-                            const SizedBox(height: 16),
-                            AlphaFlowHeader(
-                              title: ride.statusLabel,
-                              subtitle: _rideName(ride.rideOptionId),
-                              compact: true,
-                              leading: Container(
-                                width: 48,
-                                height: 48,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.navigation_rounded,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                              trailing: AlphaStatusPill(
-                                label: ride.isWaiting ? 'Waiting' : 'Live',
-                                icon: ride.isWaiting
-                                    ? Icons.timer_outlined
-                                    : Icons.circle,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: <Widget>[
-                                AlphaMetricChip(
-                                  icon: _rideIcon(ride.rideOptionId),
-                                  label: _rideName(ride.rideOptionId),
-                                ),
-                                AlphaMetricChip(
-                                  icon: Icons.payments_outlined,
-                                  label:
-                                      '${_formatAmount(ride.fareAt(DateTime.now()))} ${ride.currencyCode}',
-                                  emphasized: true,
-                                ),
-                                AlphaMetricChip(
-                                  icon: Icons.account_balance_wallet_outlined,
-                                  label: ride.paymentMethod == 'cash'
-                                      ? 'Cash'
-                                      : ride.paymentMethod,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            AlphaRouteRow(
-                              icon: Icons.my_location_rounded,
-                              label: 'Pickup',
-                              value: ride.pickupAddress,
-                            ),
-                            const SizedBox(height: 8),
-                            AlphaRouteRow(
-                              icon: Icons.flag_rounded,
-                              label: 'Destination',
-                              value: ride.destinationAddress,
-                            ),
-                            if (ride.customerPhone.isNotEmpty) ...<Widget>[
-                              const SizedBox(height: 12),
-                              _PassengerContact(
-                                ride: ride,
-                                onCall: () => _callCustomerPhone(ride),
-                              ),
-                            ],
-                            const SizedBox(height: 12),
-                            Text(
-                              '${_formatAmount(ride.fareAt(DateTime.now()))} ${ride.currencyCode}',
-                              key: const Key('activeRideFare'),
-                              style: Theme.of(context).textTheme.headlineMedium,
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: <Widget>[
-                                const Icon(
-                                  Icons.payments_outlined,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  ride.paymentMethod == 'cash'
-                                      ? 'Cash payment'
-                                      : ride.paymentMethod,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
+                          padding: const EdgeInsets.fromLTRB(
+                            16,
+                            10,
+                            16,
+                            16,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              const AlphaSheetHandle(),
+                              const SizedBox(height: 16),
+                              AlphaFlowHeader(
+                                title: ride.statusLabel,
+                                subtitle: _rideName(ride.rideOptionId),
+                                compact: true,
+                                leading: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.navigation_rounded,
+                                    color: AppColors.ink,
                                   ),
                                 ),
-                              ],
-                            ),
-                            if (ride.status == 'in_progress') ...<Widget>[
+                                trailing: AlphaStatusPill(
+                                  label: ride.isWaiting ? 'Waiting' : 'Live',
+                                  icon: ride.isWaiting
+                                      ? Icons.timer_outlined
+                                      : Icons.circle,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: <Widget>[
+                                  AlphaMetricChip(
+                                    icon: _rideIcon(ride.rideOptionId),
+                                    label: _rideName(ride.rideOptionId),
+                                  ),
+                                  AlphaMetricChip(
+                                    icon: Icons.payments_outlined,
+                                    label:
+                                        '${_formatAmount(ride.fareAt(DateTime.now()))} ${ride.currencyCode}',
+                                    emphasized: true,
+                                  ),
+                                  AlphaMetricChip(
+                                    icon: Icons.account_balance_wallet_outlined,
+                                    label: ride.paymentMethod == 'cash'
+                                        ? 'Cash'
+                                        : ride.paymentMethod,
+                                  ),
+                                ],
+                              ),
                               const SizedBox(height: 12),
-                              _DriverWaitingStatus(ride: ride),
-                            ],
-                            if (_errorMessage != null) ...<Widget>[
-                              const SizedBox(height: 10),
+                              AlphaRouteRow(
+                                icon: Icons.my_location_rounded,
+                                label: 'Pickup',
+                                value: ride.pickupAddress,
+                              ),
+                              const SizedBox(height: 8),
+                              AlphaRouteRow(
+                                icon: Icons.flag_rounded,
+                                label: 'Destination',
+                                value: ride.destinationAddress,
+                              ),
+                              if (ride.customerPhone.isNotEmpty) ...<Widget>[
+                                const SizedBox(height: 12),
+                                _PassengerContact(
+                                  ride: ride,
+                                  onCall: () => _callCustomerPhone(ride),
+                                ),
+                              ],
+                              const SizedBox(height: 12),
                               Text(
-                                _errorMessage!,
-                                key: const Key('activeDriverRideError'),
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 16),
-                            if (ride.status == 'in_progress') ...<Widget>[
-                              SizedBox(
-                                height: 48,
-                                child: OutlinedButton.icon(
-                                  key: const Key('toggleCustomerWaiting'),
-                                  onPressed:
-                                      busy ? null : () => _toggleWaiting(ride),
-                                  icon: Icon(
-                                    ride.isWaiting
-                                        ? Icons.play_arrow_rounded
-                                        : Icons.timer_outlined,
-                                  ),
-                                  label: Text(
-                                    ride.isWaiting
-                                        ? 'End wait and resume'
-                                        : 'Start customer wait',
-                                  ),
-                                ),
+                                '${_formatAmount(ride.fareAt(DateTime.now()))} ${ride.currencyCode}',
+                                key: const Key('activeRideFare'),
+                                style:
+                                    Theme.of(context).textTheme.headlineMedium,
                               ),
                               const SizedBox(height: 10),
-                            ],
-                            SizedBox(
-                              height: AppSpacing.actionHeight,
-                              child: ElevatedButton(
-                                key: const Key('advanceDriverRide'),
-                                onPressed: busy ? null : () => _advance(ride),
-                                child: busy
-                                    ? const SizedBox.square(
-                                        dimension: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.3,
-                                        ),
-                                      )
-                                    : Text(ride.actionLabel),
+                              Row(
+                                children: <Widget>[
+                                  const Icon(
+                                    Icons.payments_outlined,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    ride.paymentMethod == 'cash'
+                                        ? 'Cash payment'
+                                        : ride.paymentMethod,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
+                              if (ride.status == 'in_progress') ...<Widget>[
+                                const SizedBox(height: 12),
+                                _DriverWaitingStatus(ride: ride),
+                              ],
+                              if (_errorMessage != null) ...<Widget>[
+                                const SizedBox(height: 10),
+                                Text(
+                                  _errorMessage!,
+                                  key: const Key('activeDriverRideError'),
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 16),
+                              if (ride.status == 'in_progress') ...<Widget>[
+                                SizedBox(
+                                  height: 48,
+                                  child: OutlinedButton.icon(
+                                    key: const Key('toggleCustomerWaiting'),
+                                    onPressed: busy
+                                        ? null
+                                        : () => _toggleWaiting(ride),
+                                    icon: Icon(
+                                      ride.isWaiting
+                                          ? Icons.play_arrow_rounded
+                                          : Icons.timer_outlined,
+                                    ),
+                                    label: Text(
+                                      ride.isWaiting
+                                          ? 'End wait and resume'
+                                          : 'Start customer wait',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                              SizedBox(
+                                height: AppSpacing.actionHeight,
+                                child: ElevatedButton(
+                                  key: const Key('advanceDriverRide'),
+                                  onPressed: busy ? null : () => _advance(ride),
+                                  child: busy
+                                      ? const SizedBox.square(
+                                          dimension: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.3,
+                                          ),
+                                        )
+                                      : Text(ride.actionLabel),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -425,10 +498,10 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
   }
 
   static IconData _rideIcon(String rideOptionId) => switch (rideOptionId) {
-    'boda' => Icons.two_wheeler_rounded,
-    'rickshaw' => Icons.electric_rickshaw_rounded,
-    _ => Icons.local_taxi_rounded,
-  };
+        'boda' => Icons.two_wheeler_rounded,
+        'rickshaw' => Icons.electric_rickshaw_rounded,
+        _ => Icons.local_taxi_rounded,
+      };
 }
 
 class _PassengerContact extends StatelessWidget {
@@ -463,6 +536,13 @@ class _PassengerContact extends StatelessWidget {
                 radius: 20,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.18),
                 foregroundColor: theme.colorScheme.onSurface,
+                foregroundImage: ride.customerPhotoUrl.startsWith('https://')
+                    ? NetworkImage(ride.customerPhotoUrl)
+                    : null,
+                onForegroundImageError:
+                    ride.customerPhotoUrl.startsWith('https://')
+                        ? (Object error, StackTrace? stack) {}
+                        : null,
                 child: Icon(
                   ride.isPhoneBooking
                       ? Icons.support_agent_rounded
@@ -540,10 +620,7 @@ class _PassengerContact extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 15,
-                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 15),
                     ],
                   ),
                 ),
@@ -574,10 +651,7 @@ class _DriverWaitingStatus extends StatelessWidget {
       final String waitingPolicy = ride.waitingGraceSeconds > 0
           ? 'Customer waiting: first ${(ride.waitingGraceSeconds / 60).ceil()} minutes free, then ${ride.waitingRatePerMinute} ${ride.currencyCode}/min.'
           : 'Customer waiting: ${ride.waitingRatePerMinute} ${ride.currencyCode}/min begins immediately.';
-      return Text(
-        waitingPolicy,
-        style: Theme.of(context).textTheme.bodySmall,
-      );
+      return Text(waitingPolicy, style: Theme.of(context).textTheme.bodySmall);
     }
 
     return StreamBuilder<int>(
@@ -597,9 +671,7 @@ class _DriverWaitingStatus extends StatelessWidget {
                 .clamp(0, 4 * 60 * 60)
                 .toInt();
         final int freeRemaining =
-            (ride.waitingGraceSeconds - activeSeconds)
-                .clamp(0, 999999)
-                .toInt();
+            (ride.waitingGraceSeconds - activeSeconds).clamp(0, 999999).toInt();
         final int charge = ride.waitingChargeAt(now);
 
         return Container(
