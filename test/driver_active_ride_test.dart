@@ -8,6 +8,7 @@ void main() {
       rideId: 'ride-123',
       data: <String, dynamic>{
         'status': 'accepted',
+        'customerPhotoUrl': 'https://example.com/passenger.jpg',
         'pickup': <String, dynamic>{'address': 'Juba Airport'},
         'destination': <String, dynamic>{'address': 'Hai Malakal'},
         'rideOptionId': 'standard',
@@ -17,6 +18,7 @@ void main() {
       },
     );
 
+    expect(ride.customerPhotoUrl, 'https://example.com/passenger.jpg');
     expect(ride.isActive, isTrue);
     expect(ride.nextStatus, 'driver_arriving');
     expect(ride.actionLabel, 'Start pickup route');
