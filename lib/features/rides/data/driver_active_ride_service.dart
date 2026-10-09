@@ -255,6 +255,25 @@ class DriverActiveRideService {
       }
       if (status == 'completed') await stopProgressTracking(rideId);
     } on FirebaseFunctionsException catch (error) {
+      // A lost callable response must not hide a trip already committed by the server.
+      if (status == 'completed') {
+        try {
+          final DocumentSnapshot<Map<String, dynamic>> snapshot =
+              await _firestore
+                  .collection('rides')
+                  .doc(rideId)
+                  .get(const GetOptions(source: Source.server));
+          final Map<String, dynamic>? data = snapshot.data();
+          if (data?['status'] == 'completed' && data?['finalFare'] is num) {
+            _completedRideId = rideId;
+            _completion = data;
+            await stopProgressTracking(rideId);
+            return;
+          }
+        } on Object {
+          // Preserve the original callable error if the connection is still unavailable.
+        }
+      }
       final String message = switch (error.code) {
         'unauthenticated' => 'Sign in again before updating the ride.',
         'permission-denied' =>
@@ -323,12 +342,17 @@ class DriverActiveRideService {
         DateTime.now().difference(trackedPosition.timestamp).inSeconds <= 5 &&
         trackedPosition.accuracy <= 100) return trackedPosition;
     try {
-      return await Geolocator.getCurrentPosition(
+      final Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           timeLimit: Duration(seconds: 3),
         ),
       );
+      if (!position.accuracy.isFinite || position.accuracy > 100) {
+        throw const DriverRideLifecycleException(
+            'Location is not accurate enough to end this trip.');
+      }
+      return position;
     } on Object {
       throw const DriverRideLifecycleException(
         'A current location is needed to calculate the final fare. Enable location and try again.',
