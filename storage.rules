@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedInAs(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validDriverDocument() {
+      return request.resource.size < 12 * 1024 * 1024
+          && request.resource.contentType.matches('image/.*');
+    }
+
+    match /drivers/{driverId}/documents/{documentPath=**} {
+      allow read: if signedInAs(driverId);
+      allow create, update:
+          if signedInAs(driverId) && validDriverDocument();
+      allow delete: if signedInAs(driverId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
