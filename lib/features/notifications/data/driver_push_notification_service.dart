@@ -4,6 +4,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../services/notification_alerts.dart';
+
 /// Keeps the active driver's Firebase Messaging token registered with the
 /// dispatch backend. Notification payloads are displayed by Android/iOS while
 /// Alpha Plus is backgrounded; the existing Firestore offer stream remains the
@@ -28,6 +30,7 @@ class DriverPushNotificationService {
       FirebaseFunctions.instanceFor(region: 'africa-south1');
 
   StreamSubscription<String>? _tokenSubscription;
+  StreamSubscription<RemoteMessage>? _messageSubscription;
   String? _driverId;
   String? _registeredToken;
 
@@ -37,6 +40,8 @@ class DriverPushNotificationService {
     if (_driverId == normalizedDriverId && _tokenSubscription != null) return;
 
     await _tokenSubscription?.cancel();
+    await _messageSubscription?.cancel();
+    _messageSubscription = null;
     _tokenSubscription = null;
     _driverId = normalizedDriverId;
 
@@ -49,6 +54,30 @@ class DriverPushNotificationService {
       );
       if (settings.authorizationStatus == AuthorizationStatus.denied) return;
 
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      _messageSubscription = FirebaseMessaging.onMessage.listen((
+        RemoteMessage message,
+      ) {
+        if (_driverId != normalizedDriverId) return;
+        final bool rideOffer = message.data['type'] == 'ride_offer';
+        final String eventId = rideOffer
+            ? 'ride_offer:${message.data['rideId']}'
+            : message.data['eventId'] ??
+                  message.messageId ??
+                  'update:${message.sentTime}';
+        unawaited(
+          NotificationAlerts.show(
+            eventId: eventId,
+            title: message.notification?.title ?? 'Alpha Plus update',
+            body: message.notification?.body ?? '',
+            urgent: rideOffer,
+          ),
+        );
+      });
       final String? token = await _messaging.getToken();
       if (token != null && token.trim().isNotEmpty) {
         await _register(normalizedDriverId, token.trim());
@@ -57,11 +86,11 @@ class DriverPushNotificationService {
       _tokenSubscription = _messaging.onTokenRefresh.listen(
         (String refreshedToken) {
           unawaited(
-            _register(normalizedDriverId, refreshedToken).catchError(
-              (Object error) {
-                debugPrint('Unable to refresh driver push token: $error');
-              },
-            ),
+            _register(normalizedDriverId, refreshedToken).catchError((
+              Object error,
+            ) {
+              debugPrint('Unable to refresh driver push token: $error');
+            }),
           );
         },
         onError: (Object error) {
@@ -87,6 +116,8 @@ class DriverPushNotificationService {
     _registeredToken = null;
     await _tokenSubscription?.cancel();
     _tokenSubscription = null;
+    await _messageSubscription?.cancel();
+    _messageSubscription = null;
 
     if (!unregister || token == null) return;
     try {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../services/notification_alerts.dart';
 import '../../../core/widgets/alpha_components.dart';
 import '../data/driver_ride_offer_service.dart';
 
@@ -116,8 +117,7 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
     } on Object {
       if (mounted) {
         setState(
-          () => _errorMessage =
-              'The ride request could not be updated. Check your connection and try again.',
+          () => _errorMessage = 'The ride request could not be updated. Check your connection and try again.',
         );
       }
     } finally {
@@ -132,22 +132,36 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
     return StreamBuilder<List<DriverRideOffer>>(
       stream: _pendingOffers,
       initialData: const <DriverRideOffer>[],
-      builder: (BuildContext context,
-          AsyncSnapshot<List<DriverRideOffer>> snapshot) {
+      builder: (BuildContext context, AsyncSnapshot<List<DriverRideOffer>> snapshot) {
         final List<DriverRideOffer> received =
             snapshot.data ?? const <DriverRideOffer>[];
         final Set<String> versions = received.map(_offerVersion).toSet();
-        _expiredVersions
-            .removeWhere((String version) => !versions.contains(version));
+        _expiredVersions.removeWhere(
+          (String version) => !versions.contains(version),
+        );
         final List<DriverRideOffer> offers = received
-            .where((DriverRideOffer offer) =>
-                offer.isPendingAt(DateTime.now()) &&
-                !_expiredVersions.contains(_offerVersion(offer)))
+            .where(
+              (DriverRideOffer offer) =>
+                  offer.isPendingAt(DateTime.now()) &&
+                  !_expiredVersions.contains(_offerVersion(offer)),
+            )
             .toList();
         _scheduleExpiry(offers.isEmpty ? null : offers.first);
         if (offers.isEmpty) return widget.child;
 
         final DriverRideOffer offer = offers.first;
+        if (WidgetsBinding.instance.lifecycleState ==
+            AppLifecycleState.resumed) {
+          unawaited(
+            NotificationAlerts.show(
+              eventId: 'ride_offer:${offer.rideId}',
+              title: 'New ride request',
+              body:
+                  '${offer.pickupAddress} · ${offer.estimatedFare} ${offer.currencyCode}',
+              urgent: true,
+            ),
+          );
+        }
         final bool busy = _busyRideId == offer.rideId;
 
         return Stack(
@@ -312,7 +326,7 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                                 onPressed: busy
                                     ? null
                                     : () =>
-                                        _respond(offer: offer, accept: false),
+                                          _respond(offer: offer, accept: false),
                                 child: const Text('Decline'),
                               ),
                             ),
@@ -323,7 +337,7 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                                 onPressed: busy
                                     ? null
                                     : () =>
-                                        _respond(offer: offer, accept: true),
+                                          _respond(offer: offer, accept: true),
                                 child: busy
                                     ? const SizedBox.square(
                                         dimension: 20,
@@ -364,8 +378,8 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
   }
 
   static IconData _rideIcon(String rideOptionId) => switch (rideOptionId) {
-        'boda' => Icons.two_wheeler_rounded,
-        'rickshaw' => Icons.electric_rickshaw_rounded,
-        _ => Icons.local_taxi_rounded,
-      };
+    'boda' => Icons.two_wheeler_rounded,
+    'rickshaw' => Icons.electric_rickshaw_rounded,
+    _ => Icons.local_taxi_rounded,
+  };
 }
