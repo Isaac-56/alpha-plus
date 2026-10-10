@@ -46,17 +46,17 @@ class _ActiveRides extends DriverActiveRideService {
 
   @override
   Map<String, dynamic>? completionForRide(String rideId) => <String, dynamic>{
-        'finalFare': 32700,
-        'waitingCharge': 200,
-        'platformFee': 3270,
-        'driverNetFare': 29430,
-        'receiptNumber': 'AR-TEST',
-      };
+    'finalFare': 32700,
+    'waitingCharge': 200,
+    'platformFee': 3270,
+    'driverNetFare': 29430,
+    'receiptNumber': 'AR-TEST',
+  };
 }
 
 class _Offers extends DriverRideOfferService {
   _Offers([this.offers = const <DriverRideOffer>[]])
-      : super(firestore: _Firestore(), functions: _Functions());
+    : super(firestore: _Firestore(), functions: _Functions());
   final List<DriverRideOffer> offers;
   @override
   Stream<List<DriverRideOffer>> watchPendingOffers(String driverId) =>
@@ -64,40 +64,46 @@ class _Offers extends DriverRideOfferService {
 }
 
 void main() {
-  testWidgets('expired offers disappear without waiting for a backend snapshot',
-      (WidgetTester tester) async {
-    final DriverRideOffer offer = DriverRideOffer(
-      rideId: 'ride-expiry',
-      status: 'pending',
-      pickupAddress: 'Pickup',
-      destinationAddress: 'Destination',
-      rideOptionId: 'standard',
-      requiredVehicleType: 'standard',
-      paymentMethod: 'cash',
-      estimatedFare: 15000,
-      currencyCode: 'SSP',
-      distanceToPickupMeters: 50,
-      expiresAt: DateTime.now().add(const Duration(seconds: 2)),
-    );
-    await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
+  testWidgets(
+    'expired offers disappear without waiting for a backend snapshot',
+    (WidgetTester tester) async {
+      final DriverRideOffer offer = DriverRideOffer(
+        rideId: 'ride-expiry',
+        status: 'pending',
+        pickupAddress: 'Pickup',
+        destinationAddress: 'Destination',
+        rideOptionId: 'standard',
+        requiredVehicleType: 'standard',
+        paymentMethod: 'cash',
+        estimatedFare: 15000,
+        currencyCode: 'SSP',
+        distanceToPickupMeters: 50,
+        expiresAt: DateTime.now().add(const Duration(seconds: 2)),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
             body: offers_layer.DriverRideOfferLayer(
-      driverId: 'driver-1',
-      service: _Offers(<DriverRideOffer>[offer]),
-      child: const Text('Available'),
-    ))));
-    await tester.pump();
-    expect(find.byKey(const Key('liveRideOfferCard')), findsOneWidget);
-    await tester.pump(const Duration(seconds: 3));
-    await tester.pump();
-    expect(find.byKey(const Key('liveRideOfferCard')), findsNothing);
-    expect(find.text('Available'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox());
-  });
+              driverId: 'driver-1',
+              service: _Offers(<DriverRideOffer>[offer]),
+              child: const Text('Available'),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('liveRideOfferCard')), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump();
+      expect(find.byKey(const Key('liveRideOfferCard')), findsNothing);
+      expect(find.text('Available'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets(
     'final fare survives active-pointer removal before completion response',
     (WidgetTester tester) async {
-      await tester.binding.setSurfaceSize(const Size(430, 950));
+      await tester.binding.setSurfaceSize(const Size(360, 640));
       final _ActiveRides service = _ActiveRides();
       await tester.pumpWidget(
         MaterialApp(
@@ -127,8 +133,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('End trip here'));
-      await tester.pumpAndSettle();
+      // The primary action must be tappable without scrolling the details.
+      expect(find.text('End trip here').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
       await tester.tap(find.text('End trip here'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'End trip here'));
