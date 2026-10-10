@@ -46,7 +46,7 @@ class DriverAvailabilityPolicy {
 
   // Keep this aligned with PRESENCE_FRESH_MS in the dispatch backend.
   static const Duration presenceFreshnessWindow = Duration(seconds: 90);
-  static const Duration heartbeatInterval = Duration(seconds: 30);
+  static const Duration heartbeatInterval = Duration(seconds: 15);
   // Match the backend presence window so a quick Online transition never
   // publishes a several-minutes-old position outside the passenger's radius.
   static const Duration cachedPositionMaximumAge = Duration(seconds: 90);
@@ -211,6 +211,7 @@ class DriverPresenceService {
   StreamSubscription<Position>? _positionSubscription;
   StreamSubscription<DatabaseEvent>? _connectionSubscription;
   Timer? _heartbeatTimer;
+  bool _reconcilingAvailability = false;
   Timer? _positionRestartTimer;
   int _positionRestartAttempts = 0;
   DatabaseReference? _activeReference;
@@ -733,6 +734,7 @@ class DriverPresenceService {
       position: position,
       heading: _lastPublishedHeading ?? 0,
     );
+    await _refreshHeartbeat(reference, presenceId);
   }
 
   void _startHeartbeat({
@@ -757,6 +759,26 @@ class DriverPresenceService {
     String presenceId,
   ) async {
     if (_activePresenceId != presenceId) return;
+
+    // Reconcile server ride locks while online, including after reconnects.
+    // A transient failure leaves presence online and retries next heartbeat.
+    if (!_reconcilingAvailability) {
+      _reconcilingAvailability = true;
+      unawaited(
+        _prepareAvailability()
+            .then((availability) {
+              if (_activePresenceId != presenceId) return;
+              _cachedAvailability = availability;
+              _cachedAvailabilityAt = DateTime.now();
+            })
+            .catchError((Object error) {
+              debugPrint(
+                'Unable to reconcile driver ride availability: $error',
+              );
+            })
+            .whenComplete(() => _reconcilingAvailability = false),
+      );
+    }
 
     await reference.runTransaction((Object? currentValue) {
       if (_activePresenceId != presenceId ||
