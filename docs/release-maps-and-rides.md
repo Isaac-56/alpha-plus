@@ -27,3 +27,7 @@ References: https://developers.google.com/maps/api-security-best-practices and h
 Deploy the coordinated alpharide backend before distributing this app. Completion keeps the ride layer mounted after its active pointer disappears and displays the server's final fare, fee, earnings and receipt. A current accurate location is required to end a trip; a stale cached endpoint must not change the customer's fare. Requests/active-ride streams stay stable during UI updates. Passenger photos come from the backend's profile snapshot at acceptance.
 
 Run flutter analyze and flutter test, including driver_completion_receipt_test.dart, then test accept/cancel/finish and immediate availability on two real phones. GitHub CI verifies the code and builds a bundle with a placeholder Maps key; it cannot validate real Maps authorization, Firebase deployment or device latency.
+
+## Shared backend rules
+
+Both apps use the same Firebase project. Deploy shared Firestore rules from the Alpha Ride backend repository. Keep the driver repository copy identical to that canonical file: older rules deny active_driver_rides reads and silently hide the accepted-trip controls. After deploying rules, restart both apps so failed listeners reconnect.
