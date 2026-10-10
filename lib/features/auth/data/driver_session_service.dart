@@ -101,7 +101,10 @@ class DriverSessionService {
     try {
       // A verified sign-in owns exactly one Alpha product role. Claiming here
       // also migrates sessions created by older app versions.
-      await DriverAccountRoleService.instance.claimDriverRole();
+      // A local session is only persisted after a successful role claim.
+      if (localSessionId == null) {
+        await DriverAccountRoleService.instance.claimDriverRole();
+      }
     } on FirebaseAuthException catch (error) {
       debugPrint('Unable to confirm the Alpha Plus account role: $error');
 
@@ -112,12 +115,27 @@ class DriverSessionService {
       }
     }
 
+    if (!forceServer && localSessionId != null) {
+      try {
+        final cached = await _sessionReference(uid)
+            .get(const GetOptions(source: Source.cache));
+        if (cached.exists &&
+            cached.data()?['activeSessionId'] == localSessionId) {
+          return true;
+        }
+      } on FirebaseException {
+        // Cache miss: validate with the server instead.
+      }
+    }
+
     try {
       final DocumentSnapshot<Map<String, dynamic>> snapshot = forceServer
-          ? await _sessionReference(
-              uid,
-            ).get(const GetOptions(source: Source.server))
-          : await _sessionReference(uid).get();
+          ? await _sessionReference(uid)
+                .get(const GetOptions(source: Source.server))
+                .timeout(const Duration(seconds: 6))
+          : await _sessionReference(uid)
+                .get()
+                .timeout(const Duration(seconds: 6));
       final String? remoteSessionId =
           snapshot.data()?['activeSessionId'] as String?;
 
@@ -140,6 +158,8 @@ class DriverSessionService {
       return localSessionId != null &&
           remoteSessionId != null &&
           localSessionId == remoteSessionId;
+    } on TimeoutException {
+      return localSessionId != null;
     } on FirebaseException catch (error) {
       debugPrint('Unable to validate the Alpha Plus session: $error');
 
