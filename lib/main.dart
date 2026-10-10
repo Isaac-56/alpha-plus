@@ -13,7 +13,6 @@ import 'features/auth/presentation/biometric_opt_in_screen.dart';
 import 'features/auth/presentation/driver_biometric_gate.dart';
 import 'features/auth/presentation/driver_name_screen.dart';
 import 'features/auth/presentation/phone_login_screen.dart';
-import 'features/auth/presentation/splash_screen.dart';
 import 'features/dashboard/data/driver_presence_service.dart';
 import 'features/dashboard/presentation/driver_shell.dart';
 import 'features/notifications/data/driver_push_notification_service.dart';
@@ -95,9 +94,7 @@ class _AlphaPlusAppState extends State<AlphaPlusApp> {
     if (!mounted || uid == _activeUid) return;
     if (_activeUid != null && Firebase.apps.isNotEmpty) {
       unawaited(DriverPresenceService.instance.goOffline());
-      unawaited(
-        DriverPushNotificationService.instance.stop(unregister: true),
-      );
+      unawaited(DriverPushNotificationService.instance.stop(unregister: true));
     }
     // Discard ALL routes on sign-in, logout, or account replacement. Merely
     // changing the home widget leaves pushed private pages on the old stack.
@@ -164,17 +161,12 @@ class AppBootstrap extends StatefulWidget {
 }
 
 class _AppBootstrapState extends State<AppBootstrap> {
-  late final Future<void> _minimumSplashDuration;
   DriverAuthService? _authService;
   DriverProfileStore? _profileStore;
 
   @override
   void initState() {
     super.initState();
-    _minimumSplashDuration = Future<void>.delayed(
-      const Duration(milliseconds: 900),
-    );
-
     if (widget.firebaseInitializationError == null) {
       _authService = FirebaseDriverAuthService();
       _profileStore = FirebaseDriverProfileStore();
@@ -183,47 +175,32 @@ class _AppBootstrapState extends State<AppBootstrap> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<void>(
-      future: _minimumSplashDuration,
-      builder: (BuildContext context, AsyncSnapshot<void> splashSnapshot) {
-        if (splashSnapshot.connectionState != ConnectionState.done) {
-          return const SplashScreen(automaticallyNavigate: false);
+    if (widget.firebaseInitializationError != null ||
+        _authService == null ||
+        _profileStore == null) {
+      return const _FirebaseSetupScreen();
+    }
+    return StreamBuilder<String?>(
+      stream: _authService!.userIdChanges,
+      initialData: _authService!.currentUserId,
+      builder: (BuildContext context, AsyncSnapshot<String?> authSnapshot) {
+        if (authSnapshot.connectionState == ConnectionState.waiting &&
+            authSnapshot.data == null) {
+          return const _StartupProgress();
         }
-
-        if (widget.firebaseInitializationError != null ||
-            _authService == null ||
-            _profileStore == null) {
-          return const _FirebaseSetupScreen();
-        }
-
-        return StreamBuilder<String?>(
-          stream: _authService!.userIdChanges,
-          initialData: _authService!.currentUserId,
-          builder: (BuildContext context, AsyncSnapshot<String?> authSnapshot) {
-            if (authSnapshot.connectionState == ConnectionState.waiting &&
-                authSnapshot.data == null) {
-              return const _StartupProgress();
-            }
-
-            final String? userId = authSnapshot.data;
-            if (userId == null) {
-              return PhoneLoginScreen(authService: _authService!);
-            }
-
-            final String phoneNumber = _authService!.currentPhoneNumber ?? '';
-
-            return _DriverSessionGate(
-              key: ValueKey<String>('driver-session-$userId'),
-              userId: userId,
-              phoneNumber: phoneNumber,
-              child: _DriverProfileGate(
-                userId: userId,
-                phoneNumber: phoneNumber,
-                authService: _authService!,
-                profileStore: _profileStore!,
-              ),
-            );
-          },
+        final String? userId = authSnapshot.data;
+        if (userId == null) return PhoneLoginScreen(authService: _authService!);
+        final String phoneNumber = _authService!.currentPhoneNumber ?? '';
+        return _DriverSessionGate(
+          key: ValueKey<String>('driver-session-$userId'),
+          userId: userId,
+          phoneNumber: phoneNumber,
+          child: _DriverProfileGate(
+            userId: userId,
+            phoneNumber: phoneNumber,
+            authService: _authService!,
+            profileStore: _profileStore!,
+          ),
         );
       },
     );
@@ -259,7 +236,7 @@ class _DriverSessionGateState extends State<_DriverSessionGate>
     _initialValidation = DriverSessionService.instance.validateExistingSession(
       uid: widget.userId,
       phoneNumber: widget.phoneNumber,
-      forceServer: true,
+      forceServer: false,
     );
   }
 

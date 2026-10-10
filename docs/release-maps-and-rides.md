@@ -31,3 +31,7 @@ Run flutter analyze and flutter test, including driver_completion_receipt_test.d
 ## Shared backend rules
 
 Both apps use the same Firebase project. Deploy shared Firestore rules from the Alpha Ride backend repository. Keep the driver repository copy identical to that canonical file: older rules deny active_driver_rides reads and silently hide the accepted-trip controls. After deploying rules, restart both apps so failed listeners reconnect.
+
+## Returning startup
+
+Fixed splash waiting has been removed. A returning verified session uses a matching local cached session while the server session listener remains authoritative for login replacement. Fresh sessions still validate the account role and session. Server session reads have a six-second bound with the existing temporary-outage policy; an existing local session is not silently logged out by a slow network. Rebuild this APK to use the startup changes.
