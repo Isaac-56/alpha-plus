@@ -132,6 +132,7 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
           await showDialog<void>(
             context: context,
             builder: (BuildContext context) => AlertDialog(
+              scrollable: true,
               title: const Text('Trip completed'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,

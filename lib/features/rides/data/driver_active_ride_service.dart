@@ -30,6 +30,7 @@ class DriverActiveRide {
     this.customerPhone = '',
     this.customerNote = '',
     this.customerPhotoUrl = '',
+    this.liveDistanceFare,
     this.isWaiting = false,
     this.waitingStartedAt,
     this.waitingSeconds = 0,
@@ -59,6 +60,7 @@ class DriverActiveRide {
   final String customerPhone;
   final String customerNote;
   final String customerPhotoUrl;
+  final int? liveDistanceFare;
   final bool isWaiting;
   final DateTime? waitingStartedAt;
   final int waitingSeconds;
@@ -71,29 +73,29 @@ class DriverActiveRide {
   bool get isPhoneBooking => bookingSource == 'call_center';
 
   String? get nextStatus => switch (status) {
-        'accepted' => 'driver_arriving',
-        'driver_arriving' => 'arrived',
-        'arrived' => 'in_progress',
-        'in_progress' => 'completed',
-        _ => null,
-      };
+    'accepted' => 'driver_arriving',
+    'driver_arriving' => 'arrived',
+    'arrived' => 'in_progress',
+    'in_progress' => 'completed',
+    _ => null,
+  };
 
   String get statusLabel => switch (status) {
-        'accepted' => 'Ride accepted',
-        'driver_arriving' => 'Driving to pickup',
-        'arrived' => 'At the pickup point',
-        'in_progress' => 'Trip in progress',
-        'completed' => 'Trip completed',
-        _ => 'Ride update',
-      };
+    'accepted' => 'Ride accepted',
+    'driver_arriving' => 'Driving to pickup',
+    'arrived' => 'At the pickup point',
+    'in_progress' => 'Trip in progress',
+    'completed' => 'Trip completed',
+    _ => 'Ride update',
+  };
 
   String get actionLabel => switch (status) {
-        'accepted' => 'Start pickup route',
-        'driver_arriving' => "I've arrived",
-        'arrived' => 'Start trip',
-        'in_progress' => 'End trip here',
-        _ => 'Update ride',
-      };
+    'accepted' => 'Start pickup route',
+    'driver_arriving' => "I've arrived",
+    'arrived' => 'Start trip',
+    'in_progress' => 'End trip here',
+    _ => 'Update ride',
+  };
 
   int waitingSecondsAt(DateTime now) {
     if (!isWaiting || waitingStartedAt == null) return waitingSeconds;
@@ -125,7 +127,11 @@ class DriverActiveRide {
     return (raw / 100).ceil() * 100;
   }
 
-  int fareAt(DateTime now) => estimatedFare + waitingChargeAt(now);
+  int fareAt(DateTime now) =>
+      (status == 'in_progress'
+          ? liveDistanceFare ?? estimatedFare
+          : estimatedFare) +
+      waitingChargeAt(now);
 
   factory DriverActiveRide.fromMap({
     required String rideId,
@@ -166,6 +172,12 @@ class DriverActiveRide {
       customerPhone: _optionalValue(data['customerPhone']),
       customerNote: _optionalValue(data['customerNote']),
       customerPhotoUrl: _optionalValue(data['customerPhotoUrl']),
+      liveDistanceFare: data['liveDistanceFare'] is num
+          ? (data['liveDistanceFare'] as num)
+                .toInt()
+                .clamp(0, 1000000000)
+                .toInt()
+          : null,
       isWaiting: data['isWaiting'] == true,
       waitingStartedAt: _optionalTimestamp(data['waitingStartedAt']),
       waitingSeconds: _nonNegativeInt(data['waitingSeconds']),
@@ -184,9 +196,9 @@ class DriverActiveRideService {
   DriverActiveRideService({
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _functions =
-            functions ?? FirebaseFunctions.instanceFor(region: 'africa-south1');
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _functions =
+           functions ?? FirebaseFunctions.instanceFor(region: 'africa-south1');
 
   static final DriverActiveRideService instance = DriverActiveRideService();
 
@@ -211,10 +223,12 @@ class DriverActiveRideService {
         .doc(normalized)
         .snapshots()
         .map((DocumentSnapshot<Map<String, dynamic>> snapshot) {
-      if (!snapshot.exists) return null;
-      final Object? value = snapshot.data()?['rideId'];
-      return value is String && value.trim().isNotEmpty ? value.trim() : null;
-    });
+          if (!snapshot.exists) return null;
+          final Object? value = snapshot.data()?['rideId'];
+          return value is String && value.trim().isNotEmpty
+              ? value.trim()
+              : null;
+        });
   }
 
   Stream<DriverActiveRide?> watchRide(String rideId) {
@@ -293,20 +307,21 @@ class DriverActiveRideService {
     await stopProgressTracking();
     _trackedRideId = normalized;
 
-    _trackingSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    ).listen(
-      (Position position) {
-        _lastTrackedPosition = position;
-        unawaited(_recordProgress(normalized, position));
-      },
-      onError: (Object error) {
-        debugPrint('Active trip distance tracking paused: $error');
-      },
-    );
+    _trackingSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen(
+          (Position position) {
+            _lastTrackedPosition = position;
+            unawaited(_recordProgress(normalized, position));
+          },
+          onError: (Object error) {
+            debugPrint('Active trip distance tracking paused: $error');
+          },
+        );
   }
 
   Future<void> stopProgressTracking([String? rideId]) async {
@@ -352,7 +367,8 @@ class DriverActiveRideService {
       );
       if (!position.accuracy.isFinite || position.accuracy > 100) {
         throw const DriverRideLifecycleException(
-            'Location is not accurate enough to end this trip.');
+          'Location is not accurate enough to end this trip.',
+        );
       }
       return position;
     } on Object {

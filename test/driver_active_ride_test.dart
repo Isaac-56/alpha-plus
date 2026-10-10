@@ -3,6 +3,32 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'running fare uses trusted distance fare, including zero, and waiting',
+    () {
+      for (final int distanceFare in <int>[0, 1700, 25000]) {
+        final ride = DriverActiveRide.fromMap(
+          rideId: 'ride',
+          data: <String, dynamic>{
+            'status': 'in_progress',
+            'driverId': 'driver',
+            'driverSummary': null,
+            'pickup': <String, dynamic>{'address': 'Pickup'},
+            'destination': <String, dynamic>{'address': 'Destination'},
+            'rideOptionId': 'standard',
+            'paymentMethod': 'cash',
+            'estimatedFare': 20000,
+            'finalFare': null,
+            'currencyCode': 'SSP',
+            'liveDistanceFare': distanceFare,
+            'waitingCharge': 300,
+          },
+        );
+        expect(ride.fareAt(DateTime(2026)), distanceFare + 300);
+      }
+    },
+  );
+
   test('active ride parses trusted backend fields and lifecycle action', () {
     final DriverActiveRide ride = DriverActiveRide.fromMap(
       rideId: 'ride-123',
@@ -28,17 +54,17 @@ void main() {
 
   test('lifecycle action advances through every driver stage', () {
     DriverActiveRide rideFor(String status) => DriverActiveRide.fromMap(
-          rideId: 'ride-123',
-          data: <String, dynamic>{
-            'status': status,
-            'pickup': <String, dynamic>{'address': 'Pickup'},
-            'destination': <String, dynamic>{'address': 'Destination'},
-            'rideOptionId': 'boda',
-            'paymentMethod': 'cash',
-            'estimatedFare': 4000,
-            'currencyCode': 'SSP',
-          },
-        );
+      rideId: 'ride-123',
+      data: <String, dynamic>{
+        'status': status,
+        'pickup': <String, dynamic>{'address': 'Pickup'},
+        'destination': <String, dynamic>{'address': 'Destination'},
+        'rideOptionId': 'boda',
+        'paymentMethod': 'cash',
+        'estimatedFare': 4000,
+        'currencyCode': 'SSP',
+      },
+    );
 
     expect(rideFor('driver_arriving').nextStatus, 'arrived');
     expect(rideFor('arrived').nextStatus, 'in_progress');
