@@ -264,6 +264,7 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
         if (activeSnapshot.hasError || rideId == null) return widget.child;
 
         if (_watchedRideId != rideId) {
+          _passengerPhotos.clear();
           _watchedRideId = rideId;
           _rideUpdates = _rides.watchRide(rideId);
         }
