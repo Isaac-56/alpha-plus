@@ -58,9 +58,31 @@ class DriverPhotoCheckPolicy {
     required int faceCount,
     DriverFaceMetrics? faceMetrics,
   }) {
-    final List<String> issues = imageQuality.issues
-        .map(_makeIssueRelevantToFacePhoto)
-        .toList();
+    final List<String> issues = <String>[];
+    final DocumentQualityMetrics? metrics = imageQuality.metrics;
+    if (metrics == null) {
+      issues.add('The photo could not be opened. Please retake it.');
+    } else {
+      if (metrics.fileBytes < 4096 ||
+          metrics.fileBytes > 12 * 1024 * 1024 ||
+          math.min(metrics.width, metrics.height) < 240 ||
+          math.max(metrics.width, metrics.height) < 320) {
+        issues.add(
+          'The photo needs a little more detail. Move closer and retake.',
+        );
+      }
+      if ((metrics.brightness < 18 && metrics.darkPixelRatio > 0.92) ||
+          (metrics.brightness > 245 && metrics.brightPixelRatio > 0.95)) {
+        issues.add(
+          'Your face is not visible enough. Try a light nearby without direct glare.',
+        );
+      }
+      if (metrics.sharpness < 0.8) {
+        issues.add(
+          'The photo is very blurry. Hold the phone steady and retake.',
+        );
+      }
+    }
 
     if (faceCount == 0) {
       issues.add('No face was found. Look directly at the camera and retake.');
@@ -73,24 +95,26 @@ class DriverPhotoCheckPolicy {
         'The face position could not be checked. Please retake the photo.',
       );
     } else {
-      if (faceMetrics.coverage < 0.07) {
+      if (faceMetrics.coverage < 0.04) {
         issues.add('Your face is too far away. Move closer to the camera.');
-      } else if (faceMetrics.coverage > 0.58) {
+      } else if (faceMetrics.coverage > 0.78) {
         issues.add(
           'Your face is too close. Move the phone slightly farther away.',
         );
       }
 
-      if (faceMetrics.headYaw.abs() > 18 ||
-          faceMetrics.headPitch.abs() > 18 ||
-          faceMetrics.headRoll.abs() > 15) {
+      if (faceMetrics.headYaw.abs() > 35 ||
+          faceMetrics.headPitch.abs() > 35 ||
+          faceMetrics.headRoll.abs() > 30) {
         issues.add('Keep your head straight and look directly at the camera.');
       }
 
       final double? leftEye = faceMetrics.leftEyeOpenProbability;
       final double? rightEye = faceMetrics.rightEyeOpenProbability;
-      if ((leftEye != null && leftEye < 0.35) ||
-          (rightEye != null && rightEye < 0.35)) {
+      if (leftEye != null &&
+          rightEye != null &&
+          leftEye < 0.12 &&
+          rightEye < 0.12) {
         issues.add(
           'Keep both eyes open and remove anything covering your face.',
         );
@@ -105,12 +129,6 @@ class DriverPhotoCheckPolicy {
       faceMetrics: faceMetrics,
       imageMetrics: imageQuality.metrics,
     );
-  }
-
-  static String _makeIssueRelevantToFacePhoto(String issue) {
-    return issue
-        .replaceAll('licence text', 'face')
-        .replaceAll('licence', 'face');
   }
 }
 
@@ -127,7 +145,7 @@ class MlKitDriverPhotoCheckAnalyzer implements DriverPhotoCheckAnalyzer {
                performanceMode: FaceDetectorMode.accurate,
                enableClassification: true,
                enableLandmarks: true,
-               minFaceSize: 0.16,
+               minFaceSize: 0.10,
              ),
            );
 
@@ -257,17 +275,17 @@ class FirebaseDriverPhotoCheckRepository implements DriverPhotoCheckRepository {
     await imageReference.putFile(File(imagePath), metadata);
 
     try {
-      await _firestore
-          .collection('driver_photo_checks')
-          .doc(driverId)
-          .set(<String, dynamic>{
-            'driverId': driverId,
-            'storagePath': imageReference.fullPath,
-            'status': 'pending',
-            'automatedScreeningPassed': true,
-            'submittedAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+      await _firestore.collection('driver_photo_checks').doc(driverId).set(
+        <String, dynamic>{
+          'driverId': driverId,
+          'storagePath': imageReference.fullPath,
+          'status': 'pending',
+          'automatedScreeningPassed': true,
+          'submittedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
     } on Object {
       try {
         await imageReference.delete();

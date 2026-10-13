@@ -31,8 +31,7 @@ class BalanceLimitScreen extends StatelessWidget {
         children: <Widget>[
           const _NoticeCard(
             icon: Icons.info_outline_rounded,
-            text:
-                'Alpha records a 10% platform fee on every newly completed cash ride. You retain 90% as driver earnings.',
+            text: 'Alpha records a 10% platform fee on every newly completed cash ride. You retain 90% as driver earnings.',
           ),
           const SizedBox(height: 20),
           Text(
@@ -81,8 +80,7 @@ class DriverServicesScreen extends StatelessWidget {
           const SizedBox(height: 24),
           _NoticeCard(
             icon: Icons.info_outline_rounded,
-            text:
-                'Your available services are assigned after your vehicle and documents have been approved.',
+            text: 'Your available services are assigned after your vehicle and documents have been approved.',
           ),
         ],
       ),
@@ -173,8 +171,7 @@ class PartnerScreen extends StatelessWidget {
           SizedBox(height: 16),
           _NoticeCard(
             icon: Icons.verified_user_outlined,
-            text:
-                'Partner information is verified by Alpha Plus. Contact Support if these details are incorrect.',
+            text: 'Partner information is verified by Alpha Plus. Contact Support if these details are incorrect.',
           ),
         ],
       ),
@@ -357,8 +354,7 @@ class _PhotoCheckScreenState extends State<PhotoCheckScreen> {
       if (mounted) {
         setState(() {
           _isLoadingStatus = false;
-          _errorMessage =
-              'Previous photo-check status could not be loaded. You can still take a new photo.';
+          _errorMessage = 'Previous photo-check status could not be loaded. You can still take a new photo.';
         });
       }
     }
@@ -395,8 +391,7 @@ class _PhotoCheckScreenState extends State<PhotoCheckScreen> {
       if (mounted) {
         setState(() {
           _errorMessage = switch (error.code) {
-            'camera_access_denied' =>
-              'Camera access is disabled. Allow Camera in device settings and try again.',
+            'camera_access_denied' => 'Camera access is disabled. Allow Camera in device settings and try again.',
             _ => 'The camera could not be opened. Please try again.',
           };
         });
@@ -475,8 +470,7 @@ class _PhotoCheckScreenState extends State<PhotoCheckScreen> {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
-          _errorMessage =
-              'The photo could not be submitted. Check your connection and try again.';
+          _errorMessage = 'The photo could not be submitted. Check your connection and try again.';
         });
       }
     }
@@ -688,8 +682,7 @@ class _PhotoCheckScreenState extends State<PhotoCheckScreen> {
             Icons.error_outline_rounded,
             Colors.orange,
             'A new photo is needed',
-            submission.reviewerMessage ??
-                'The previous photo could not be approved. Retake it using the instructions below.',
+            submission.reviewerMessage ?? 'The previous photo could not be approved. Retake it using the instructions below.',
           )
         : (
             Icons.schedule_rounded,
@@ -750,7 +743,9 @@ class _PhotoCheckScreenState extends State<PhotoCheckScreen> {
           ),
           const SizedBox(height: 18),
           const _ChecklistRow(text: 'Only the driver is visible'),
-          const _ChecklistRow(text: 'Use good, even lighting'),
+          const _ChecklistRow(
+            text: 'Indoor light is fine when your face is visible',
+          ),
           const _ChecklistRow(text: 'Remove hats and sunglasses'),
           const _ChecklistRow(text: 'Look straight at the camera'),
           if (_result != null && _result!.issues.isNotEmpty) ...<Widget>[
@@ -783,8 +778,7 @@ class _PhotoCheckScreenState extends State<PhotoCheckScreen> {
           const SizedBox(height: 20),
           _NoticeCard(
             icon: Icons.shield_outlined,
-            text:
-                'Automatic screening checks image quality, framing, and that one usable face is present. Final approval is completed by the Alpha Plus review team.',
+            text: 'Automatic screening checks image quality, framing, and that one usable face is present. Final approval is completed by the Alpha Plus review team.',
           ),
         ],
       ),
@@ -875,15 +869,13 @@ class DriverSettingsScreen extends StatelessWidget {
           const _InformationCard(
             icon: Icons.notifications_active_outlined,
             title: 'Trip request alerts',
-            subtitle:
-                'Alerts depend on device permission, driver availability, and connected trip services.',
+            subtitle: 'Alerts depend on device permission, driver availability, and connected trip services.',
           ),
           const SizedBox(height: 12),
           const _InformationCard(
             icon: Icons.volume_up_outlined,
             title: 'Alert sounds',
-            subtitle:
-                'Sound controls will be enabled with verified trip-alert delivery.',
+            subtitle: 'Sound controls will be enabled with verified trip-alert delivery.',
             enabled: false,
             trailing: _StatusPill(label: 'Soon', muted: true),
           ),
@@ -934,36 +926,31 @@ class PrivacySecurityScreen extends StatelessWidget {
           _InformationCard(
             icon: Icons.devices_rounded,
             title: 'Active driver session',
-            subtitle:
-                'Alpha Plus is designed to keep one active driver session per account. A newer login can sign the older device out.',
+            subtitle: 'Alpha Plus is designed to keep one active driver session per account. A newer login can sign the older device out.',
             trailing: _StatusPill(label: 'Protected'),
           ),
           SizedBox(height: 12),
           _InformationCard(
             icon: Icons.fingerprint_rounded,
             title: 'Quick unlock',
-            subtitle:
-                'Biometric quick unlock is optional and applies only to this device. It does not replace backend account authorization.',
+            subtitle: 'Biometric quick unlock is optional and applies only to this device. It does not replace backend account authorization.',
           ),
           SizedBox(height: 12),
           _InformationCard(
             icon: Icons.location_on_outlined,
             title: 'Driver location',
-            subtitle:
-                'Location permissions are used for driver availability and positioning while the driver service is active.',
+            subtitle: 'Location permissions are used for driver availability and positioning while the driver service is active.',
           ),
           SizedBox(height: 12),
           _InformationCard(
             icon: Icons.badge_outlined,
             title: 'Documents and photo checks',
-            subtitle:
-                'Submitted driver documents and photo checks are uploaded for account verification. Final approval remains a review decision.',
+            subtitle: 'Submitted driver documents and photo checks are uploaded for account verification. Final approval remains a review decision.',
           ),
           SizedBox(height: 20),
           _NoticeCard(
             icon: Icons.password_rounded,
-            text:
-                'Never share an OTP or sign-in code. Full production privacy notices, retention rules, account deletion, and deployed security rules must be verified before public launch.',
+            text: 'Never share an OTP or sign-in code. Full production privacy notices, retention rules, account deletion, and deployed security rules must be verified before public launch.',
           ),
         ],
       ),
@@ -1009,8 +996,7 @@ class SupportConversationScreen extends StatelessWidget {
           const SizedBox(height: 24),
           const _NoticeCard(
             icon: Icons.info_outline_rounded,
-            text:
-                'No message typed in this build would be sent to a support team. Use the existing approved Alpha Plus support channel until in-app messaging is connected.',
+            text: 'No message typed in this build would be sent to a support team. Use the existing approved Alpha Plus support channel until in-app messaging is connected.',
           ),
           const SizedBox(height: 18),
           _ActionTile(
@@ -1026,15 +1012,13 @@ class SupportConversationScreen extends StatelessWidget {
           const _InformationCard(
             icon: Icons.assignment_outlined,
             title: 'When reporting a problem',
-            subtitle:
-                'Include the screen name, what you expected, what happened, and whether the issue repeats after reopening the app.',
+            subtitle: 'Include the screen name, what you expected, what happened, and whether the issue repeats after reopening the app.',
           ),
           const SizedBox(height: 12),
           const _InformationCard(
             icon: Icons.security_rounded,
             title: 'Protect your account',
-            subtitle:
-                'Support should never ask you to share an OTP, password, or unrestricted API key.',
+            subtitle: 'Support should never ask you to share an OTP, password, or unrestricted API key.',
           ),
         ],
       ),
@@ -1113,20 +1097,20 @@ class _DetailScaffold extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
                       child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    AlphaFlowHeader(
-                      title: title,
-                      compact: true,
-                      leading: const AlphaBackButton(),
-                      trailing: const AlphaStatusPill(
-                        label: 'Driver',
-                        icon: Icons.verified_user_outlined,
-                      ),
-                    ),
-                    const SizedBox(height: 26),
-                    child,
-                  ],
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          AlphaFlowHeader(
+                            title: title,
+                            compact: true,
+                            leading: const AlphaBackButton(),
+                            trailing: const AlphaStatusPill(
+                              label: 'Driver',
+                              icon: Icons.verified_user_outlined,
+                            ),
+                          ),
+                          const SizedBox(height: 26),
+                          child,
+                        ],
                       ),
                     ),
                   ),

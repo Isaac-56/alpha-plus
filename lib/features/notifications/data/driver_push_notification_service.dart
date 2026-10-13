@@ -102,12 +102,30 @@ class DriverPushNotificationService {
     }
   }
 
-  Future<void> _register(String driverId, String token) async {
-    if (_driverId != driverId || token == _registeredToken) return;
+  Future<void> _register(
+    String driverId,
+    String token, {
+    bool force = false,
+  }) async {
+    if (_driverId != driverId || (!force && token == _registeredToken)) return;
     await _functions.httpsCallable('registerDriverPushToken').call<void>(
       <String, dynamic>{'token': token},
     );
     if (_driverId == driverId) _registeredToken = token;
+  }
+
+  Future<void> refreshRegistration() async {
+    final String? driverId = _driverId;
+    if (driverId == null) return;
+    try {
+      final NotificationSettings settings = await _messaging
+          .getNotificationSettings();
+      if (settings.authorizationStatus == AuthorizationStatus.denied) return;
+      final String? token = await _messaging.getToken();
+      if (token != null) await _register(driverId, token, force: true);
+    } on Object catch (error) {
+      debugPrint('Unable to refresh driver notification registration: $error');
+    }
   }
 
   Future<void> stop({bool unregister = false}) async {

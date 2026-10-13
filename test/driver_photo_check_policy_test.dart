@@ -38,6 +38,32 @@ void main() {
     expect(result.issues, isEmpty);
   });
 
+  test('accepts a visible indoor selfie from an older camera despite licence quality rejection', () {
+    const DocumentQualityMetrics indoor = DocumentQualityMetrics(
+      fileBytes: 18000,
+      width: 480,
+      height: 640,
+      brightness: 32,
+      contrast: 10,
+      sharpness: 2,
+      darkPixelRatio: 0.7,
+      brightPixelRatio: 0,
+    );
+    final DriverPhotoCheckResult result = DriverPhotoCheckPolicy.evaluate(
+      imageQuality: DocumentQualityPolicy.evaluate(indoor),
+      faceCount: 1,
+      faceMetrics: const DriverFaceMetrics(
+        coverage: 0.1,
+        headPitch: 20,
+        headYaw: 22,
+        headRoll: 18,
+        leftEyeOpenProbability: 0.3,
+        rightEyeOpenProbability: 0.25,
+      ),
+    );
+    expect(result.accepted, isTrue);
+  });
+
   test('rejects a photo with no face', () {
     final DriverPhotoCheckResult result = DriverPhotoCheckPolicy.evaluate(
       imageQuality: clearImage,
@@ -62,7 +88,7 @@ void main() {
     const DriverFaceMetrics poorFace = DriverFaceMetrics(
       coverage: 0.03,
       headPitch: 4,
-      headYaw: 29,
+      headYaw: 50,
       headRoll: 2,
       leftEyeOpenProbability: 0.9,
       rightEyeOpenProbability: 0.92,

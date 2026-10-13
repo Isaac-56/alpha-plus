@@ -5,6 +5,9 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../dashboard/data/driver_presence_service.dart';
+import '../../notifications/data/driver_push_notification_service.dart';
+
 class DriverRideLifecycleException implements Exception {
   const DriverRideLifecycleException(this.message, {this.code});
 
@@ -214,6 +217,23 @@ class DriverActiveRideService {
   Map<String, dynamic>? completionForRide(String rideId) =>
       _completedRideId == rideId ? _completion : null;
 
+  Future<String?> getAssignedPassengerPhoto(String rideId) async {
+    try {
+      final HttpsCallableResult<dynamic> result = await _functions
+          .httpsCallable('getAssignedPassengerPhoto')
+          .call<dynamic>(<String, dynamic>{'rideId': rideId});
+      final Object? data = result.data;
+      if (data is Map &&
+          data['imageBase64'] is String &&
+          (data['imageBase64'] as String).isNotEmpty) {
+        return 'data:${data['contentType'] ?? 'image/jpeg'};base64,${data['imageBase64']}';
+      }
+    } on Object catch (error) {
+      debugPrint('Unable to load assigned passenger photo: $error');
+    }
+    return null;
+  }
+
   Stream<String?> watchActiveRideId(String driverId) {
     final String normalized = driverId.trim();
     if (normalized.isEmpty) return Stream<String?>.value(null);
@@ -267,7 +287,23 @@ class DriverActiveRideService {
         _completedRideId = rideId;
         _completion = Map<String, dynamic>.from(result.data as Map);
       }
-      if (status == 'completed') await stopProgressTracking(rideId);
+      if (status == 'completed') {
+        await stopProgressTracking(rideId);
+        unawaited(
+          Future<void>.sync(
+            () => DriverPushNotificationService.instance.refreshRegistration(),
+          ),
+        );
+        unawaited(
+          Future<void>.sync(
+            () => DriverPresenceService.instance.refreshAvailability(),
+          ).catchError((Object error) {
+            debugPrint(
+              'Driver availability refresh after completion failed: $error',
+            );
+          }),
+        );
+      }
     } on FirebaseFunctionsException catch (error) {
       // A lost callable response must not hide a trip already committed by the server.
       if (status == 'completed') {

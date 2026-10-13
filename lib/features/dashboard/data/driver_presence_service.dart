@@ -69,13 +69,9 @@ class DriverAvailabilityPolicy {
     required bool isOnline,
     required bool walletLoaded,
     required bool walletCanGoOnline,
-  }) =>
-      isOnline && walletLoaded && !walletCanGoOnline;
+  }) => isOnline && walletLoaded && !walletCanGoOnline;
 
-  static bool isPresenceFresh(
-    int? updatedAt, {
-    int? nowMilliseconds,
-  }) {
+  static bool isPresenceFresh(int? updatedAt, {int? nowMilliseconds}) {
     if (updatedAt == null) return false;
 
     final int age =
@@ -83,10 +79,7 @@ class DriverAvailabilityPolicy {
     return age >= 0 && age <= presenceFreshnessWindow.inMilliseconds;
   }
 
-  static bool isCachedPositionFresh(
-    DateTime? timestamp, {
-    DateTime? now,
-  }) {
+  static bool isCachedPositionFresh(DateTime? timestamp, {DateTime? now}) {
     if (timestamp == null) return false;
     final Duration age = (now ?? DateTime.now()).difference(timestamp);
     return !age.isNegative && age <= cachedPositionMaximumAge;
@@ -110,9 +103,7 @@ class DriverAvailabilityPolicy {
     if (rawOnline is num) return rawOnline != 0;
 
     final String normalized = rawOnline?.toString().toLowerCase().trim() ?? '';
-    return normalized == 'true' ||
-        normalized == 'online' ||
-        normalized == '1';
+    return normalized == 'true' || normalized == 'online' || normalized == '1';
   }
 
   static String normalizedVehicleType(String vehicleType) {
@@ -161,9 +152,11 @@ class DriverHeadingPolicy {
   }) {
     final bool hasPreviousHeading =
         previousHeading != null && previousHeading.isFinite;
-    final bool movedEnough = movementMeters.isFinite &&
+    final bool movedEnough =
+        movementMeters.isFinite &&
         movementMeters >= minimumBearingMovementMeters;
-    final bool hasReliableReportedHeading = reportedHeading.isFinite &&
+    final bool hasReliableReportedHeading =
+        reportedHeading.isFinite &&
         reportedHeading >= 0 &&
         reportedHeading <= 360 &&
         reportedHeadingAccuracy.isFinite &&
@@ -198,9 +191,9 @@ class DriverPresenceService {
     FirebaseDatabase? database,
     FirebaseFunctions? functions,
   }) : _auth = auth ?? FirebaseAuth.instance,
-      _database = database ?? FirebaseDatabase.instance,
-      _functions = functions ??
-          FirebaseFunctions.instanceFor(region: 'africa-south1');
+       _database = database ?? FirebaseDatabase.instance,
+       _functions =
+           functions ?? FirebaseFunctions.instanceFor(region: 'africa-south1');
 
   static final DriverPresenceService instance = DriverPresenceService();
 
@@ -258,11 +251,11 @@ class DriverPresenceService {
     }
 
     await Future.wait<void>(<Future<void>>[
-      _availabilityForOnlineAttempt().then<void>((_) {}).catchError(
-        (Object error) {
-          debugPrint('Unable to preflight driver availability: $error');
-        },
-      ),
+      _availabilityForOnlineAttempt().then<void>((_) {}).catchError((
+        Object error,
+      ) {
+        debugPrint('Unable to preflight driver availability: $error');
+      }),
       _prewarmPosition(),
     ]);
   }
@@ -463,8 +456,8 @@ class DriverPresenceService {
       return cached;
     }
 
-    final Future<PreparedDriverAvailability> request =
-        _availabilityInFlight ??= _prepareAvailability();
+    final Future<PreparedDriverAvailability> request = _availabilityInFlight ??=
+        _prepareAvailability();
     try {
       final PreparedDriverAvailability prepared = await request;
       _cachedAvailability = prepared;
@@ -553,46 +546,45 @@ class DriverPresenceService {
 
     if (_activePresenceId != presenceId) return;
 
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: settings,
-    ).listen(
-      (Position position) {
-        _positionRestartTimer?.cancel();
-        _positionRestartTimer = null;
-        _positionRestartAttempts = 0;
+    _positionSubscription =
+        Geolocator.getPositionStream(locationSettings: settings).listen(
+          (Position position) {
+            _positionRestartTimer?.cancel();
+            _positionRestartTimer = null;
+            _positionRestartAttempts = 0;
 
-        final double heading = _resolveHeading(position);
-        unawaited(
-          _publishPosition(
-            reference: reference,
-            presenceId: presenceId,
-            vehicleType: vehicleType,
-            position: position,
-            heading: heading,
-          ).catchError((Object error) {
-            debugPrint('Unable to publish the driver location: $error');
-          }),
+            final double heading = _resolveHeading(position);
+            unawaited(
+              _publishPosition(
+                reference: reference,
+                presenceId: presenceId,
+                vehicleType: vehicleType,
+                position: position,
+                heading: heading,
+              ).catchError((Object error) {
+                debugPrint('Unable to publish the driver location: $error');
+              }),
+            );
+          },
+          onError: (Object error) {
+            debugPrint('Driver location stream paused: $error');
+            _schedulePositionRestart(
+              reference: reference,
+              presenceId: presenceId,
+              vehicleType: vehicleType,
+              settings: settings,
+            );
+          },
+          onDone: () {
+            _schedulePositionRestart(
+              reference: reference,
+              presenceId: presenceId,
+              vehicleType: vehicleType,
+              settings: settings,
+            );
+          },
+          cancelOnError: true,
         );
-      },
-      onError: (Object error) {
-        debugPrint('Driver location stream paused: $error');
-        _schedulePositionRestart(
-          reference: reference,
-          presenceId: presenceId,
-          vehicleType: vehicleType,
-          settings: settings,
-        );
-      },
-      onDone: () {
-        _schedulePositionRestart(
-          reference: reference,
-          presenceId: presenceId,
-          vehicleType: vehicleType,
-          settings: settings,
-        );
-      },
-      cancelOnError: true,
-    );
   }
 
   void _schedulePositionRestart({
@@ -690,27 +682,30 @@ class DriverPresenceService {
     required String vehicleType,
   }) {
     unawaited(_connectionSubscription?.cancel());
-    _connectionSubscription = _database.ref('.info/connected').onValue.listen(
-      (DatabaseEvent event) {
-        if (event.snapshot.value != true ||
-            _activePresenceId != presenceId) {
-          return;
-        }
+    _connectionSubscription = _database
+        .ref('.info/connected')
+        .onValue
+        .listen(
+          (DatabaseEvent event) {
+            if (event.snapshot.value != true ||
+                _activePresenceId != presenceId) {
+              return;
+            }
 
-        unawaited(
-          _restoreConnectedPresence(
-            reference: reference,
-            presenceId: presenceId,
-            vehicleType: vehicleType,
-          ).catchError((Object error) {
-            debugPrint('Unable to restore driver availability: $error');
-          }),
+            unawaited(
+              _restoreConnectedPresence(
+                reference: reference,
+                presenceId: presenceId,
+                vehicleType: vehicleType,
+              ).catchError((Object error) {
+                debugPrint('Unable to restore driver availability: $error');
+              }),
+            );
+          },
+          onError: (Object error) {
+            debugPrint('Driver connection monitor paused: $error');
+          },
         );
-      },
-      onError: (Object error) {
-        debugPrint('Driver connection monitor paused: $error');
-      },
-    );
   }
 
   Future<void> _restoreConnectedPresence({
@@ -790,9 +785,20 @@ class DriverPresenceService {
       return Transaction.success(<Object?, Object?>{
         ...currentValue,
         'isOnline': true,
+        'online': true,
         'updatedAt': ServerValue.timestamp,
+        'lastUpdated': ServerValue.timestamp,
       });
     });
+  }
+
+  Future<void> refreshAvailability() async {
+    final DatabaseReference? reference = _activeReference;
+    final String? presenceId = _activePresenceId;
+    if (reference == null || presenceId == null) return;
+    _cachedAvailability = null;
+    _cachedAvailabilityAt = null;
+    await _refreshHeartbeat(reference, presenceId);
   }
 
   Future<void> goOffline() => _clearPresence(cancelOnlineAttempt: true);

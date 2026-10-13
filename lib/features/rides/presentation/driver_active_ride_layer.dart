@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../services/ride_photo_provider.dart';
 import '../../../core/widgets/alpha_components.dart';
 import '../data/driver_active_ride_service.dart';
 
@@ -37,6 +38,8 @@ class DriverActiveRideLayer extends StatefulWidget {
 class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
   DriverActiveRideService? _service;
   String? _busyRideId;
+  final Map<String, Future<String?>> _passengerPhotos =
+      <String, Future<String?>>{};
   String? _errorMessage;
 
   DriverActiveRideService get _rides =>
@@ -59,6 +62,7 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
     if (oldWidget.driverId != widget.driverId ||
         oldWidget.service != widget.service) {
       _service = widget.service;
+      _passengerPhotos.clear();
       _activeRideIds = _rides.watchActiveRideId(widget.driverId);
       _watchedRideId = null;
       _rideUpdates = null;
@@ -380,11 +384,17 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                                       label: 'Destination',
                                       value: ride.destinationAddress,
                                     ),
-                                    if (ride
-                                        .customerPhone
-                                        .isNotEmpty) ...<Widget>[
+                                    if (ride.customerPhone.isNotEmpty ||
+                                        !ride.isPhoneBooking) ...<Widget>[
                                       const SizedBox(height: 12),
                                       _PassengerContact(
+                                        photo: _passengerPhotos.putIfAbsent(
+                                          ride.rideId,
+                                          () =>
+                                              _rides.getAssignedPassengerPhoto(
+                                                ride.rideId,
+                                              ),
+                                        ),
                                         ride: ride,
                                         onCall: () => _callCustomerPhone(ride),
                                       ),
@@ -530,13 +540,26 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
 }
 
 class _PassengerContact extends StatelessWidget {
-  const _PassengerContact({required this.ride, required this.onCall});
+  const _PassengerContact({
+    required this.ride,
+    required this.onCall,
+    required this.photo,
+  });
+
+  final Future<String?> photo;
 
   final DriverActiveRide ride;
   final VoidCallback onCall;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => FutureBuilder<String?>(
+    future: photo,
+    builder: (BuildContext context, AsyncSnapshot<String?> snapshot) =>
+        _buildContact(context, snapshot.data ?? ride.customerPhotoUrl),
+  );
+
+  Widget _buildContact(BuildContext context, String photoUrl) {
+    final ImageProvider<Object>? avatar = ridePhotoProvider(photoUrl);
     final ThemeData theme = Theme.of(context);
     final Color surface = theme.colorScheme.surface;
     final Color border = theme.dividerColor;
@@ -561,13 +584,10 @@ class _PassengerContact extends StatelessWidget {
                 radius: 20,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.18),
                 foregroundColor: theme.colorScheme.onSurface,
-                foregroundImage: ride.customerPhotoUrl.startsWith('https://')
-                    ? NetworkImage(ride.customerPhotoUrl)
-                    : null,
-                onForegroundImageError:
-                    ride.customerPhotoUrl.startsWith('https://')
-                    ? (Object error, StackTrace? stack) {}
-                    : null,
+                foregroundImage: avatar,
+                onForegroundImageError: avatar == null
+                    ? null
+                    : (Object error, StackTrace? stack) {},
                 child: Icon(
                   ride.isPhoneBooking
                       ? Icons.support_agent_rounded
@@ -610,7 +630,7 @@ class _PassengerContact extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 key: const Key('callPassenger'),
-                onTap: onCall,
+                onTap: ride.customerPhone.isEmpty ? null : onCall,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,

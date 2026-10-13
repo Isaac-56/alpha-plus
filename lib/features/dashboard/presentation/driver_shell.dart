@@ -70,9 +70,7 @@ class _DriverShellState extends State<DriverShell> {
     if (Firebase.apps.isNotEmpty &&
         widget.driverId.trim().isNotEmpty &&
         widget.reviewStatus.trim().toLowerCase() == 'approved') {
-      unawaited(
-        DriverPushNotificationService.instance.start(widget.driverId),
-      );
+      unawaited(DriverPushNotificationService.instance.start(widget.driverId));
     }
   }
 
@@ -441,10 +439,7 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
     if (Firebase.apps.isEmpty) return;
     unawaited(
       _service
-          .warmUp(
-            driverId: widget.driverId,
-            reviewStatus: widget.reviewStatus,
-          )
+          .warmUp(driverId: widget.driverId, reviewStatus: widget.reviewStatus)
           .catchError((Object _) {}),
     );
   }
@@ -532,9 +527,8 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _forceOfflineIfNeeded({
@@ -602,193 +596,199 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
 
     return StreamBuilder<DriverWallet>(
       stream: DriverWalletService.instance.watchWallet(widget.driverId),
-      builder: (
-        BuildContext context,
-        AsyncSnapshot<DriverWallet> walletSnapshot,
-      ) {
-        final DriverWallet wallet =
-            walletSnapshot.data ?? const DriverWallet.empty();
-        final bool walletLoaded = walletSnapshot.hasData;
+      builder:
+          (BuildContext context, AsyncSnapshot<DriverWallet> walletSnapshot) {
+            final DriverWallet wallet =
+                walletSnapshot.data ?? const DriverWallet.empty();
+            final bool walletLoaded = walletSnapshot.hasData;
 
-        return StreamBuilder<bool>(
-          stream: _service.watchOnlineState(widget.driverId),
-          initialData: false,
-          builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-            final bool isOnline = snapshot.data ?? false;
-            if (isOnline) _optimisticOnlineUntil = null;
-            _forceOfflineIfNeeded(
-              isOnline: isOnline,
-              walletLoaded: walletLoaded,
-              wallet: wallet,
-            );
-            final bool optimisticOnline = _optimisticOnlineUntil != null &&
-                DateTime.now().isBefore(_optimisticOnlineUntil!);
-            final bool displayOnline = isOnline || optimisticOnline ||
-                (_changing && _requestedOnline == true);
-            final String vehicleLabel = widget.vehicleType
-                .trim()
-                .split(RegExp(r'[_\s-]+'))
-                .where((String word) => word.isNotEmpty)
-                .map(
-                  (String word) =>
-                      '${word[0].toUpperCase()}${word.substring(1)}',
-                )
-                .join(' ');
-            final String offlineMessage = !walletLoaded
-                ? 'Checking your wallet balance…'
-                : wallet.isSuspended
-                ? 'Wallet suspended — contact the Alpha office'
-                : wallet.balance <= 0
-                ? 'Recharge your wallet at the Alpha office to work'
-                : wallet.isLowBalance
-                ? 'Low wallet balance — recharge soon'
-                : 'Go online when you are ready to drive';
+            return StreamBuilder<bool>(
+              stream: _service.watchOnlineState(widget.driverId),
+              initialData: false,
+              builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+                final bool isOnline = snapshot.data ?? false;
+                if (isOnline) _optimisticOnlineUntil = null;
+                _forceOfflineIfNeeded(
+                  isOnline: isOnline,
+                  walletLoaded: walletLoaded,
+                  wallet: wallet,
+                );
+                final bool optimisticOnline =
+                    _optimisticOnlineUntil != null &&
+                    DateTime.now().isBefore(_optimisticOnlineUntil!);
+                final bool displayOnline =
+                    isOnline ||
+                    optimisticOnline ||
+                    (_changing && _requestedOnline == true);
+                final String vehicleLabel = widget.vehicleType
+                    .trim()
+                    .split(RegExp(r'[_\s-]+'))
+                    .where((String word) => word.isNotEmpty)
+                    .map(
+                      (String word) =>
+                          '${word[0].toUpperCase()}${word.substring(1)}',
+                    )
+                    .join(' ');
+                final String offlineMessage = !walletLoaded
+                    ? 'Checking your wallet balance…'
+                    : wallet.isSuspended
+                    ? 'Wallet suspended — contact the Alpha office'
+                    : wallet.balance <= 0
+                    ? 'Recharge your wallet at the Alpha office to work'
+                    : wallet.isLowBalance
+                    ? 'Low wallet balance — recharge soon'
+                    : 'Go online when you are ready to drive';
 
-            return _AvailabilitySurface(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
+                return _AvailabilitySurface(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: displayOnline
-                              ? AppColors.primary
-                              : Theme.of(context)
+                      Row(
+                        children: <Widget>[
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: displayOnline
+                                  ? AppColors.primary
+                                  : Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerLow,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              displayOnline
+                                  ? Icons.navigation_rounded
+                                  : Icons.power_settings_new_rounded,
+                              color: displayOnline
+                                  ? AppColors.ink
+                                  : Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  _changing
+                                      ? _requestedOnline == true
+                                            ? 'Going online…'
+                                            : 'Going offline…'
+                                      : displayOnline
+                                      ? 'You are online'
+                                      : 'You are offline',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  displayOnline
+                                      ? 'Visible to nearby passengers now'
+                                      : offlineMessage,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch.adaptive(
+                            key: const Key('driverOnlineSwitch'),
+                            value: displayOnline,
+                            onChanged:
+                                DriverAvailabilityPolicy.canChangeOnlineSwitch(
+                                  walletLoaded: walletLoaded,
+                                  walletCanGoOnline: wallet.canGoOnline,
+                                  changing: _changing,
+                                  requestedOnline: _requestedOnline,
+                                )
+                                ? _setOnline
+                                : null,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: <Widget>[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
                                   .colorScheme
                                   .surfaceContainerLow,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          displayOnline
-                              ? Icons.navigation_rounded
-                              : Icons.power_settings_new_rounded,
-                          color: displayOnline
-                              ? AppColors.ink
-                              : Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              _changing
-                                  ? _requestedOnline == true
-                                      ? 'Going online…'
-                                      : 'Going offline…'
-                                  : displayOnline
-                                  ? 'You are online'
-                                  : 'You are offline',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.3,
-                              ),
+                              borderRadius: BorderRadius.circular(999),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              displayOnline
-                                  ? 'Visible to nearby passengers now'
-                                  : offlineMessage,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch.adaptive(
-                        key: const Key('driverOnlineSwitch'),
-                        value: displayOnline,
-                        onChanged:
-                            DriverAvailabilityPolicy.canChangeOnlineSwitch(
-                              walletLoaded: walletLoaded,
-                              walletCanGoOnline: wallet.canGoOnline,
-                              changing: _changing,
-                              requestedOnline: _requestedOnline,
-                            )
-                            ? _setOnline
-                            : null,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: <Widget>[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            const Icon(
-                              Icons.directions_car_filled_rounded,
-                              size: 15,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              vehicleLabel.isEmpty ? 'Vehicle' : vehicleLabel,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        width: 9,
-                        height: 9,
-                        decoration: BoxDecoration(
-                          color: displayOnline
-                              ? AppColors.primary
-                              : Colors.grey,
-                          shape: BoxShape.circle,
-                          boxShadow: displayOnline
-                              ? <BoxShadow>[
-                                  BoxShadow(
-                                    color: AppColors.primary.withValues(
-                                      alpha: 0.5,
-                                    ),
-                                    blurRadius: 9,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                const Icon(
+                                  Icons.directions_car_filled_rounded,
+                                  size: 15,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  vehicleLabel.isEmpty
+                                      ? 'Vehicle'
+                                      : vehicleLabel,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
                                   ),
-                                ]
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 7),
-                      Text(
-                        displayOnline ? 'LIVE' : 'OFFLINE',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.8,
-                          color: displayOnline
-                              ? Theme.of(context).colorScheme.onSurface
-                              : Theme.of(context).textTheme.bodyMedium?.color,
-                        ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            width: 9,
+                            height: 9,
+                            decoration: BoxDecoration(
+                              color: displayOnline
+                                  ? AppColors.primary
+                                  : Colors.grey,
+                              shape: BoxShape.circle,
+                              boxShadow: displayOnline
+                                  ? <BoxShadow>[
+                                      BoxShadow(
+                                        color: AppColors.primary.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        blurRadius: 9,
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          Text(
+                            displayOnline ? 'LIVE' : 'OFFLINE',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.8,
+                              color: displayOnline
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
-        );
-      },
     );
   }
 }
@@ -831,8 +831,7 @@ class _DriverMap extends StatefulWidget {
   State<_DriverMap> createState() => _DriverMapState();
 }
 
-class _DriverMapState extends State<_DriverMap>
-    with WidgetsBindingObserver {
+class _DriverMapState extends State<_DriverMap> with WidgetsBindingObserver {
   static const LatLng _jubaCenter = LatLng(4.8517, 31.5825);
   static const double _overviewZoom = 16;
   static const double _focusedZoom = 17;
@@ -906,6 +905,20 @@ class _DriverMapState extends State<_DriverMap>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _supportsGoogleMap) {
+      unawaited(
+        Future<void>.sync(
+          () => DriverPushNotificationService.instance.refreshRegistration(),
+        ),
+      );
+      unawaited(
+        Future<void>.sync(
+          () => DriverPresenceService.instance.refreshAvailability(),
+        ).catchError((Object error) {
+          debugPrint(
+            'Unable to restore driver availability after resume: $error',
+          );
+        }),
+      );
       unawaited(_locateDriver(requestPermission: false));
     }
   }
