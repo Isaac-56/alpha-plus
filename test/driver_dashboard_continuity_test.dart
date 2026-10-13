@@ -71,6 +71,7 @@ DriverRideOffer offer(String id) => DriverRideOffer(
   pickupAddress: 'Pickup',
   destinationAddress: 'Destination',
   rideOptionId: 'boda',
+  requiredVehicleType: 'boda',
   paymentMethod: 'cash',
   estimatedFare: 1000,
   currencyCode: 'SSP',
