@@ -55,13 +55,15 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
       child: StreamBuilder<String?>(
         stream: _activeRideIds,
         builder: (BuildContext context, AsyncSnapshot<String?> snapshot) {
-          if (snapshot.data != null) {
-            return DriverActiveRideScope(child: widget.child);
-          }
-          return offer_layer.DriverRideOfferLayer(
-            driverId: widget.driverId,
-            service: widget.service,
-            child: widget.child,
+          final bool active = snapshot.data != null;
+          return DriverActiveRideScope(
+            active: active,
+            child: offer_layer.DriverRideOfferLayer(
+              enabled: !active && !snapshot.hasError,
+              driverId: widget.driverId,
+              service: widget.service,
+              child: widget.child,
+            ),
           );
         },
       ),

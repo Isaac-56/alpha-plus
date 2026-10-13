@@ -9,14 +9,23 @@ import '../../../core/widgets/alpha_components.dart';
 import '../data/driver_active_ride_service.dart';
 
 class DriverActiveRideScope extends InheritedWidget {
-  const DriverActiveRideScope({required super.child, super.key});
+  const DriverActiveRideScope({
+    required super.child,
+    this.active = true,
+    super.key,
+  });
+
+  final bool active;
 
   static bool isActive(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<DriverActiveRideScope>() !=
-      null;
+      context
+          .dependOnInheritedWidgetOfExactType<DriverActiveRideScope>()
+          ?.active ??
+      false;
 
   @override
-  bool updateShouldNotify(DriverActiveRideScope oldWidget) => false;
+  bool updateShouldNotify(DriverActiveRideScope oldWidget) =>
+      active != oldWidget.active;
 }
 
 class DriverActiveRideLayer extends StatefulWidget {
@@ -261,24 +270,31 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
       stream: _activeRideIds,
       builder: (BuildContext context, AsyncSnapshot<String?> activeSnapshot) {
         final String? rideId = activeSnapshot.data;
-        if (activeSnapshot.hasError || rideId == null) return widget.child;
 
         if (_watchedRideId != rideId) {
           _passengerPhotos.clear();
           _watchedRideId = rideId;
-          _rideUpdates = _rides.watchRide(rideId);
+          _rideUpdates = rideId == null ? null : _rides.watchRide(rideId);
         }
         return StreamBuilder<DriverActiveRide?>(
           stream: _rideUpdates,
           builder: (BuildContext context, AsyncSnapshot<DriverActiveRide?> rideSnapshot) {
             final DriverActiveRide? ride = rideSnapshot.data;
-            if (rideSnapshot.hasError || ride == null || !ride.isActive) {
+            if (activeSnapshot.hasError ||
+                rideId == null ||
+                rideSnapshot.hasError ||
+                ride == null ||
+                ride.rideId != rideId ||
+                !ride.isActive) {
               if (_trackingRideId != null) {
                 final String trackingRideId = _trackingRideId!;
                 _trackingRideId = null;
                 unawaited(_rides.stopProgressTracking(trackingRideId));
               }
-              return widget.child;
+              return Stack(
+                fit: StackFit.expand,
+                children: <Widget>[widget.child],
+              );
             }
 
             _syncProgressTracking(ride);

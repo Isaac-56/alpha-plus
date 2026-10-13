@@ -12,11 +12,13 @@ class DriverRideOfferLayer extends StatefulWidget {
     required this.driverId,
     required this.child,
     this.service,
+    this.enabled = true,
     super.key,
   });
 
   final String driverId;
   final Widget child;
+  final bool enabled;
   final DriverRideOfferService? service;
 
   @override
@@ -142,12 +144,15 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
         final List<DriverRideOffer> offers = received
             .where(
               (DriverRideOffer offer) =>
+                  widget.enabled &&
                   offer.isPendingAt(DateTime.now()) &&
                   !_expiredVersions.contains(_offerVersion(offer)),
             )
             .toList();
         _scheduleExpiry(offers.isEmpty ? null : offers.first);
-        if (offers.isEmpty) return widget.child;
+        if (offers.isEmpty) {
+          return Stack(fit: StackFit.expand, children: <Widget>[widget.child]);
+        }
 
         final DriverRideOffer offer = offers.first;
         if (WidgetsBinding.instance.lifecycleState ==
