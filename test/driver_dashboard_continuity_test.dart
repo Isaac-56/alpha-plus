@@ -35,6 +35,17 @@ class _Offers extends DriverRideOfferService {
   Stream<List<DriverRideOffer>> watchPendingOffers(String id) => offers.stream;
 }
 
+class _DelayedOffers extends _Offers {
+  final Completer<void> first = Completer<void>();
+  final Completer<void> second = Completer<void>();
+  final List<String> accepted = <String>[];
+  @override
+  Future<void> acceptRide(String id) {
+    accepted.add(id);
+    return id == 'first' ? first.future : second.future;
+  }
+}
+
 class _Counts {
   int mounts = 0;
   int disposals = 0;
@@ -135,4 +146,36 @@ void main() {
       await offers.offers.close();
     },
   );
+  testWidgets('a late previous request response cannot block or reset the next acceptance', (WidgetTester tester) async {
+    final _Rides rides = _Rides();
+    final _DelayedOffers offers = _DelayedOffers();
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: DriverRideOfferLayer(
+      driverId: 'driver', activeRideService: rides, service: offers, child: const SizedBox(),
+    ))));
+    await tester.pump();
+    offers.offers.add(<DriverRideOffer>[offer('first')]);
+    await tester.pump(); await tester.pump();
+    await tester.tap(find.byKey(const Key('acceptRideOffer')));
+    await tester.pump();
+    rides.ids.add('first');
+    await tester.pump(); await tester.pump();
+    rides.rides.add(ride('first', 'accepted'));
+    await tester.pump(); await tester.pump();
+    rides.ids.add(null);
+    offers.offers.add(<DriverRideOffer>[offer('second')]);
+    await tester.pump(); await tester.pump();
+    await tester.tap(find.byKey(const Key('acceptRideOffer')));
+    await tester.pump();
+    expect(offers.accepted, <String>['first', 'second']);
+    offers.first.completeError(const DriverRideOfferException('Old response failed'));
+    await tester.pump(); await tester.pump();
+    expect(find.text('Old response failed'), findsNothing);
+    expect(tester.widget<ElevatedButton>(find.byKey(const Key('acceptRideOffer'))).onPressed, isNull);
+    offers.second.complete();
+    await tester.pump(); await tester.pump();
+    await tester.pumpWidget(const SizedBox());
+    await rides.ids.close(); await rides.rides.close(); await offers.offers.close();
+    expect(tester.takeException(), isNull);
+  });
+
 }

@@ -68,6 +68,10 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
   @override
   void didUpdateWidget(covariant DriverRideOfferLayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.enabled && !widget.enabled) {
+      _busyRideId = null;
+      _errorMessage = null;
+    }
     if (oldWidget.driverId != widget.driverId ||
         oldWidget.service != widget.service) {
       _service = widget.service;
@@ -82,7 +86,7 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
     required DriverRideOffer offer,
     required bool accept,
   }) async {
-    if (_busyRideId != null) return;
+    if (_busyRideId == offer.rideId) return;
     if (!offer.isPendingAt(DateTime.now())) {
       setState(() => _expiredVersions.add(_offerVersion(offer)));
       return;
@@ -100,7 +104,7 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
         await _offers.rejectRide(offer.rideId);
       }
 
-      if (!mounted) return;
+      if (!mounted || _busyRideId != offer.rideId) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -113,17 +117,17 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
           ),
         );
     } on DriverRideOfferException catch (error) {
-      if (mounted) {
+      if (mounted && _busyRideId == offer.rideId) {
         setState(() => _errorMessage = error.message);
       }
     } on Object {
-      if (mounted) {
+      if (mounted && _busyRideId == offer.rideId) {
         setState(
           () => _errorMessage = 'The ride request could not be updated. Check your connection and try again.',
         );
       }
     } finally {
-      if (mounted) {
+      if (mounted && _busyRideId == offer.rideId) {
         setState(() => _busyRideId = null);
       }
     }
