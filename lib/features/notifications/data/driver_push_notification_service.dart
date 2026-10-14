@@ -33,6 +33,9 @@ class DriverPushNotificationService {
   StreamSubscription<RemoteMessage>? _messageSubscription;
   String? _driverId;
   String? _registeredToken;
+  Timer? _registrationRetryTimer;
+  DateTime? _registeredAt;
+  Object? _refreshAttempt;
 
   Future<void> start(String driverId) async {
     final String normalizedDriverId = driverId.trim();
@@ -44,6 +47,17 @@ class DriverPushNotificationService {
     _messageSubscription = null;
     _tokenSubscription = null;
     _driverId = normalizedDriverId;
+    _registeredToken = null;
+    _registeredAt = null;
+    _registrationRetryTimer?.cancel();
+    _registrationRetryTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      final DateTime? registeredAt = _registeredAt;
+      if (registeredAt == null ||
+          DateTime.now().difference(registeredAt) >=
+              const Duration(minutes: 5)) {
+        unawaited(refreshRegistration());
+      }
+    });
 
     try {
       final NotificationSettings settings = await _messaging.requestPermission(
@@ -78,17 +92,16 @@ class DriverPushNotificationService {
           ),
         );
       });
-      final String? token = await _messaging.getToken();
-      if (token != null && token.trim().isNotEmpty) {
-        await _register(normalizedDriverId, token.trim());
-      }
-
       _tokenSubscription = _messaging.onTokenRefresh.listen(
         (String refreshedToken) {
+          if (_driverId != normalizedDriverId) return;
+          _registeredAt = null;
           unawaited(
-            _register(normalizedDriverId, refreshedToken).catchError((
-              Object error,
-            ) {
+            _register(
+              normalizedDriverId,
+              refreshedToken,
+              force: true,
+            ).catchError((Object error) {
               debugPrint('Unable to refresh driver push token: $error');
             }),
           );
@@ -97,6 +110,7 @@ class DriverPushNotificationService {
           debugPrint('Driver push token stream failed: $error');
         },
       );
+      await refreshRegistration();
     } on Object catch (error) {
       debugPrint('Unable to enable driver ride notifications: $error');
     }
@@ -111,20 +125,39 @@ class DriverPushNotificationService {
     await _functions.httpsCallable('registerDriverPushToken').call<void>(
       <String, dynamic>{'token': token},
     );
-    if (_driverId == driverId) _registeredToken = token;
+    if (_driverId == driverId) {
+      _registeredToken = token;
+      _registeredAt = DateTime.now();
+    }
   }
 
   Future<void> refreshRegistration() async {
     final String? driverId = _driverId;
-    if (driverId == null) return;
+    if (driverId == null || _refreshAttempt != null) return;
+    final Object attempt = Object();
+    _refreshAttempt = attempt;
     try {
       final NotificationSettings settings = await _messaging
-          .getNotificationSettings();
+          .getNotificationSettings()
+          .timeout(const Duration(seconds: 10));
       if (settings.authorizationStatus == AuthorizationStatus.denied) return;
-      final String? token = await _messaging.getToken();
-      if (token != null) await _register(driverId, token, force: true);
+      final String? token = await _messaging.getToken().timeout(
+        const Duration(seconds: 10),
+      );
+      if (token != null &&
+          token.trim().isNotEmpty &&
+          identical(_refreshAttempt, attempt)) {
+        await _register(
+          driverId,
+          token.trim(),
+          force: true,
+        ).timeout(const Duration(seconds: 10));
+      }
     } on Object catch (error) {
+      if (identical(_refreshAttempt, attempt)) _registeredAt = null;
       debugPrint('Unable to refresh driver notification registration: $error');
+    } finally {
+      if (identical(_refreshAttempt, attempt)) _refreshAttempt = null;
     }
   }
 
@@ -132,6 +165,10 @@ class DriverPushNotificationService {
     final String? token = _registeredToken;
     _driverId = null;
     _registeredToken = null;
+    _registeredAt = null;
+    _refreshAttempt = null;
+    _registrationRetryTimer?.cancel();
+    _registrationRetryTimer = null;
     await _tokenSubscription?.cancel();
     _tokenSubscription = null;
     await _messageSubscription?.cancel();
