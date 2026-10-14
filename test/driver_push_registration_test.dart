@@ -55,43 +55,82 @@ class _Functions extends Fake implements FirebaseFunctions {
       _Callable(this);
 }
 
+class _RetryTimer implements Timer {
+  _RetryTimer(this.callback);
+  final void Function(Timer) callback;
+  @override
+  bool isActive = true;
+  @override
+  int tick = 0;
+  void fire() {
+    if (!isActive) return;
+    tick++;
+    callback(this);
+  }
+
+  @override
+  void cancel() => isActive = false;
+}
+
 void main() {
-  testWidgets('failed registration retries while driver stays in the app', (
-    tester,
-  ) async {
-    final messaging = _Messaging();
-    final functions = _Functions();
-    final service = DriverPushNotificationService(
-      messaging: messaging,
-      functions: functions,
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('failed registration retries while driver stays in the app', () async {
+    late _RetryTimer retryTimer;
+    await runZoned(
+      () async {
+        final messaging = _Messaging();
+        final functions = _Functions();
+        final service = DriverPushNotificationService(
+          messaging: messaging,
+          functions: functions,
+        );
+        try {
+          await service.start('driver');
+          expect(functions.attempts, 1);
+          functions.fail = false;
+          retryTimer.fire();
+          await Future<void>.delayed(Duration.zero);
+          expect(functions.attempts, 2);
+          retryTimer.fire();
+          await Future<void>.delayed(Duration.zero);
+          expect(functions.attempts, 2);
+          await service.stop();
+          expect(retryTimer.isActive, isFalse);
+          retryTimer.fire();
+          expect(functions.attempts, 2);
+        } finally {
+          await service.stop();
+          await messaging.tokens.close();
+        }
+      },
+      zoneSpecification: ZoneSpecification(
+        createPeriodicTimer: (self, parent, zone, duration, callback) {
+          expect(duration, const Duration(seconds: 30));
+          retryTimer = _RetryTimer(callback);
+          return retryTimer;
+        },
+      ),
     );
-    await service.start('driver');
-    expect(functions.attempts, 1);
-    functions.fail = false;
-    await tester.pump(const Duration(seconds: 30));
-    await tester.pump();
-    expect(functions.attempts, 2);
-    await tester.pump(const Duration(seconds: 30));
-    expect(functions.attempts, 2);
-    await service.stop();
-    await tester.pump(const Duration(minutes: 5));
-    expect(functions.attempts, 2);
-    await messaging.tokens.close();
   });
 
-  testWidgets('same token is registered again for a different driver account', (
-    tester,
-  ) async {
-    final messaging = _Messaging();
-    final functions = _Functions()..fail = false;
-    final service = DriverPushNotificationService(
-      messaging: messaging,
-      functions: functions,
-    );
-    await service.start('driver-one');
-    await service.start('driver-two');
-    expect(functions.attempts, 2);
-    await service.stop();
-    await messaging.tokens.close();
-  });
+  test(
+    'same token is registered again for a different driver account',
+    () async {
+      final messaging = _Messaging();
+      final functions = _Functions()..fail = false;
+      final service = DriverPushNotificationService(
+        messaging: messaging,
+        functions: functions,
+      );
+      try {
+        await service.start('driver-one');
+        await service.start('driver-two');
+        expect(functions.attempts, 2);
+      } finally {
+        await service.stop();
+        await messaging.tokens.close();
+      }
+    },
+  );
 }
