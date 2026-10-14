@@ -15,7 +15,10 @@ class _Messaging extends Fake implements FirebaseMessaging {
   @override
   Stream<String> get onTokenRefresh => tokens.stream;
   @override
-  Future<String?> getToken({String? vapidKey}) async => 'device-token';
+  Future<String?> getToken({
+    String? vapidKey,
+    String? serviceWorkerScriptPath,
+  }) async => 'device-token';
   @override
   Future<NotificationSettings> getNotificationSettings() async => _Settings();
   @override
