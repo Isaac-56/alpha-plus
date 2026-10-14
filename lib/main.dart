@@ -146,15 +146,23 @@ class _AlphaPlusAppState extends State<AlphaPlusApp> {
           widget.home ??
           AppBootstrap(
             firebaseInitializationError: widget.firebaseInitializationError,
+            authService: _authService,
           ),
     );
   }
 }
 
 class AppBootstrap extends StatefulWidget {
-  const AppBootstrap({this.firebaseInitializationError, super.key});
+  const AppBootstrap({
+    this.firebaseInitializationError,
+    this.authService,
+    this.profileStore,
+    super.key,
+  });
 
   final Object? firebaseInitializationError;
+  final DriverAuthService? authService;
+  final DriverProfileStore? profileStore;
 
   @override
   State<AppBootstrap> createState() => _AppBootstrapState();
@@ -163,13 +171,15 @@ class AppBootstrap extends StatefulWidget {
 class _AppBootstrapState extends State<AppBootstrap> {
   DriverAuthService? _authService;
   DriverProfileStore? _profileStore;
+  Stream<String?>? _userIdChanges;
 
   @override
   void initState() {
     super.initState();
     if (widget.firebaseInitializationError == null) {
-      _authService = FirebaseDriverAuthService();
-      _profileStore = FirebaseDriverProfileStore();
+      _authService = widget.authService ?? FirebaseDriverAuthService();
+      _profileStore = widget.profileStore ?? FirebaseDriverProfileStore();
+      _userIdChanges = _authService!.userIdChanges;
     }
   }
 
@@ -181,7 +191,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
       return const _FirebaseSetupScreen();
     }
     return StreamBuilder<String?>(
-      stream: _authService!.userIdChanges,
+      stream: _userIdChanges,
       initialData: _authService!.currentUserId,
       builder: (BuildContext context, AsyncSnapshot<String?> authSnapshot) {
         if (authSnapshot.connectionState == ConnectionState.waiting &&
@@ -226,6 +236,7 @@ class _DriverSessionGate extends StatefulWidget {
 class _DriverSessionGateState extends State<_DriverSessionGate>
     with WidgetsBindingObserver {
   late final Future<bool> _initialValidation;
+  late final Stream<bool> _sessionChanges;
   bool _signOutScheduled = false;
   bool _resumeCheckInProgress = false;
 
@@ -237,6 +248,9 @@ class _DriverSessionGateState extends State<_DriverSessionGate>
       uid: widget.userId,
       phoneNumber: widget.phoneNumber,
       forceServer: false,
+    );
+    _sessionChanges = DriverSessionService.instance.watchSession(
+      uid: widget.userId,
     );
   }
 
@@ -304,9 +318,7 @@ class _DriverSessionGateState extends State<_DriverSessionGate>
         }
 
         return StreamBuilder<bool>(
-          stream: DriverSessionService.instance.watchSession(
-            uid: widget.userId,
-          ),
+          stream: _sessionChanges,
           builder: (BuildContext context, AsyncSnapshot<bool> sessionSnapshot) {
             if (sessionSnapshot.hasData && sessionSnapshot.data == false) {
               _scheduleForcedSignOut();
@@ -354,7 +366,7 @@ class _SessionStatusScreen extends StatelessWidget {
   }
 }
 
-class _DriverProfileGate extends StatelessWidget {
+class _DriverProfileGate extends StatefulWidget {
   const _DriverProfileGate({
     required this.userId,
     required this.phoneNumber,
@@ -368,16 +380,38 @@ class _DriverProfileGate extends StatelessWidget {
   final DriverProfileStore profileStore;
 
   @override
+  State<_DriverProfileGate> createState() => _DriverProfileGateState();
+}
+
+class _DriverProfileGateState extends State<_DriverProfileGate> {
+  late Stream<DriverProfile?> _profileChanges;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileChanges = widget.profileStore.watchProfile(widget.userId);
+  }
+
+  @override
+  void didUpdateWidget(covariant _DriverProfileGate oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId ||
+        oldWidget.profileStore != widget.profileStore) {
+      _profileChanges = widget.profileStore.watchProfile(widget.userId);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<DriverProfile?>(
-      stream: profileStore.watchProfile(userId),
+      stream: _profileChanges,
       builder:
           (
             BuildContext context,
             AsyncSnapshot<DriverProfile?> profileSnapshot,
           ) {
             if (profileSnapshot.hasError) {
-              return _ProfileLoadError(onSignOut: authService.signOut);
+              return _ProfileLoadError(onSignOut: widget.authService.signOut);
             }
 
             if (profileSnapshot.connectionState == ConnectionState.waiting) {
@@ -387,9 +421,9 @@ class _DriverProfileGate extends StatelessWidget {
             final DriverProfile? profile = profileSnapshot.data;
             if (profile == null || !profile.hasIdentity) {
               return DriverNameScreen(
-                userId: userId,
-                phoneNumber: phoneNumber,
-                profileStore: profileStore,
+                userId: widget.userId,
+                phoneNumber: widget.phoneNumber,
+                profileStore: widget.profileStore,
               );
             }
 
@@ -402,7 +436,7 @@ class _DriverProfileGate extends StatelessWidget {
               driverName: profile.fullName,
               reviewStatus: profile.reviewStatus,
               registration: profile.registration,
-              onSignOut: authService.signOut,
+              onSignOut: widget.authService.signOut,
             );
           },
     );
