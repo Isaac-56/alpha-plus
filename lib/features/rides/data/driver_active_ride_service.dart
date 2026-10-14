@@ -5,6 +5,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'completion_location.dart';
+
 import '../../dashboard/data/driver_presence_service.dart';
 import '../../notifications/data/driver_push_notification_service.dart';
 
@@ -388,30 +390,32 @@ class DriverActiveRideService {
   }
 
   Future<Position?> _completionPosition() async {
-    final Position? trackedPosition = _lastTrackedPosition;
-    if (trackedPosition != null &&
-        DateTime.now().difference(trackedPosition.timestamp).inSeconds <= 5 &&
-        trackedPosition.accuracy <= 100) {
-      return trackedPosition;
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      throw const DriverRideLifecycleException(
+        'Turn on your phone’s Location setting, then tap End trip here again.',
+      );
     }
-    try {
-      final Position position = await Geolocator.getCurrentPosition(
+    final LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw const DriverRideLifecycleException(
+        'Allow Alpha Plus to access precise location in your phone’s app settings, then try again.',
+      );
+    }
+    final Position? position = await resolveCompletionLocation(
+      trackedPosition: () => _lastTrackedPosition,
+      currentPosition: () => Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 3),
+          timeLimit: Duration(seconds: 12),
         ),
-      );
-      if (!position.accuracy.isFinite || position.accuracy > 100) {
-        throw const DriverRideLifecycleException(
-          'Location is not accurate enough to end this trip.',
-        );
-      }
-      return position;
-    } on Object {
-      throw const DriverRideLifecycleException(
-        'A current location is needed to calculate the final fare. Enable location and try again.',
-      );
-    }
+      ),
+      lastKnownPosition: Geolocator.getLastKnownPosition,
+    );
+    if (position != null) return position;
+    throw const DriverRideLifecycleException(
+      'GPS could not get a recent precise location. Keep the app open, move to a clearer spot and tap End trip here again. Your trip is still active.',
+    );
   }
 
   static Map<String, dynamic> _pointFromPosition(Position position) =>
