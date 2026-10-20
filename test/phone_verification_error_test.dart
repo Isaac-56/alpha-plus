@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/services/phone_verification_error.dart';
+import 'package:alpha_plus/services/phone_verification_error.dart';
 
 void main() {
   test('recognizes Android and web forms of opaque Firebase SMS error 39', () {
