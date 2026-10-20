@@ -1,3 +1,5 @@
+import '../../../services/phone_verification_error.dart';
+
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -86,53 +88,59 @@ class FirebaseDriverAuthService implements DriverAuthService {
     final Completer<PhoneVerificationSession> completer =
         Completer<PhoneVerificationSession>();
 
-    _auth.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      forceResendingToken: forceResendingToken,
-      timeout: const Duration(seconds: 60),
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        try {
-          await _signInAndActivateSession(credential);
-          if (!completer.isCompleted) {
-            completer.complete(
-              const PhoneVerificationSession(
-                verificationId: '',
-                automaticallyVerified: true,
-              ),
-            );
-          }
-        } on Object catch (error, stackTrace) {
+    _auth
+        .verifyPhoneNumber(
+          phoneNumber: phoneNumber,
+          forceResendingToken: forceResendingToken,
+          timeout: const Duration(seconds: 60),
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            try {
+              await _signInAndActivateSession(credential);
+              if (!completer.isCompleted) {
+                completer.complete(
+                  const PhoneVerificationSession(
+                    verificationId: '',
+                    automaticallyVerified: true,
+                  ),
+                );
+              }
+            } on Object catch (error, stackTrace) {
+              if (!completer.isCompleted) {
+                completer.completeError(error, stackTrace);
+              }
+            }
+          },
+          verificationFailed: (FirebaseAuthException error) {
+            if (!completer.isCompleted) {
+              completer.completeError(error, StackTrace.current);
+            }
+          },
+          codeSent: (String verificationId, int? resendToken) {
+            if (!completer.isCompleted) {
+              completer.complete(
+                PhoneVerificationSession(
+                  verificationId: verificationId,
+                  resendToken: resendToken,
+                ),
+              );
+            }
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {
+            if (!completer.isCompleted) {
+              completer.complete(
+                PhoneVerificationSession(
+                  verificationId: verificationId,
+                  resendToken: forceResendingToken,
+                ),
+              );
+            }
+          },
+        )
+        .catchError((Object error, StackTrace stackTrace) {
           if (!completer.isCompleted) {
             completer.completeError(error, stackTrace);
           }
-        }
-      },
-      verificationFailed: (FirebaseAuthException error) {
-        if (!completer.isCompleted) {
-          completer.completeError(error, StackTrace.current);
-        }
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        if (!completer.isCompleted) {
-          completer.complete(
-            PhoneVerificationSession(
-              verificationId: verificationId,
-              resendToken: resendToken,
-            ),
-          );
-        }
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        if (!completer.isCompleted) {
-          completer.complete(
-            PhoneVerificationSession(
-              verificationId: verificationId,
-              resendToken: forceResendingToken,
-            ),
-          );
-        }
-      },
-    );
+        });
 
     return completer.future;
   }
@@ -199,6 +207,11 @@ class FirebaseDriverAuthService implements DriverAuthService {
 
 String readableAuthError(Object error) {
   if (error is FirebaseAuthException) {
+    final serviceError = phoneVerificationServiceError(
+      error.code,
+      error.message,
+    );
+    if (serviceError != null) return serviceError;
     switch (error.code) {
       case 'invalid-phone-number':
         return 'Enter a valid South Sudan phone number.';
