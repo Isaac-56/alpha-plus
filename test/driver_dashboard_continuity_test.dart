@@ -40,7 +40,7 @@ class _DelayedOffers extends _Offers {
   final Completer<void> second = Completer<void>();
   final List<String> accepted = <String>[];
   @override
-  Future<void> acceptRide(String id) {
+  Future<void> acceptRide(String id, {int? dispatchRound}) {
     accepted.add(id);
     return id == 'first' ? first.future : second.future;
   }
