@@ -79,7 +79,7 @@ class DriverPushNotificationService {
         if (_driverId != normalizedDriverId) return;
         final bool rideOffer = message.data['type'] == 'ride_offer';
         final String eventId = rideOffer
-            ? 'ride_offer:${message.data['rideId']}'
+            ? message.data['eventId'] ?? 'ride_offer:${message.data['rideId']}'
             : message.data['eventId'] ??
                   message.messageId ??
                   'update:${message.sentTime}';

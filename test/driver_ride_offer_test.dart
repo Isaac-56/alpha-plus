@@ -8,6 +8,7 @@ void main() {
     final DriverRideOffer offer = DriverRideOffer.fromMap(
       rideId: 'ride-123',
       data: <String, dynamic>{
+        'dispatchRound': 2,
         'status': 'pending',
         'pickup': <String, dynamic>{'address': 'Juba Airport'},
         'destination': <String, dynamic>{'address': 'Hai Malakal'},
@@ -22,6 +23,8 @@ void main() {
     );
 
     expect(offer.rideId, 'ride-123');
+    expect(offer.dispatchRound, 2);
+    expect(offer.notificationEventId, 'ride_offer:ride-123:2');
     expect(offer.pickupAddress, 'Juba Airport');
     expect(offer.destinationAddress, 'Hai Malakal');
     expect(offer.estimatedFare, 15000);

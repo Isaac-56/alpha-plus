@@ -25,6 +25,7 @@ class DriverRideOffer {
     required this.distanceToPickupMeters,
     required this.expiresAt,
     this.bookingSource = 'app',
+    this.dispatchRound = 0,
   });
 
   final String rideId;
@@ -39,6 +40,11 @@ class DriverRideOffer {
   final int distanceToPickupMeters;
   final DateTime expiresAt;
   final String bookingSource;
+  final int dispatchRound;
+
+  String get notificationEventId => dispatchRound > 0
+      ? 'ride_offer:$rideId:$dispatchRound'
+      : 'ride_offer:$rideId';
 
   bool get isPhoneBooking => bookingSource == 'call_center';
 
@@ -88,6 +94,9 @@ class DriverRideOffer {
         'distanceToPickupMeters',
       ),
       expiresAt: _requiredDateTime(data['expiresAt'], 'expiresAt'),
+      dispatchRound: data['dispatchRound'] == null
+          ? 0
+          : _requiredNonNegativeInt(data['dispatchRound'], 'dispatchRound'),
       bookingSource: _optionalString(
         data['bookingSource'],
         fallback: 'app',
@@ -154,14 +163,22 @@ class DriverRideOfferService {
         });
   }
 
-  Future<void> acceptRide(String rideId) => _call('acceptRideOffer', rideId);
+  Future<void> acceptRide(String rideId, {int? dispatchRound}) =>
+      _call('acceptRideOffer', rideId, dispatchRound);
 
-  Future<void> rejectRide(String rideId) => _call('rejectRideOffer', rideId);
+  Future<void> rejectRide(String rideId, {int? dispatchRound}) =>
+      _call('rejectRideOffer', rideId, dispatchRound);
 
-  Future<void> _call(String functionName, String rideId) async {
+  Future<void> _call(
+    String functionName,
+    String rideId,
+    int? dispatchRound,
+  ) async {
     try {
       await _functions.httpsCallable(functionName).call<void>(<String, dynamic>{
         'rideId': rideId,
+        if (dispatchRound != null && dispatchRound > 0)
+          'dispatchRound': dispatchRound,
       });
     } on FirebaseFunctionsException catch (error) {
       throw DriverRideOfferException(

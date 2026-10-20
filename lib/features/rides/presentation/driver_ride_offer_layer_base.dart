@@ -99,9 +99,15 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
 
     try {
       if (accept) {
-        await _offers.acceptRide(offer.rideId);
+        await _offers.acceptRide(
+          offer.rideId,
+          dispatchRound: offer.dispatchRound,
+        );
       } else {
-        await _offers.rejectRide(offer.rideId);
+        await _offers.rejectRide(
+          offer.rideId,
+          dispatchRound: offer.dispatchRound,
+        );
       }
 
       if (!mounted || _busyRideId != offer.rideId) return;
@@ -163,7 +169,7 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
             AppLifecycleState.resumed) {
           unawaited(
             NotificationAlerts.show(
-              eventId: 'ride_offer:${offer.rideId}',
+              eventId: offer.notificationEventId,
               title: 'New ride request',
               body:
                   '${offer.pickupAddress} · ${offer.estimatedFare} ${offer.currencyCode}',
