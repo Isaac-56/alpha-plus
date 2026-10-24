@@ -8,6 +8,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/retained_stream_builder.dart';
+import '../../../core/widgets/lazy_indexed_stack.dart';
 import '../../onboarding/models/driver_registration.dart';
 import '../../notifications/data/driver_push_notification_service.dart';
 import '../../rides/presentation/driver_active_ride_layer.dart';
@@ -114,7 +116,11 @@ class _DriverShellState extends State<DriverShell> {
         }
       },
       child: Scaffold(
-        body: IndexedStack(index: _index, children: _pages),
+        body: LazyIndexedStack(
+          key: ValueKey<String>(widget.driverId),
+          index: _index,
+          children: _pages,
+        ),
         bottomNavigationBar: SafeArea(
           top: false,
           minimum: const EdgeInsets.fromLTRB(10, 0, 10, 8),
@@ -128,8 +134,9 @@ class _DriverShellState extends State<DriverShell> {
               height: 72,
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
               selectedIndex: _index,
-              onDestinationSelected: (int value) =>
-                  setState(() => _index = value),
+              onDestinationSelected: (int value) {
+                if (value != _index) setState(() => _index = value);
+              },
               destinations: const <NavigationDestination>[
                 NavigationDestination(
                   icon: Icon(Icons.navigation_outlined),
@@ -594,16 +601,18 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
       );
     }
 
-    return StreamBuilder<DriverWallet>(
-      stream: DriverWalletService.instance.watchWallet(widget.driverId),
+    return RetainedStreamBuilder<DriverWallet>(
+      sourceKey: (widget.driverId, DriverWalletService.instance),
+      createStream: () => DriverWalletService.instance.watchWallet(widget.driverId),
       builder:
           (BuildContext context, AsyncSnapshot<DriverWallet> walletSnapshot) {
             final DriverWallet wallet =
                 walletSnapshot.data ?? const DriverWallet.empty();
             final bool walletLoaded = walletSnapshot.hasData;
 
-            return StreamBuilder<bool>(
-              stream: _service.watchOnlineState(widget.driverId),
+            return RetainedStreamBuilder<bool>(
+              sourceKey: (widget.driverId, _service),
+              createStream: () => _service.watchOnlineState(widget.driverId),
               initialData: false,
               builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
                 final bool isOnline = snapshot.data ?? false;

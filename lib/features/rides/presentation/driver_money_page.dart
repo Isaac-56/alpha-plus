@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/retained_stream_builder.dart';
 import '../../../core/widgets/alpha_components.dart';
 import '../../wallet/data/driver_wallet_service.dart';
 import '../data/driver_trip_history_service.dart';
@@ -21,8 +22,9 @@ class DriverMoneyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: StreamBuilder<List<DriverTripRecord>>(
-        stream: _service.watchTrips(driverId),
+      child: RetainedStreamBuilder<List<DriverTripRecord>>(
+        sourceKey: (driverId, _service),
+        createStream: () => _service.watchTrips(driverId),
         initialData: const <DriverTripRecord>[],
         builder: (
           BuildContext context,
@@ -342,8 +344,9 @@ class _DriverWalletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DriverWallet>(
-      stream: DriverWalletService.instance.watchWallet(driverId),
+    return RetainedStreamBuilder<DriverWallet>(
+      sourceKey: (driverId, DriverWalletService.instance),
+      createStream: () => DriverWalletService.instance.watchWallet(driverId),
       initialData: const DriverWallet.empty(),
       builder: (
         BuildContext context,
