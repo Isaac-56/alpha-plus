@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/features/profile/models/driver_profile.dart';
-import '../lib/features/dashboard/presentation/driver_ui_pages.dart';
+import 'package:alpha_plus/features/profile/models/driver_profile.dart';
+import 'package:alpha_plus/features/dashboard/presentation/driver_ui_pages.dart';
 
 void main() {
   testWidgets(

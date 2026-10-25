@@ -193,8 +193,6 @@ class _RequestsPage extends StatefulWidget {
   const _RequestsPage({
     required this.driverId,
     required this.driverName,
-    this.phoneNumber = '',
-    this.profilePhoto = '',
     required this.reviewStatus,
     required this.vehicleType,
     this.mapBuilder,
@@ -202,8 +200,6 @@ class _RequestsPage extends StatefulWidget {
 
   final String driverId;
   final String driverName;
-  final String phoneNumber;
-  final String profilePhoto;
   final String reviewStatus;
   final String vehicleType;
   final WidgetBuilder? mapBuilder;
