@@ -220,6 +220,7 @@ class DriverActiveRideService {
       _completedRideId == rideId ? _completion : null;
 
   Future<String?> getAssignedPassengerPhoto(String rideId) async {
+    for (int attempt = 0; attempt < 3; attempt++) {
     try {
       final HttpsCallableResult<dynamic> result = await _functions
           .httpsCallable('getAssignedPassengerPhoto')
@@ -232,6 +233,8 @@ class DriverActiveRideService {
       }
     } on Object catch (error) {
       debugPrint('Unable to load assigned passenger photo: $error');
+    }
+    if (attempt < 2) await Future<void>.delayed(Duration(seconds: 2 * (attempt + 1)));
     }
     return null;
   }
@@ -488,3 +491,4 @@ DateTime? _optionalTimestamp(Object? value) {
   if (value is DateTime) return value;
   return null;
 }
+

@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/account_avatar.dart';
 import '../../../core/widgets/alpha_back_button.dart';
 import '../../../core/widgets/alpha_components.dart';
 import '../../auth/data/driver_legal_content.dart';
@@ -328,6 +331,9 @@ class DriverInboxPageUi extends StatelessWidget {
 class DriverProfilePageUi extends StatelessWidget {
   const DriverProfilePageUi({
     required this.driverName,
+    this.driverId = '',
+    this.phoneNumber = '',
+    this.profilePhoto = '',
     required this.reviewStatus,
     required this.registration,
     this.onSignOut,
@@ -335,6 +341,9 @@ class DriverProfilePageUi extends StatelessWidget {
   });
 
   final String driverName;
+  final String driverId;
+  final String phoneNumber;
+  final String profilePhoto;
   final String reviewStatus;
   final DriverRegistration registration;
   final Future<void> Function()? onSignOut;
@@ -383,6 +392,9 @@ class DriverProfilePageUi extends StatelessWidget {
       children: <Widget>[
         _ProfileHeader(
           driverName: driverName,
+          driverId: driverId,
+          phoneNumber: phoneNumber,
+          profilePhoto: profilePhoto,
           reviewStatus: _reviewLabel,
           vehicle: _vehicleName(registration),
         ),
@@ -1414,11 +1426,17 @@ class _HeroStatusCard extends StatelessWidget {
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.driverName,
+    this.driverId = '',
+    this.phoneNumber = '',
+    this.profilePhoto = '',
     required this.reviewStatus,
     required this.vehicle,
   });
 
   final String driverName;
+  final String driverId;
+  final String phoneNumber;
+  final String profilePhoto;
   final String reviewStatus;
   final String vehicle;
 
@@ -1434,11 +1452,7 @@ class _ProfileHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const CircleAvatar(
-            radius: 34,
-            backgroundColor: AppColors.primary,
-            child: Icon(Icons.person_rounded, color: AppColors.ink, size: 36),
-          ),
+          _DriverAccountPhoto(driverId: driverId, profilePhoto: profilePhoto),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -1451,6 +1465,10 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 5),
+                if (phoneNumber.isNotEmpty) ...<Widget>[
+                  Text(phoneNumber),
+                  const SizedBox(height: 5),
+                ],
                 Text(reviewStatus),
                 if (vehicle.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 3),
@@ -2118,4 +2136,44 @@ String _vehicleName(DriverRegistration registration) {
 
 void _push(BuildContext context, Widget page) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+}
+
+
+class _DriverAccountPhoto extends StatefulWidget {
+  const _DriverAccountPhoto({required this.driverId, required this.profilePhoto});
+  final String driverId;
+  final String profilePhoto;
+
+  @override
+  State<_DriverAccountPhoto> createState() => _DriverAccountPhotoState();
+}
+
+class _DriverAccountPhotoState extends State<_DriverAccountPhoto> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _checks;
+
+  @override
+  void initState() { super.initState(); _watch(); }
+
+  @override
+  void didUpdateWidget(covariant _DriverAccountPhoto oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.driverId != widget.driverId) _watch();
+  }
+
+  void _watch() {
+    _checks = widget.driverId.isEmpty || Firebase.apps.isEmpty ? null
+        : FirebaseFirestore.instance.collection('driver_photo_checks')
+            .doc(widget.driverId).snapshots();
+  }
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    key: ValueKey<String>(widget.driverId),
+    stream: _checks,
+    builder: (BuildContext context, AsyncSnapshot<DocumentSnapshot<Map<String, dynamic>>> snapshot) {
+      final String selfie = snapshot.data?.data()?['storagePath']?.toString() ?? '';
+      return AccountAvatar(radius: 34,
+        photo: widget.profilePhoto.isNotEmpty ? widget.profilePhoto : selfie);
+    },
+  );
 }

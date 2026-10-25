@@ -434,6 +434,8 @@ class _DriverProfileGateState extends State<_DriverProfileGate> {
             return DriverShell(
               driverId: profile.uid,
               driverName: profile.fullName,
+              phoneNumber: widget.phoneNumber.isNotEmpty ? widget.phoneNumber : profile.phoneNumber,
+              profilePhoto: profile.photoStoragePath.isNotEmpty ? profile.photoStoragePath : profile.photoUrl,
               reviewStatus: profile.reviewStatus,
               registration: profile.registration,
               onSignOut: widget.authService.signOut,
@@ -539,3 +541,4 @@ class _ProfileLoadError extends StatelessWidget {
     );
   }
 }
+

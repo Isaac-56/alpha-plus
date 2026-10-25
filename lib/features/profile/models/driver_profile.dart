@@ -4,6 +4,8 @@ class DriverProfile {
   const DriverProfile({
     required this.uid,
     required this.phoneNumber,
+    this.photoUrl = '',
+    this.photoStoragePath = '',
     required this.firstName,
     required this.lastName,
     required this.onboardingCompleted,
@@ -13,6 +15,8 @@ class DriverProfile {
 
   final String uid;
   final String phoneNumber;
+  final String photoUrl;
+  final String photoStoragePath;
   final String firstName;
   final String lastName;
   final bool onboardingCompleted;
@@ -31,6 +35,8 @@ class DriverProfile {
     return DriverProfile(
       uid: uid,
       phoneNumber: data['phoneNumber'] as String? ?? '',
+      photoUrl: data['photoUrl'] as String? ?? '',
+      photoStoragePath: data['photoStoragePath'] as String? ?? '',
       firstName: data['firstName'] as String? ?? '',
       lastName: data['lastName'] as String? ?? '',
       onboardingCompleted: data['onboardingCompleted'] as bool? ?? false,
@@ -41,3 +47,4 @@ class DriverProfile {
     );
   }
 }
+

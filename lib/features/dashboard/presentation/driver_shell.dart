@@ -25,6 +25,8 @@ class DriverShell extends StatefulWidget {
   const DriverShell({
     this.driverId = '',
     required this.driverName,
+    this.phoneNumber = '',
+    this.profilePhoto = '',
     this.reviewStatus = 'pending',
     required this.registration,
     this.onSignOut,
@@ -34,6 +36,8 @@ class DriverShell extends StatefulWidget {
 
   final String driverId;
   final String driverName;
+  final String phoneNumber;
+  final String profilePhoto;
   final String reviewStatus;
   final DriverRegistration registration;
   final Future<void> Function()? onSignOut;
@@ -59,6 +63,8 @@ class _DriverShellState extends State<DriverShell> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.driverId != widget.driverId ||
         oldWidget.driverName != widget.driverName ||
+        oldWidget.phoneNumber != widget.phoneNumber ||
+        oldWidget.profilePhoto != widget.profilePhoto ||
         oldWidget.reviewStatus != widget.reviewStatus ||
         oldWidget.registration != widget.registration ||
         oldWidget.onSignOut != widget.onSignOut ||
@@ -98,6 +104,9 @@ class _DriverShellState extends State<DriverShell> {
       _MoneyPage(driverId: widget.driverId),
       const _ChatsPage(),
       _ProfilePage(
+        driverId: widget.driverId,
+        phoneNumber: widget.phoneNumber,
+        profilePhoto: widget.profilePhoto,
         driverName: widget.driverName,
         reviewStatus: widget.reviewStatus,
         registration: widget.registration,
@@ -184,6 +193,8 @@ class _RequestsPage extends StatefulWidget {
   const _RequestsPage({
     required this.driverId,
     required this.driverName,
+    this.phoneNumber = '',
+    this.profilePhoto = '',
     required this.reviewStatus,
     required this.vehicleType,
     this.mapBuilder,
@@ -191,6 +202,8 @@ class _RequestsPage extends StatefulWidget {
 
   final String driverId;
   final String driverName;
+  final String phoneNumber;
+  final String profilePhoto;
   final String reviewStatus;
   final String vehicleType;
   final WidgetBuilder? mapBuilder;
@@ -1180,14 +1193,20 @@ class _ChatsPage extends StatelessWidget {
 }
 
 class _ProfilePage extends StatelessWidget {
+  final String driverId;
   const _ProfilePage({
+    this.driverId = '',
     required this.driverName,
+    this.phoneNumber = '',
+    this.profilePhoto = '',
     required this.reviewStatus,
     required this.registration,
     this.onSignOut,
   });
 
   final String driverName;
+  final String phoneNumber;
+  final String profilePhoto;
   final String reviewStatus;
   final DriverRegistration registration;
   final Future<void> Function()? onSignOut;
@@ -1195,6 +1214,9 @@ class _ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DriverProfilePageUi(
+      driverId: driverId,
+      phoneNumber: phoneNumber,
+      profilePhoto: profilePhoto,
       driverName: driverName,
       reviewStatus: reviewStatus,
       registration: registration,
@@ -1202,3 +1224,4 @@ class _ProfilePage extends StatelessWidget {
     );
   }
 }
+
