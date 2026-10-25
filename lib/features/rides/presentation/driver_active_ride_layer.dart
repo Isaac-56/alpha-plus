@@ -405,6 +405,8 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                                         !ride.isPhoneBooking) ...<Widget>[
                                       const SizedBox(height: 12),
                                       _PassengerContact(
+                                        key: ValueKey<String>(ride.rideId),
+                                        reloadPhoto: () => _rides.getAssignedPassengerPhoto(ride.rideId),
                                         photo: _passengerPhotos.putIfAbsent(
                                           ride.rideId,
                                           () =>
@@ -556,24 +558,59 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
   };
 }
 
-class _PassengerContact extends StatelessWidget {
+class _PassengerContact extends StatefulWidget {
   const _PassengerContact({
     required this.ride,
     required this.onCall,
     required this.photo,
+    required this.reloadPhoto,
+    super.key,
   });
 
   final Future<String?> photo;
-
+  final Future<String?> Function() reloadPhoto;
   final DriverActiveRide ride;
   final VoidCallback onCall;
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<String?>(
-    future: photo,
-    builder: (BuildContext context, AsyncSnapshot<String?> snapshot) =>
-        _buildContact(context, snapshot.data ?? ride.customerPhotoUrl),
-  );
+  State<_PassengerContact> createState() => _PassengerContactState();
+}
+
+class _PassengerContactState extends State<_PassengerContact> {
+  Timer? _retry;
+  int _attempt = 0;
+  String? _photo;
+  DriverActiveRide get ride => widget.ride;
+  VoidCallback get onCall => widget.onCall;
+
+  @override
+  void initState() {
+    super.initState();
+    _load(initial: widget.photo);
+  }
+
+  Future<void> _load({Future<String?>? initial}) async {
+    _attempt++;
+    String? photo;
+    try { photo = await (initial ?? widget.reloadPhoto()); }
+    on Object { /* Keep the fallback until a bounded retry succeeds. */ }
+    if (!mounted) return;
+    if (photo?.isNotEmpty == true) {
+      setState(() => _photo = photo);
+    } else if (_attempt < 3) {
+      _retry = Timer(Duration(seconds: 2 * _attempt), _load);
+    }
+  }
+
+  @override
+  void dispose() {
+    _retry?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _buildContact(context, _photo ?? ride.customerPhotoUrl);
 
   Widget _buildContact(BuildContext context, String photoUrl) {
     final ImageProvider<Object>? avatar = ridePhotoProvider(photoUrl);
@@ -775,3 +812,4 @@ class _DriverWaitingStatus extends StatelessWidget {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 }
+
