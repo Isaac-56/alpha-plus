@@ -47,8 +47,12 @@ void main() {
     () async {
       int attempts = 0;
       final String response = await retryDriverAvailability(() async {
-        if (++attempts == 1)
-          throw FirebaseFunctionsException(code: 'unavailable');
+        if (++attempts == 1) {
+          throw FirebaseFunctionsException(
+            code: 'unavailable',
+            message: 'Temporary network error',
+          );
+        }
         return 'approved';
       }, beforeRetry: () async {});
       expect(response, 'approved');
@@ -68,7 +72,10 @@ void main() {
         await expectLater(
           retryDriverAvailability(() async {
             attempts++;
-            throw FirebaseFunctionsException(code: code);
+            throw FirebaseFunctionsException(
+              code: code,
+              message: 'Action required',
+            );
           }, beforeRetry: () async {}),
           throwsA(isA<FirebaseFunctionsException>()),
         );

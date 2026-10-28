@@ -628,7 +628,7 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
               builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
                 final bool isOnline = snapshot.data ?? false;
                 _forceOfflineIfNeeded(
-                  isOnline: isOnline,
+                  isOnline: isOnline || _service.wantsOnline,
                   walletLoaded: walletLoaded,
                   wallet: wallet,
                 );
