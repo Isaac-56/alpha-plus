@@ -923,14 +923,8 @@ class DriverPresenceService {
     _lastPublishedHeading = null;
     _notifyPresence();
     await Future.wait<void>(<Future<void>>[
-      if (connection != null)
-        connection.cancel().whenComplete(
-          () => debugPrint('Driver connection listener stopped'),
-        ),
-      if (positions != null)
-        positions.cancel().whenComplete(
-          () => debugPrint('Driver location listener stopped'),
-        ),
+      if (connection != null) connection.cancel(),
+      if (positions != null) positions.cancel(),
     ]);
 
     if (reference == null || presenceId == null) return;
@@ -938,13 +932,8 @@ class DriverPresenceService {
     // Both operations may queue while disconnected; do not let stale cleanup
     // block a new session. Transactions only delete the matching presenceId.
     await Future.wait<void>(<Future<void>>[
-      reference.onDisconnect().cancel().whenComplete(
-        () => debugPrint('Driver disconnect action cleared'),
-      ),
-      _removePresenceIfOwned(
-        reference,
-        presenceId,
-      ).whenComplete(() => debugPrint('Driver presence cleanup finished')),
+      reference.onDisconnect().cancel(),
+      _removePresenceIfOwned(reference, presenceId),
     ]).timeout(const Duration(seconds: 5));
   }
 

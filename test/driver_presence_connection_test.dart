@@ -128,102 +128,67 @@ class _Location extends GeolocatorPlatform {
       positions.stream;
 }
 
-Future<void> _finish(
-  WidgetTester tester,
-  Future<void> operation,
-  String label,
-) async {
-  bool done = false;
-  Object? failure;
-  StackTrace? trace;
-  operation.then<void>(
-    (_) {
-      done = true;
-    },
-    onError: (Object error, StackTrace stack) {
-      failure = error;
-      trace = stack;
-      done = true;
-    },
-  );
-  for (int tick = 0; tick < 100 && !done; tick++) {
-    await tester.pump(const Duration(milliseconds: 10));
-  }
-  expect(
-    done,
-    isTrue,
-    reason: '$label did not finish after draining test events',
-  );
-  if (failure != null) Error.throwWithStackTrace(failure!, trace!);
-}
-
 void main() {
-  testWidgets(
-    'queued writes are not LIVE; a slow acknowledgement and reconnect retain online intent',
-    (WidgetTester tester) async {
-      final GeolocatorPlatform original = GeolocatorPlatform.instance;
-      final _Location location = _Location();
-      GeolocatorPlatform.instance = location;
-      final _Database database = _Database();
-      final DriverPresenceService service = DriverPresenceService(
-        auth: _Auth(),
-        database: database,
-        functions: _Functions(),
-      );
-      final List<bool> states = <bool>[];
-      final StreamSubscription<bool> subscription = service
-          .watchOnlineState('driver')
-          .listen(states.add);
-      final Completer<void> acknowledgement = Completer<void>();
-      database.presence.nextAcknowledgement = acknowledgement;
-      final Future<void> startup = service.goOnline(
-        driverId: 'driver',
-        reviewStatus: 'approved',
-        vehicleType: 'standard',
-      );
-      await tester.pump();
-      expect(database.presence.writes, 1);
-      expect(
-        states.last,
-        isFalse,
-        reason:
-            'An optimistic local database event is not server confirmation.',
-      );
-      await tester.pump(const Duration(seconds: 21));
-      expect(service.wantsOnline, isTrue);
-      expect(states.last, isFalse);
-      acknowledgement.complete();
-      await tester.pump();
-      await startup;
-      expect(states.last, isTrue);
-      database.connection.events.add(_Event(false));
-      await tester.pump();
-      expect(states.last, isFalse);
-      expect(
-        service.wantsOnline,
-        isTrue,
-        reason: 'A network gap must not cancel the driver’s choice.',
-      );
-      database.connection.events.add(_Event(true));
-      await tester.pump();
-      expect(states.last, isTrue);
-      expect(database.presence.writes, 2);
-      await _finish(tester, service.goOffline(), 'Go offline');
-      await tester.pump();
-      expect(service.wantsOnline, isFalse);
-      expect(states.last, isFalse);
-      await _finish(tester, subscription.cancel(), 'Cancel observer');
-      await _finish(tester, database.close(), 'Close database');
-      await _finish(tester, location.positions.close(), 'Close location');
-      GeolocatorPlatform.instance = original;
-      expect(tester.takeException(), isNull);
-    },
-    timeout: const Timeout(Duration(seconds: 30)),
-  );
+  test('queued writes are not LIVE; a slow acknowledgement and reconnect retain online intent', () async {
+    final GeolocatorPlatform original = GeolocatorPlatform.instance;
+    final _Location location = _Location();
+    GeolocatorPlatform.instance = location;
+    final _Database database = _Database();
+    final DriverPresenceService service = DriverPresenceService(
+      auth: _Auth(),
+      database: database,
+      functions: _Functions(),
+    );
+    final List<bool> states = <bool>[];
+    final StreamSubscription<bool> subscription = service
+        .watchOnlineState('driver')
+        .listen(states.add);
+    final Completer<void> acknowledgement = Completer<void>();
+    database.presence.nextAcknowledgement = acknowledgement;
+    final Future<void> startup = service.goOnline(
+      driverId: 'driver',
+      reviewStatus: 'approved',
+      vehicleType: 'standard',
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(database.presence.writes, 1);
+    expect(
+      states.last,
+      isFalse,
+      reason: 'An optimistic local database event is not server confirmation.',
+    );
+    await Future<void>.delayed(const Duration(seconds: 21));
+    expect(service.wantsOnline, isTrue);
+    expect(states.last, isFalse);
+    acknowledgement.complete();
+    await Future<void>.delayed(Duration.zero);
+    await startup;
+    expect(states.last, isTrue);
+    database.connection.events.add(_Event(false));
+    await Future<void>.delayed(Duration.zero);
+    expect(states.last, isFalse);
+    expect(
+      service.wantsOnline,
+      isTrue,
+      reason: 'A network gap must not cancel the driver’s choice.',
+    );
+    database.connection.events.add(_Event(true));
+    await Future<void>.delayed(Duration.zero);
+    expect(states.last, isTrue);
+    expect(database.presence.writes, 2);
+    await service.goOffline();
+    await Future<void>.delayed(Duration.zero);
+    expect(service.wantsOnline, isFalse);
+    expect(states.last, isFalse);
+    await subscription.cancel();
+    await database.close();
+    await location.positions.close();
+    GeolocatorPlatform.instance = original;
+  }, timeout: const Timeout(Duration(seconds: 45)));
 
-  testWidgets(
+  test(
     'cancelling during permission check prevents a late online write',
-    (WidgetTester tester) async {
+    () async {
       final GeolocatorPlatform original = GeolocatorPlatform.instance;
       final _Location location = _Location()
         ..permission = Completer<LocationPermission>();
@@ -239,18 +204,17 @@ void main() {
         reviewStatus: 'approved',
         vehicleType: 'standard',
       );
-      await tester.pump();
-      await _finish(tester, service.goOffline(), 'Go offline');
+      await Future<void>.delayed(Duration.zero);
+      await service.goOffline();
       location.permission!.complete(LocationPermission.whileInUse);
-      await tester.pump();
+      await Future<void>.delayed(Duration.zero);
       await startup;
       expect(service.wantsOnline, isFalse);
       expect(database.presence.writes, 0);
-      await _finish(tester, database.close(), 'Close database');
-      await _finish(tester, location.positions.close(), 'Close location');
+      await database.close();
+      await location.positions.close();
       GeolocatorPlatform.instance = original;
-      expect(tester.takeException(), isNull);
     },
-    timeout: const Timeout(Duration(seconds: 30)),
+    timeout: const Timeout(Duration(seconds: 45)),
   );
 }
