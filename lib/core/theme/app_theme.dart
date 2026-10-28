@@ -21,21 +21,22 @@ abstract final class AppTheme {
     final Color softSurface = isDark
         ? AppColors.darkSoftSurface
         : AppColors.softSurface;
-    final ColorScheme scheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
-      brightness: brightness,
-      primary: AppColors.primary,
-      onPrimary: AppColors.ink,
-      surface: surface,
-      onSurface: ink,
-      error: AppColors.danger,
-    ).copyWith(
-      surfaceContainerLowest: surface,
-      surfaceContainerLow: softSurface,
-      surfaceContainer: softSurface,
-      outline: border,
-      outlineVariant: border,
-    );
+    final ColorScheme scheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          brightness: brightness,
+          primary: AppColors.primary,
+          onPrimary: AppColors.ink,
+          surface: surface,
+          onSurface: ink,
+          error: AppColors.danger,
+        ).copyWith(
+          surfaceContainerLowest: surface,
+          surfaceContainerLow: softSurface,
+          surfaceContainer: softSurface,
+          outline: border,
+          outlineVariant: border,
+        );
 
     final TextTheme base = ThemeData(
       brightness: brightness,
@@ -55,28 +56,28 @@ abstract final class AppTheme {
           color: ink,
           fontSize: 38,
           height: 1.08,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
           letterSpacing: -1.2,
         ),
         headlineLarge: base.headlineLarge?.copyWith(
           color: ink,
           fontSize: 30,
           height: 1.12,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
           letterSpacing: -0.8,
         ),
         headlineMedium: base.headlineMedium?.copyWith(
           color: ink,
           fontSize: 24,
           height: 1.18,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
           letterSpacing: -0.4,
         ),
         titleLarge: base.titleLarge?.copyWith(
           color: ink,
           fontSize: 20,
           height: 1.25,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
         ),
         bodyLarge: base.bodyLarge?.copyWith(
           color: ink,
@@ -92,7 +93,7 @@ abstract final class AppTheme {
           color: AppColors.ink,
           fontSize: 16,
           height: 1.2,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
         ),
       ),
       appBarTheme: AppBarTheme(
@@ -140,10 +141,7 @@ abstract final class AppTheme {
         ),
         hintStyle: TextStyle(color: muted),
         labelStyle: TextStyle(color: muted),
-        floatingLabelStyle: TextStyle(
-          color: ink,
-          fontWeight: FontWeight.w700,
-        ),
+        floatingLabelStyle: TextStyle(color: ink, fontWeight: FontWeight.w500),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.controlRadius),
           borderSide: BorderSide.none,
@@ -175,7 +173,7 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.controlRadius),
           ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -210,9 +208,8 @@ abstract final class AppTheme {
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith<Color>(
-          (Set<WidgetState> states) => states.contains(WidgetState.selected)
-              ? AppColors.ink
-              : muted,
+          (Set<WidgetState> states) =>
+              states.contains(WidgetState.selected) ? AppColors.ink : muted,
         ),
         trackColor: WidgetStateProperty.resolveWith<Color>(
           (Set<WidgetState> states) => states.contains(WidgetState.selected)
@@ -224,8 +221,10 @@ abstract final class AppTheme {
         behavior: SnackBarBehavior.floating,
         backgroundColor: isDark ? Colors.white : AppColors.ink,
         contentTextStyle: TextStyle(
+          fontSize: 14,
+          height: 1.4,
           color: isDark ? AppColors.ink : Colors.white,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),

@@ -3,9 +3,12 @@ import 'dart:math';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+
+import 'driver_online_preparation.dart';
 
 class DriverPresenceException implements Exception {
   const DriverPresenceException(this.message);
@@ -213,8 +216,14 @@ class DriverPresenceService {
   Position? _lastPublishedPosition;
   double? _lastPublishedHeading;
   Object? _onlineAttempt;
+  String? _confirmedPresenceId;
+  final ValueNotifier<int> _presenceRevision = ValueNotifier<int>(0);
+  bool get wantsOnline => _onlineAttempt != null;
+  void _notifyPresence() => _presenceRevision.value++;
   PreparedDriverAvailability? _cachedAvailability;
   DateTime? _cachedAvailabilityAt;
+  String? _cachedAvailabilityDriverId;
+  String? _availabilityRequestDriverId;
   Future<PreparedDriverAvailability>? _availabilityInFlight;
   Position? _prewarmedPosition;
 
@@ -223,20 +232,41 @@ class DriverPresenceService {
 
   Stream<bool> watchOnlineState(String driverId) {
     if (driverId.isEmpty) return Stream<bool>.value(false);
+    // RTDB emits local writes before server acknowledgement. Only announce
+    // LIVE after the write succeeds, including after reconnecting.
+    late StreamController<bool> controller;
+    StreamSubscription<DatabaseEvent>? subscription;
+    Object? latest;
+    void emit() {
+      final Object? value = latest;
+      final bool online =
+          value is Map<Object?, Object?> &&
+          _confirmedPresenceId == _activePresenceId &&
+          DriverAvailabilityPolicy.isCurrentPresenceOnline(
+            driverId: driverId,
+            activeDriverId: _activeDriverId,
+            activePresenceId: _activePresenceId,
+            remotePresenceId: value['presenceId'],
+            rawOnline: value['isOnline'] ?? value['online'],
+          );
+      controller.add(online);
+    }
 
-    return _driverReference(driverId).onValue.map((DatabaseEvent event) {
-      final Object? value = event.snapshot.value;
-      if (value is! Map<Object?, Object?>) return false;
-
-      final Object? rawOnline = value['isOnline'] ?? value['online'];
-      return DriverAvailabilityPolicy.isCurrentPresenceOnline(
-        driverId: driverId,
-        activeDriverId: _activeDriverId,
-        activePresenceId: _activePresenceId,
-        remotePresenceId: value['presenceId'],
-        rawOnline: rawOnline,
-      );
-    }).distinct();
+    controller = StreamController<bool>(
+      onListen: () {
+        _presenceRevision.addListener(emit);
+        subscription = _driverReference(driverId).onValue.listen((event) {
+          latest = event.snapshot.value;
+          emit();
+        }, onError: controller.addError);
+        emit();
+      },
+      onCancel: () async {
+        _presenceRevision.removeListener(emit);
+        await subscription?.cancel();
+      },
+    );
+    return controller.stream.distinct();
   }
 
   /// Warms the two slow dependencies used by the Online switch while the
@@ -291,6 +321,45 @@ class DriverPresenceService {
     required String reviewStatus,
     required String vehicleType,
   }) async {
+    final Object attempt = Object();
+    _onlineAttempt = attempt;
+    try {
+      await _goOnline(
+        driverId: driverId,
+        reviewStatus: reviewStatus,
+        vehicleType: vehicleType,
+        onlineAttempt: attempt,
+      );
+    } on Object catch (error) {
+      if (_onlineAttempt != attempt) return;
+      // Invalidate before queued writes can finish. Cleanup is ownership
+      // checked, so a failed attempt cannot remove a newer online session.
+      unawaited(
+        goOffline().catchError((Object cleanupError) {
+          debugPrint('Unable to clean up driver presence: $cleanupError');
+        }),
+      );
+      if (error is DriverPresenceException) rethrow;
+      if (error is FirebaseException && error.code == 'permission-denied') {
+        throw const DriverPresenceException(
+          'Location sharing was denied. Contact Alpha support to check your account.',
+        );
+      }
+      if (error is TimeoutException) {
+        throw const DriverPresenceException(
+          'Could not connect to dispatch. Check your internet and try again.',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _goOnline({
+    required String driverId,
+    required String reviewStatus,
+    required String vehicleType,
+    required Object onlineAttempt,
+  }) async {
     final String requestedVehicleType =
         DriverAvailabilityPolicy.normalizedVehicleType(vehicleType);
     if (!DriverAvailabilityPolicy.canGoOnline(reviewStatus)) {
@@ -312,10 +381,12 @@ class DriverPresenceService {
       );
     }
 
+    if (_onlineAttempt != onlineAttempt) return;
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
+    if (_onlineAttempt != onlineAttempt) return;
     if (permission == LocationPermission.denied) {
       throw const DriverPresenceException(
         'Location permission is required while you are online.',
@@ -327,24 +398,22 @@ class DriverPresenceService {
       );
     }
 
-    final Object onlineAttempt = Object();
-    _onlineAttempt = onlineAttempt;
-    await _clearPresence(cancelOnlineAttempt: false);
+    try {
+      await _clearPresence(cancelOnlineAttempt: false);
+    } on TimeoutException {
+      debugPrint('Previous presence cleanup queued until reconnect.');
+    }
     if (_onlineAttempt != onlineAttempt) return;
 
     // The secure profile check and GPS lookup are independent. Running them
     // together removes the long sequential wait after tapping Online.
-    final Future<PreparedDriverAvailability> availabilityFuture =
-        _availabilityForOnlineAttempt();
-    final Future<Position> positionFuture = _resolveInitialPosition();
-
-    late final PreparedDriverAvailability prepared;
-    try {
-      prepared = await availabilityFuture;
-    } on Object {
-      if (_onlineAttempt != onlineAttempt) return;
-      rethrow;
-    }
+    final (
+      PreparedDriverAvailability prepared,
+      Position initialPosition,
+    ) = await prepareDriverOnline(
+      _availabilityForOnlineAttempt(),
+      _resolveInitialPosition(),
+    );
     if (_onlineAttempt != onlineAttempt) return;
     final String normalizedVehicleType =
         DriverAvailabilityPolicy.normalizedVehicleType(prepared.vehicleType);
@@ -364,15 +433,6 @@ class DriverPresenceService {
     final String presenceId = _createPresenceId();
     final DatabaseReference reference = _driverReference(driverId);
     final LocationSettings settings = _onlineLocationSettings();
-    late final Position initialPosition;
-    try {
-      initialPosition = await positionFuture;
-    } on Object {
-      if (_onlineAttempt != onlineAttempt) return;
-      rethrow;
-    }
-    if (_onlineAttempt != onlineAttempt) return;
-
     _activeDriverId = driverId;
     _activePresenceId = presenceId;
     _activeReference = reference;
@@ -387,10 +447,16 @@ class DriverPresenceService {
       vehicleType: normalizedVehicleType,
       position: initialPosition,
       heading: initialHeading,
-    );
+    ).timeout(const Duration(seconds: 25));
     if (_onlineAttempt != onlineAttempt) return;
+    _confirmedPresenceId = presenceId;
+    _notifyPresence();
 
-    _startHeartbeat(reference: reference, presenceId: presenceId);
+    _startHeartbeat(
+      reference: reference,
+      presenceId: presenceId,
+      vehicleType: normalizedVehicleType,
+    );
     _startConnectionRecovery(
       reference: reference,
       presenceId: presenceId,
@@ -426,11 +492,18 @@ class DriverPresenceService {
 
   Future<PreparedDriverAvailability> _prepareAvailability() async {
     try {
-      final HttpsCallableResult<dynamic> result = await _functions
-          .httpsCallable('prepareDriverAvailability')
-          .call<dynamic>()
-          .timeout(const Duration(seconds: 12));
-      return PreparedDriverAvailability.fromCallable(result.data);
+      return await retryDriverAvailability(() async {
+        final HttpsCallableResult<dynamic> result = await _functions
+            .httpsCallable(
+              'prepareDriverAvailability',
+              options: HttpsCallableOptions(
+                timeout: const Duration(seconds: 30),
+              ),
+            )
+            .call<dynamic>()
+            .timeout(const Duration(seconds: 32));
+        return PreparedDriverAvailability.fromCallable(result.data);
+      });
     } on FirebaseFunctionsException catch (error) {
       throw DriverPresenceException(
         error.message ??
@@ -450,18 +523,28 @@ class DriverPresenceService {
   Future<PreparedDriverAvailability> _availabilityForOnlineAttempt() async {
     final PreparedDriverAvailability? cached = _cachedAvailability;
     final DateTime? cachedAt = _cachedAvailabilityAt;
+    final String? driverId = _auth.currentUser?.uid;
     if (cached != null &&
+        _cachedAvailabilityDriverId == driverId &&
+        driverId != null &&
         cachedAt != null &&
         DateTime.now().difference(cachedAt) <= const Duration(seconds: 90)) {
       return cached;
     }
 
+    if (_availabilityRequestDriverId != driverId) {
+      _availabilityInFlight = null;
+      _availabilityRequestDriverId = driverId;
+    }
     final Future<PreparedDriverAvailability> request = _availabilityInFlight ??=
         _prepareAvailability();
     try {
       final PreparedDriverAvailability prepared = await request;
-      _cachedAvailability = prepared;
-      _cachedAvailabilityAt = DateTime.now();
+      if (_auth.currentUser?.uid == driverId) {
+        _cachedAvailability = prepared;
+        _cachedAvailabilityDriverId = driverId;
+        _cachedAvailabilityAt = DateTime.now();
+      }
       return prepared;
     } finally {
       if (identical(_availabilityInFlight, request)) {
@@ -687,8 +770,10 @@ class DriverPresenceService {
         .onValue
         .listen(
           (DatabaseEvent event) {
-            if (event.snapshot.value != true ||
-                _activePresenceId != presenceId) {
+            if (_activePresenceId != presenceId) return;
+            if (event.snapshot.value != true) {
+              _confirmedPresenceId = null;
+              _notifyPresence();
               return;
             }
 
@@ -718,7 +803,9 @@ class DriverPresenceService {
 
     await reference.onDisconnect().update(<String, Object?>{
       'isOnline': false,
+      'online': false,
       'updatedAt': ServerValue.timestamp,
+      'lastUpdated': ServerValue.timestamp,
     });
     if (_activePresenceId != presenceId) return;
 
@@ -729,21 +816,32 @@ class DriverPresenceService {
       position: position,
       heading: _lastPublishedHeading ?? 0,
     );
+    if (_activePresenceId != presenceId) return;
+    _confirmedPresenceId = presenceId;
+    _notifyPresence();
     await _refreshHeartbeat(reference, presenceId);
   }
 
   void _startHeartbeat({
     required DatabaseReference reference,
     required String presenceId,
+    required String vehicleType,
   }) {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(
       DriverAvailabilityPolicy.heartbeatInterval,
       (_) {
         unawaited(
-          _refreshHeartbeat(reference, presenceId).catchError((Object error) {
-            debugPrint('Unable to refresh driver availability: $error');
-          }),
+          (_confirmedPresenceId == presenceId
+                  ? _refreshHeartbeat(reference, presenceId)
+                  : _restoreConnectedPresence(
+                      reference: reference,
+                      presenceId: presenceId,
+                      vehicleType: vehicleType,
+                    ))
+              .catchError((Object error) {
+                debugPrint('Unable to refresh driver availability: $error');
+              }),
         );
       },
     );
@@ -764,6 +862,7 @@ class DriverPresenceService {
             .then((availability) {
               if (_activePresenceId != presenceId) return;
               _cachedAvailability = availability;
+              _cachedAvailabilityDriverId = _activeDriverId;
               _cachedAvailabilityAt = DateTime.now();
             })
             .catchError((Object error) {
@@ -810,24 +909,33 @@ class DriverPresenceService {
     _positionRestartTimer?.cancel();
     _positionRestartTimer = null;
     _positionRestartAttempts = 0;
-    await _connectionSubscription?.cancel();
+    final StreamSubscription<DatabaseEvent>? connection =
+        _connectionSubscription;
+    final StreamSubscription<Position>? positions = _positionSubscription;
     _connectionSubscription = null;
-    await _positionSubscription?.cancel();
     _positionSubscription = null;
-
     final DatabaseReference? reference = _activeReference;
     final String? presenceId = _activePresenceId;
-
     _activeReference = null;
     _activePresenceId = null;
+    _confirmedPresenceId = null;
     _activeDriverId = null;
     _lastPublishedPosition = null;
     _lastPublishedHeading = null;
+    _notifyPresence();
+    await Future.wait<void>(<Future<void>>[
+      if (connection != null) connection.cancel(),
+      if (positions != null) positions.cancel(),
+    ]);
 
     if (reference == null || presenceId == null) return;
 
-    await reference.onDisconnect().cancel();
-    await _removePresenceIfOwned(reference, presenceId);
+    // Both operations may queue while disconnected; do not let stale cleanup
+    // block a new session. Transactions only delete the matching presenceId.
+    await Future.wait<void>(<Future<void>>[
+      reference.onDisconnect().cancel(),
+      _removePresenceIfOwned(reference, presenceId),
+    ]).timeout(const Duration(seconds: 5));
   }
 
   Future<void> _removePresenceIfOwned(

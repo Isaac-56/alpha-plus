@@ -426,7 +426,6 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
   bool? _requestedOnline;
   bool _forcingWalletOffline = false;
   Object? _availabilityAttempt;
-  DateTime? _optimisticOnlineUntil;
 
   DriverPresenceService get _service =>
       _presence ??= DriverPresenceService.instance;
@@ -479,31 +478,27 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
         // The live wallet snapshot already gates this control and the backend
         // validates the wallet again before dispatch. Avoid a second callable
         // round trip here so Online becomes visible immediately.
-        await _service
-            .goOnline(
-              driverId: widget.driverId,
-              reviewStatus: widget.reviewStatus,
-              vehicleType: widget.vehicleType,
-            )
-            .timeout(_availabilityChangeTimeout);
-        _optimisticOnlineUntil = DateTime.now().add(
-          const Duration(seconds: 12),
+        await _service.goOnline(
+          driverId: widget.driverId,
+          reviewStatus: widget.reviewStatus,
+          vehicleType: widget.vehicleType,
         );
       } else {
-        _optimisticOnlineUntil = null;
         await _service.goOffline().timeout(_availabilityChangeTimeout);
       }
     } on TimeoutException {
-      unawaited(_service.goOffline().catchError((Object _) {}));
+      if (!mounted || !identical(_availabilityAttempt, attempt)) return;
       _showMessage(
-        'Alpha Plus could not confirm your availability. Check your connection and try again.',
+        'Connection is taking longer than expected. Please try again.',
       );
     } on DriverWalletException catch (error) {
-      unawaited(_service.goOffline().catchError((Object _) {}));
+      if (!mounted || !identical(_availabilityAttempt, attempt)) return;
       _showMessage(error.message);
     } on DriverPresenceException catch (error) {
+      if (!mounted || !identical(_availabilityAttempt, attempt)) return;
       _showMessage(error.message);
     } on Object {
+      if (!mounted || !identical(_availabilityAttempt, attempt)) return;
       _showMessage(
         'Alpha Plus could not update your availability. Check your connection and try again.',
       );
@@ -544,7 +539,8 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
   void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _forceOfflineIfNeeded({
@@ -563,9 +559,14 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
     _forcingWalletOffline = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(
-        _service.goOffline().whenComplete(() {
-          _forcingWalletOffline = false;
-        }),
+        _service
+            .goOffline()
+            .catchError((Object error) {
+              debugPrint('Wallet offline cleanup queued: $error');
+            })
+            .whenComplete(() {
+              _forcingWalletOffline = false;
+            }),
       );
     });
   }
@@ -595,7 +596,7 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
                     rejected
                         ? 'Verification needs attention'
                         : 'Verification in progress',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   Text(
                     rejected
@@ -612,7 +613,8 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
 
     return RetainedStreamBuilder<DriverWallet>(
       sourceKey: (widget.driverId, DriverWalletService.instance),
-      createStream: () => DriverWalletService.instance.watchWallet(widget.driverId),
+      createStream: () =>
+          DriverWalletService.instance.watchWallet(widget.driverId),
       builder:
           (BuildContext context, AsyncSnapshot<DriverWallet> walletSnapshot) {
             final DriverWallet wallet =
@@ -625,19 +627,15 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
               initialData: false,
               builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
                 final bool isOnline = snapshot.data ?? false;
-                if (isOnline) _optimisticOnlineUntil = null;
                 _forceOfflineIfNeeded(
                   isOnline: isOnline,
                   walletLoaded: walletLoaded,
                   wallet: wallet,
                 );
-                final bool optimisticOnline =
-                    _optimisticOnlineUntil != null &&
-                    DateTime.now().isBefore(_optimisticOnlineUntil!);
-                final bool displayOnline =
-                    isOnline ||
-                    optimisticOnline ||
-                    (_changing && _requestedOnline == true);
+                final bool pending = _changing && _requestedOnline == true;
+                final bool reconnecting =
+                    !pending && !isOnline && _service.wantsOnline;
+                final bool displayOnline = isOnline || pending || reconnecting;
                 final String vehicleLabel = widget.vehicleType
                     .trim()
                     .split(RegExp(r'[_\s-]+'))
@@ -693,22 +691,31 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
                                       ? _requestedOnline == true
                                             ? 'Going online…'
                                             : 'Going offline…'
-                                      : displayOnline
+                                      : reconnecting
+                                      ? 'Reconnecting…'
+                                      : isOnline
                                       ? 'You are online'
                                       : 'You are offline',
                                   style: const TextStyle(
                                     fontSize: 18,
-                                    fontWeight: FontWeight.w900,
+                                    fontWeight: FontWeight.w600,
                                     letterSpacing: -0.3,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  displayOnline
-                                      ? 'Visible to nearby passengers now'
+                                  pending
+                                      ? 'Connecting to receive requests…'
+                                      : reconnecting
+                                      ? 'Restoring your connection automatically'
+                                      : isOnline
+                                      ? 'Ready for nearby requests'
                                       : offlineMessage,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w400,
+                                      ),
                                 ),
                               ],
                             ),
@@ -756,7 +763,7 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
                                       : vehicleLabel,
                                   style: const TextStyle(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
@@ -768,11 +775,11 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
                             width: 9,
                             height: 9,
                             decoration: BoxDecoration(
-                              color: displayOnline
+                              color: isOnline && !pending
                                   ? AppColors.primary
                                   : Colors.grey,
                               shape: BoxShape.circle,
-                              boxShadow: displayOnline
+                              boxShadow: isOnline && !pending
                                   ? <BoxShadow>[
                                       BoxShadow(
                                         color: AppColors.primary.withValues(
@@ -786,10 +793,14 @@ class _DriverAvailabilityCardState extends State<_DriverAvailabilityCard> {
                           ),
                           const SizedBox(width: 7),
                           Text(
-                            displayOnline ? 'LIVE' : 'OFFLINE',
+                            pending || reconnecting
+                                ? 'CONNECTING'
+                                : isOnline
+                                ? 'LIVE'
+                                : 'OFFLINE',
                             style: TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w600,
                               letterSpacing: 0.8,
                               color: displayOnline
                                   ? Theme.of(context).colorScheme.onSurface
@@ -1140,7 +1151,7 @@ class _ProgressRow extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     title,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
                 ],
@@ -1220,4 +1231,3 @@ class _ProfilePage extends StatelessWidget {
     );
   }
 }
-
