@@ -128,6 +128,35 @@ class _Location extends GeolocatorPlatform {
       positions.stream;
 }
 
+Future<void> _finish(
+  WidgetTester tester,
+  Future<void> operation,
+  String label,
+) async {
+  bool done = false;
+  Object? failure;
+  StackTrace? trace;
+  operation.then<void>(
+    (_) {
+      done = true;
+    },
+    onError: (Object error, StackTrace stack) {
+      failure = error;
+      trace = stack;
+      done = true;
+    },
+  );
+  for (int tick = 0; tick < 100 && !done; tick++) {
+    await tester.pump(const Duration(milliseconds: 10));
+  }
+  expect(
+    done,
+    isTrue,
+    reason: '$label did not finish after draining test events',
+  );
+  if (failure != null) Error.throwWithStackTrace(failure!, trace!);
+}
+
 void main() {
   testWidgets(
     'queued writes are not LIVE; a slow acknowledgement and reconnect retain online intent',
@@ -179,17 +208,13 @@ void main() {
       await tester.pump();
       expect(states.last, isTrue);
       expect(database.presence.writes, 2);
-      final Future<void> offline = service.goOffline();
-      await tester.pump();
-      await offline;
+      await _finish(tester, service.goOffline(), 'Go offline');
       await tester.pump();
       expect(service.wantsOnline, isFalse);
       expect(states.last, isFalse);
-      final Future<void> cancelled = subscription.cancel();
-      await tester.pump();
-      await cancelled;
-      await database.close();
-      await location.positions.close();
+      await _finish(tester, subscription.cancel(), 'Cancel observer');
+      await _finish(tester, database.close(), 'Close database');
+      await _finish(tester, location.positions.close(), 'Close location');
       GeolocatorPlatform.instance = original;
       expect(tester.takeException(), isNull);
     },
@@ -215,16 +240,14 @@ void main() {
         vehicleType: 'standard',
       );
       await tester.pump();
-      final Future<void> offline = service.goOffline();
-      await tester.pump();
-      await offline;
+      await _finish(tester, service.goOffline(), 'Go offline');
       location.permission!.complete(LocationPermission.whileInUse);
       await tester.pump();
       await startup;
       expect(service.wantsOnline, isFalse);
       expect(database.presence.writes, 0);
-      await database.close();
-      await location.positions.close();
+      await _finish(tester, database.close(), 'Close database');
+      await _finish(tester, location.positions.close(), 'Close location');
       GeolocatorPlatform.instance = original;
       expect(tester.takeException(), isNull);
     },
