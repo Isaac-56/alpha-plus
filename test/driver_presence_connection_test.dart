@@ -5,6 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 class _User extends Fake implements User {
@@ -165,7 +166,9 @@ void main() {
       expect(states.last, isFalse);
       acknowledgement.complete();
       await tester.pump();
+      debugPrint("connection test: awaiting startup");
       await startup;
+      debugPrint("connection test: startup done");
       expect(states.last, isTrue);
       database.connection.events.add(_Event(false));
       await tester.pump();
@@ -179,16 +182,25 @@ void main() {
       await tester.pump();
       expect(states.last, isTrue);
       expect(database.presence.writes, 2);
+      debugPrint("connection test: going offline");
       await service.goOffline();
+      debugPrint("connection test: offline done");
       await tester.pump();
       expect(service.wantsOnline, isFalse);
       expect(states.last, isFalse);
+      debugPrint("connection test: cancelling observer");
       await subscription.cancel();
+      debugPrint("connection test: observer cancelled");
+      debugPrint("connection test: closing database");
       await database.close();
+      debugPrint("connection test: database closed");
+      debugPrint("connection test: closing location");
       await location.positions.close();
+      debugPrint("connection test: location closed");
       GeolocatorPlatform.instance = original;
       expect(tester.takeException(), isNull);
     },
+    timeout: const Timeout(Duration(seconds: 30)),
   );
 
   testWidgets(
@@ -210,16 +222,25 @@ void main() {
         vehicleType: 'standard',
       );
       await tester.pump();
+      debugPrint("connection test: going offline");
       await service.goOffline();
+      debugPrint("connection test: offline done");
       location.permission!.complete(LocationPermission.whileInUse);
       await tester.pump();
+      debugPrint("connection test: awaiting startup");
       await startup;
+      debugPrint("connection test: startup done");
       expect(service.wantsOnline, isFalse);
       expect(database.presence.writes, 0);
+      debugPrint("connection test: closing database");
       await database.close();
+      debugPrint("connection test: database closed");
+      debugPrint("connection test: closing location");
       await location.positions.close();
+      debugPrint("connection test: location closed");
       GeolocatorPlatform.instance = original;
       expect(tester.takeException(), isNull);
     },
+    timeout: const Timeout(Duration(seconds: 30)),
   );
 }
