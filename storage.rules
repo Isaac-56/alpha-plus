@@ -2,20 +2,71 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    function signedInAs(uid) {
-      return request.auth != null && request.auth.uid == uid;
+    function signedIn() {
+      return request.auth != null &&
+        (request.auth.token.get('phone_number', '').size() > 0 ||
+         request.auth.token.get('admin', false) == true ||
+         request.auth.token.get('customerService', false) == true) &&
+        (!firestore.exists(/databases/(default)/documents/account_roles/$(request.auth.uid)) ||
+         firestore.get(/databases/(default)/documents/account_roles/$(request.auth.uid)).data.get('deletionPending', false) != true);
     }
 
-    function validDriverDocument() {
-      return request.resource.size < 12 * 1024 * 1024
-          && request.resource.contentType.matches('image/.*');
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
     }
 
-    match /drivers/{driverId}/documents/{documentPath=**} {
-      allow read: if signedInAs(driverId);
+    function ownsDriverFiles(driverId) {
+      return signedIn() && request.auth.uid == driverId;
+    }
+
+    function ownsPassengerPhoto(fileName) {
+      return signedIn() &&
+          request.auth.token.phone_number is string &&
+          fileName == request.auth.token.phone_number + '.jpg';
+    }
+
+    function driverNeedsReview(driverId) {
+      return !firestore.exists(/databases/(default)/documents/drivers/$(driverId)) ||
+          firestore.get(/databases/(default)/documents/drivers/$(driverId)).data.get('reviewStatus', 'draft') != 'approved';
+    }
+
+    function isSafeJpeg() {
+      return request.resource != null &&
+          request.resource.size < 10 * 1024 * 1024 &&
+          request.resource.contentType == 'image/jpeg';
+    }
+
+    match /drivers/{driverId}/documents/driver_licence/{fileName} {
+      allow read: if ownsDriverFiles(driverId) || isAdmin();
       allow create, update:
-          if signedInAs(driverId) && validDriverDocument();
-      allow delete: if signedInAs(driverId);
+          if ownsDriverFiles(driverId) &&
+             fileName in ['front.jpg', 'back.jpg'] &&
+             driverNeedsReview(driverId) &&
+             isSafeJpeg();
+      allow delete: if ownsDriverFiles(driverId) && driverNeedsReview(driverId);
+    }
+
+    match /drivers/{driverId}/documents/photo_checks/{fileName} {
+      allow read: if ownsDriverFiles(driverId) || isAdmin();
+      allow create:
+          if ownsDriverFiles(driverId) && isSafeJpeg();
+      allow update: if false;
+      allow delete: if ownsDriverFiles(driverId) && driverNeedsReview(driverId);
+    }
+
+    // Keep the existing AlphaRide passenger profile-photo flow working.
+    // The filename must match the phone number verified by Firebase Auth.
+    match /users/{userId}/profile/{fileName} {
+      allow read: if (signedIn() && request.auth.uid == userId) || isAdmin();
+      allow create, update: if signedIn() && request.auth.uid == userId && isSafeJpeg();
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /user_photos/{fileName} {
+      allow read: if ownsPassengerPhoto(fileName) || isAdmin();
+      allow create, update:
+          if ownsPassengerPhoto(fileName) && isSafeJpeg();
+      allow delete: if ownsPassengerPhoto(fileName);
     }
 
     match /{allPaths=**} {
@@ -23,3 +74,5 @@ service firebase.storage {
     }
   }
 }
+
+

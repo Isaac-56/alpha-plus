@@ -46,3 +46,11 @@ app.*.map.json
 
 # Local Google Maps build secret. Commit only the example file.
 /android/secrets.properties
+
+# Private deployment configuration and local test dependencies
+functions/.env*
+!functions/.env.example
+functions/.secret.local
+security-tests/node_modules/
+android/secrets.properties
+

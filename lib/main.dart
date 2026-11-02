@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'services/app_attestation.dart';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
@@ -29,6 +31,7 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    await initializeAppAttestation();
   } on Object catch (error) {
     firebaseInitializationError = error;
   }
@@ -434,8 +437,12 @@ class _DriverProfileGateState extends State<_DriverProfileGate> {
             return DriverShell(
               driverId: profile.uid,
               driverName: profile.fullName,
-              phoneNumber: widget.phoneNumber.isNotEmpty ? widget.phoneNumber : profile.phoneNumber,
-              profilePhoto: profile.photoStoragePath.isNotEmpty ? profile.photoStoragePath : profile.photoUrl,
+              phoneNumber: widget.phoneNumber.isNotEmpty
+                  ? widget.phoneNumber
+                  : profile.phoneNumber,
+              profilePhoto: profile.photoStoragePath.isNotEmpty
+                  ? profile.photoStoragePath
+                  : profile.photoUrl,
               reviewStatus: profile.reviewStatus,
               registration: profile.registration,
               onSignOut: widget.authService.signOut,
@@ -541,4 +548,3 @@ class _ProfileLoadError extends StatelessWidget {
     );
   }
 }
-

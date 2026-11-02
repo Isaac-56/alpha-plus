@@ -50,7 +50,8 @@ android {
     buildTypes {
         release {
             // Use the same release certificate on every build machine/device.
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release")
+            isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -95,10 +96,11 @@ android {
             )
         }
         if (gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) } &&
-            !alphaPlusSigningFile.exists() && alphaPlusMapsKey != "CI_PLACEHOLDER") {
+            !alphaPlusSigningFile.exists() && providers.environmentVariable("CI").orNull != "true") {
             throw GradleException("Production release requires android/key.properties and the existing release keystore. Register its SHA-1 for com.alpharide.driver on the Maps key.")
         }
         manifestPlaceholders["MAPS_API_KEY"] = alphaPlusMapsKey
     }
 }
 // END ALPHA PLUS MAPS KEY WIRING v1
+
