@@ -869,6 +869,7 @@ class _DriverMapState extends State<_DriverMap> with WidgetsBindingObserver {
   LatLng _driverLocation = _jubaCenter;
   bool _locationGranted = false;
   bool _findingLocation = true;
+  bool _locatingDriver = false;
 
   EdgeInsets get _mapPadding => EdgeInsets.fromLTRB(
     8,
@@ -887,7 +888,12 @@ class _DriverMapState extends State<_DriverMap> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     if (_supportsGoogleMap) {
-      _locateDriver(requestPermission: false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(
+          _locateDriver(requestPermission: !kIsWeb, allowSettings: false),
+        );
+      });
     }
   }
 
@@ -952,40 +958,36 @@ class _DriverMapState extends State<_DriverMap> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _locateDriver({required bool requestPermission}) async {
-    if (mounted) {
-      setState(() => _findingLocation = true);
-    }
+  Future<void> _locateDriver({
+    required bool requestPermission,
+    bool allowSettings = true,
+  }) async {
+    if (!mounted || _locatingDriver) return;
+    _locatingDriver = true;
+    setState(() => _findingLocation = true);
 
     try {
       PermissionStatus status = await Permission.locationWhenInUse.status;
+      if (!mounted) return;
       if (requestPermission && status.isDenied) {
         status = await Permission.locationWhenInUse.request();
+        if (!mounted) return;
       }
 
       if (!status.isGranted) {
-        if (requestPermission && status.isPermanentlyDenied) {
+        setState(() => _locationGranted = false);
+        if (requestPermission && allowSettings && status.isPermanentlyDenied) {
           await openAppSettings();
-        }
-        if (mounted) {
-          setState(() {
-            _locationGranted = false;
-            _findingLocation = false;
-          });
         }
         return;
       }
 
       final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!mounted) return;
       if (!serviceEnabled) {
-        if (requestPermission) {
+        setState(() => _locationGranted = false);
+        if (requestPermission && allowSettings) {
           await Geolocator.openLocationSettings();
-        }
-        if (mounted) {
-          setState(() {
-            _locationGranted = true;
-            _findingLocation = false;
-          });
         }
         return;
       }
@@ -996,30 +998,27 @@ class _DriverMapState extends State<_DriverMap> with WidgetsBindingObserver {
           timeLimit: Duration(seconds: 12),
         ),
       );
-      final LatLng location = LatLng(position.latitude, position.longitude);
-
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
-        _driverLocation = location;
+        _driverLocation = LatLng(position.latitude, position.longitude);
         _locationGranted = true;
-        _findingLocation = false;
       });
       await _frameDriver();
     } on Object {
+      if (mounted && requestPermission && allowSettings) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Your location is unavailable. Check Location in device settings.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      _locatingDriver = false;
       if (mounted) {
         setState(() => _findingLocation = false);
-        if (requestPermission) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Your location is unavailable. Check Location in device settings.',
-              ),
-            ),
-          );
-        }
       }
     }
   }
@@ -1075,7 +1074,9 @@ class _DriverMapState extends State<_DriverMap> with WidgetsBindingObserver {
             shadowColor: Colors.black26,
             shape: const CircleBorder(),
             child: IconButton(
-              tooltip: 'Center on my location',
+              tooltip: _locationGranted
+                  ? 'Center on my location'
+                  : 'Enable location',
               onPressed: _findingLocation
                   ? null
                   : () => _locateDriver(requestPermission: true),
