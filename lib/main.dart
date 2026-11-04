@@ -3,6 +3,7 @@ import 'dart:async';
 import 'services/app_attestation.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_colors.dart';
@@ -29,7 +30,9 @@ Future<void> main() async {
   Object? firebaseInitializationError;
   try {
     await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+      options: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+          ? null
+          : DefaultFirebaseOptions.currentPlatform,
     );
     await initializeAppAttestation();
   } on Object catch (error) {
