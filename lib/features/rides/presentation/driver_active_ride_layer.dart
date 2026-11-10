@@ -406,7 +406,10 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                                       const SizedBox(height: 12),
                                       _PassengerContact(
                                         key: ValueKey<String>(ride.rideId),
-                                        reloadPhoto: () => _rides.getAssignedPassengerPhoto(ride.rideId),
+                                        reloadPhoto: () =>
+                                            _rides.getAssignedPassengerPhoto(
+                                              ride.rideId,
+                                            ),
                                         photo: _passengerPhotos.putIfAbsent(
                                           ride.rideId,
                                           () =>
@@ -475,43 +478,37 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                                 children: <Widget>[
                                   const SizedBox(height: 16),
                                   if (ride.status == 'in_progress') ...<Widget>[
-                                    SizedBox(
-                                      height: 48,
-                                      child: OutlinedButton.icon(
-                                        key: const Key('toggleCustomerWaiting'),
-                                        onPressed: busy
-                                            ? null
-                                            : () => _toggleWaiting(ride),
-                                        icon: Icon(
-                                          ride.isWaiting
-                                              ? Icons.play_arrow_rounded
-                                              : Icons.timer_outlined,
-                                        ),
-                                        label: Text(
-                                          ride.isWaiting
-                                              ? 'End wait and resume'
-                                              : 'Start customer wait',
-                                        ),
+                                    OutlinedButton.icon(
+                                      key: const Key('toggleCustomerWaiting'),
+                                      onPressed: busy
+                                          ? null
+                                          : () => _toggleWaiting(ride),
+                                      icon: Icon(
+                                        ride.isWaiting
+                                            ? Icons.play_arrow_rounded
+                                            : Icons.timer_outlined,
+                                      ),
+                                      label: Text(
+                                        ride.isWaiting
+                                            ? 'Resume trip'
+                                            : 'Start wait timer',
                                       ),
                                     ),
                                     const SizedBox(height: 10),
                                   ],
-                                  SizedBox(
-                                    height: AppSpacing.actionHeight,
-                                    child: ElevatedButton(
-                                      key: const Key('advanceDriverRide'),
-                                      onPressed: busy
-                                          ? null
-                                          : () => _advance(ride),
-                                      child: busy
-                                          ? const SizedBox.square(
-                                              dimension: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.3,
-                                              ),
-                                            )
-                                          : Text(ride.actionLabel),
-                                    ),
+                                  ElevatedButton(
+                                    key: const Key('advanceDriverRide'),
+                                    onPressed: busy
+                                        ? null
+                                        : () => _advance(ride),
+                                    child: busy
+                                        ? const SizedBox.square(
+                                            dimension: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.3,
+                                            ),
+                                          )
+                                        : Text(ride.actionLabel),
                                   ),
                                 ],
                               ),
@@ -592,8 +589,11 @@ class _PassengerContactState extends State<_PassengerContact> {
   Future<void> _load({Future<String?>? initial}) async {
     _attempt++;
     String? photo;
-    try { photo = await (initial ?? widget.reloadPhoto()); }
-    on Object { /* Keep the fallback until a bounded retry succeeds. */ }
+    try {
+      photo = await (initial ?? widget.reloadPhoto());
+    } on Object {
+      /* Keep the fallback until a bounded retry succeeds. */
+    }
     if (!mounted) return;
     if (photo?.isNotEmpty == true) {
       setState(() => _photo = photo);
@@ -660,7 +660,7 @@ class _PassengerContactState extends State<_PassengerContact> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -707,7 +707,7 @@ class _PassengerContactState extends State<_PassengerContact> {
                               'Call passenger',
                               style: TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
@@ -789,7 +789,7 @@ class _DriverWaitingStatus extends StatelessWidget {
             children: <Widget>[
               Text(
                 'Waiting ${_clock(totalSeconds)}',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 3),
               Text(
@@ -812,4 +812,3 @@ class _DriverWaitingStatus extends StatelessWidget {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 }
-

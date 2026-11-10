@@ -113,7 +113,7 @@ class _ThemeModeTile extends StatelessWidget {
           ),
           title: Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.w800),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(subtitle),
           trailing: AnimatedContainer(

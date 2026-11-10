@@ -157,7 +157,7 @@ class OnboardingScaffold extends StatelessWidget {
                                       letterSpacing: -0.7,
                                     )
                                   : pageTheme.textTheme.headlineLarge?.copyWith(
-                                      fontWeight: FontWeight.w900,
+                                      fontWeight: FontWeight.w600,
                                       letterSpacing: -0.65,
                                     ),
                             ),

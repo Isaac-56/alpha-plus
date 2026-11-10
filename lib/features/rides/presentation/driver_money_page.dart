@@ -99,7 +99,7 @@ class DriverMoneyPage extends StatelessWidget {
                           style: Theme.of(context)
                               .textTheme
                               .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w900),
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ),
                       Text(
@@ -212,7 +212,7 @@ class DriverMoneyPage extends StatelessWidget {
                             style: Theme.of(sheetContext)
                                 .textTheme
                                 .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w900),
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                           Text(_dateTimeLabel(trip.activityAt)),
                         ],
@@ -277,7 +277,7 @@ class DriverMoneyPage extends StatelessWidget {
                   ),
                   child: const Text(
                     'Done',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -389,7 +389,7 @@ class _DriverWalletCard extends StatelessWidget {
                       'Alpha driver wallet',
                       style: TextStyle(
                         color: Colors.white70,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -411,7 +411,7 @@ class _DriverWalletCard extends StatelessWidget {
                           style: TextStyle(
                             color: accent,
                             fontSize: 12,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -425,7 +425,7 @@ class _DriverWalletCard extends StatelessWidget {
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 32,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: -0.8,
                 ),
               ),
@@ -498,7 +498,7 @@ class _GrossFareCard extends StatelessWidget {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 32,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w600,
               letterSpacing: -0.8,
             ),
           ),
@@ -545,7 +545,7 @@ class _MetricCard extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
           ),
         ],
       ),
@@ -628,7 +628,7 @@ class _TripCard extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           trip.isCompleted ? 'Completed' : 'Cancelled',
-                          style: const TextStyle(fontWeight: FontWeight.w900),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         Text(
                           _dateTimeLabel(trip.activityAt),
@@ -643,7 +643,7 @@ class _TripCard extends StatelessWidget {
                         '${_money(trip.grossFare)} ${trip.currencyCode}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w900),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                   const Icon(Icons.chevron_right_rounded),
@@ -742,7 +742,7 @@ class _ValueRow extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.end,
-            style: const TextStyle(fontWeight: FontWeight.w900),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -779,7 +779,7 @@ class _MessageCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Text(body, style: Theme.of(context).textTheme.bodyMedium),
               ],
