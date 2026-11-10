@@ -262,12 +262,14 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                                 color: AppColors.primary,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                offer.paymentMethod == 'cash'
-                                    ? 'Cash payment'
-                                    : offer.paymentMethod,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
+                              Flexible(
+                                Text(
+                                  offer.paymentMethod == 'cash'
+                                      ? 'Cash payment'
+                                      : offer.paymentMethod,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
