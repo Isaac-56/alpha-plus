@@ -52,16 +52,26 @@ abstract final class AppTheme {
       dividerColor: border,
       splashFactory: InkRipple.splashFactory,
       textTheme: base.copyWith(
+        bodySmall: base.bodySmall?.copyWith(
+          color: muted,
+          fontSize: 12,
+          height: 1.35,
+        ),
+        labelMedium: base.labelMedium?.copyWith(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.1,
+        ),
         displaySmall: base.displaySmall?.copyWith(
           color: ink,
-          fontSize: 38,
+          fontSize: 34,
           height: 1.08,
           fontWeight: FontWeight.w600,
           letterSpacing: -1.2,
         ),
         headlineLarge: base.headlineLarge?.copyWith(
           color: ink,
-          fontSize: 30,
+          fontSize: 28,
           height: 1.12,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.8,
@@ -77,6 +87,12 @@ abstract final class AppTheme {
           color: ink,
           fontSize: 20,
           height: 1.25,
+          fontWeight: FontWeight.w500,
+        ),
+        titleMedium: base.titleMedium?.copyWith(
+          color: ink,
+          fontSize: 16,
+          height: 1.3,
           fontWeight: FontWeight.w500,
         ),
         bodyLarge: base.bodyLarge?.copyWith(

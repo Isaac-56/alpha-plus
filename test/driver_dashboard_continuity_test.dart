@@ -101,6 +101,42 @@ DriverActiveRide ride(String id, String status) => DriverActiveRide(
 );
 
 void main() {
+  testWidgets('ride offer fits a narrow phone with large text', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 480));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final rides = _Rides();
+    final offers = _Offers();
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: DriverRideOfferLayer(
+            driverId: 'driver',
+            activeRideService: rides,
+            service: offers,
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    offers.offers.add([offer('compact')]);
+    await tester.pump();
+    expect(find.text('Ride request'), findsOneWidget);
+    final accept = find.byKey(const Key('acceptRideOffer'));
+    await tester.ensureVisible(accept);
+    await tester.pump();
+    expect(accept.hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await rides.ids.close();
+    await rides.rides.close();
+    await offers.offers.close();
+  });
+
   testWidgets(
     'dashboard and map remain mounted through request, acceptance, completion and the next request',
     (WidgetTester tester) async {
@@ -123,7 +159,7 @@ void main() {
       offers.offers.add(<DriverRideOffer>[offer('first')]);
       await tester.pump();
       await tester.pump();
-      expect(find.text('Accept ride'), findsOneWidget);
+      expect(find.byKey(const Key('acceptRideOffer')), findsOneWidget);
       rides.ids.add('first');
       await tester.pump();
       await tester.pump();
@@ -136,7 +172,7 @@ void main() {
       offers.offers.add(<DriverRideOffer>[offer('second')]);
       await tester.pump();
       await tester.pump();
-      expect(find.text('Accept ride'), findsOneWidget);
+      expect(find.byKey(const Key('acceptRideOffer')), findsOneWidget);
       expect(counts.mounts, 1);
       expect(counts.disposals, 0);
       expect(tester.takeException(), isNull);
@@ -146,36 +182,62 @@ void main() {
       await offers.offers.close();
     },
   );
-  testWidgets('a late previous request response cannot block or reset the next acceptance', (WidgetTester tester) async {
-    final _Rides rides = _Rides();
-    final _DelayedOffers offers = _DelayedOffers();
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: DriverRideOfferLayer(
-      driverId: 'driver', activeRideService: rides, service: offers, child: const SizedBox(),
-    ))));
-    await tester.pump();
-    offers.offers.add(<DriverRideOffer>[offer('first')]);
-    await tester.pump(); await tester.pump();
-    await tester.tap(find.byKey(const Key('acceptRideOffer')));
-    await tester.pump();
-    rides.ids.add('first');
-    await tester.pump(); await tester.pump();
-    rides.rides.add(ride('first', 'accepted'));
-    await tester.pump(); await tester.pump();
-    rides.ids.add(null);
-    offers.offers.add(<DriverRideOffer>[offer('second')]);
-    await tester.pump(); await tester.pump();
-    await tester.tap(find.byKey(const Key('acceptRideOffer')));
-    await tester.pump();
-    expect(offers.accepted, <String>['first', 'second']);
-    offers.first.completeError(const DriverRideOfferException('Old response failed'));
-    await tester.pump(); await tester.pump();
-    expect(find.text('Old response failed'), findsNothing);
-    expect(tester.widget<ElevatedButton>(find.byKey(const Key('acceptRideOffer'))).onPressed, isNull);
-    offers.second.complete();
-    await tester.pump(); await tester.pump();
-    await tester.pumpWidget(const SizedBox());
-    await rides.ids.close(); await rides.rides.close(); await offers.offers.close();
-    expect(tester.takeException(), isNull);
-  });
-
+  testWidgets(
+    'a late previous request response cannot block or reset the next acceptance',
+    (WidgetTester tester) async {
+      final _Rides rides = _Rides();
+      final _DelayedOffers offers = _DelayedOffers();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DriverRideOfferLayer(
+              driverId: 'driver',
+              activeRideService: rides,
+              service: offers,
+              child: const SizedBox(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      offers.offers.add(<DriverRideOffer>[offer('first')]);
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('acceptRideOffer')));
+      await tester.pump();
+      rides.ids.add('first');
+      await tester.pump();
+      await tester.pump();
+      rides.rides.add(ride('first', 'accepted'));
+      await tester.pump();
+      await tester.pump();
+      rides.ids.add(null);
+      offers.offers.add(<DriverRideOffer>[offer('second')]);
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('acceptRideOffer')));
+      await tester.pump();
+      expect(offers.accepted, <String>['first', 'second']);
+      offers.first.completeError(
+        const DriverRideOfferException('Old response failed'),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Old response failed'), findsNothing);
+      expect(
+        tester
+            .widget<ElevatedButton>(find.byKey(const Key('acceptRideOffer')))
+            .onPressed,
+        isNull,
+      );
+      offers.second.complete();
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      await rides.ids.close();
+      await rides.rides.close();
+      await offers.offers.close();
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
