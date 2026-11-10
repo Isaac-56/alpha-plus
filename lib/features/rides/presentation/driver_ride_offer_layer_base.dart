@@ -31,6 +31,8 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
   String? _errorMessage;
   late Stream<List<DriverRideOffer>> _pendingOffers;
   Timer? _expiryTimer;
+  Timer? _countdownTimer;
+  String? _alertEventId;
   String? _scheduledExpiry;
   final Set<String> _expiredVersions = <String>{};
 
@@ -41,8 +43,19 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
     final String? version = offer == null ? null : _offerVersion(offer);
     if (_scheduledExpiry == version) return;
     _expiryTimer?.cancel();
+    _countdownTimer?.cancel();
+    if (_alertEventId case final previous?) {
+      unawaited(NotificationAlerts.dismiss(previous));
+    }
+    _alertEventId = offer?.notificationEventId;
     _scheduledExpiry = version;
     if (offer == null) return;
+    _notifyOffer(offer, repeat: false);
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || !offer.isPendingAt(DateTime.now())) return;
+      setState(() {});
+      if (timer.tick % 4 == 0) _notifyOffer(offer, repeat: true);
+    });
     _expiryTimer = Timer(offer.expiresAt.difference(DateTime.now()), () {
       if (!mounted) return;
       setState(() {
@@ -53,9 +66,36 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
     });
   }
 
+  void _notifyOffer(DriverRideOffer offer, {required bool repeat}) {
+    final int remainingMs = offer.expiresAt
+        .difference(DateTime.now())
+        .inMilliseconds;
+    if (remainingMs <= 0 ||
+        !widget.enabled ||
+        _busyRideId == offer.rideId ||
+        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      return;
+    }
+    unawaited(
+      NotificationAlerts.show(
+        eventId: offer.notificationEventId,
+        title: 'Ride request',
+        body:
+            '${offer.pickupAddress} · ${offer.estimatedFare} ${offer.currencyCode}',
+        urgent: true,
+        repeat: repeat,
+        timeoutMs: remainingMs,
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _expiryTimer?.cancel();
+    _countdownTimer?.cancel();
+    if (_alertEventId case final eventId?) {
+      unawaited(NotificationAlerts.dismiss(eventId));
+    }
     super.dispose();
   }
 
@@ -111,6 +151,7 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
       }
 
       if (!mounted || _busyRideId != offer.rideId) return;
+      setState(() => _expiredVersions.add(_offerVersion(offer)));
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -144,200 +185,214 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
     return StreamBuilder<List<DriverRideOffer>>(
       stream: _pendingOffers,
       initialData: const <DriverRideOffer>[],
-      builder: (BuildContext context, AsyncSnapshot<List<DriverRideOffer>> snapshot) {
-        final List<DriverRideOffer> received =
-            snapshot.data ?? const <DriverRideOffer>[];
-        final Set<String> versions = received.map(_offerVersion).toSet();
-        _expiredVersions.removeWhere(
-          (String version) => !versions.contains(version),
-        );
-        final List<DriverRideOffer> offers = received
-            .where(
-              (DriverRideOffer offer) =>
-                  widget.enabled &&
-                  offer.isPendingAt(DateTime.now()) &&
-                  !_expiredVersions.contains(_offerVersion(offer)),
-            )
-            .toList();
-        _scheduleExpiry(offers.isEmpty ? null : offers.first);
-        if (offers.isEmpty) {
-          return Stack(fit: StackFit.expand, children: <Widget>[widget.child]);
-        }
+      builder:
+          (
+            BuildContext context,
+            AsyncSnapshot<List<DriverRideOffer>> snapshot,
+          ) {
+            final List<DriverRideOffer> received =
+                snapshot.data ?? const <DriverRideOffer>[];
+            final Set<String> versions = received.map(_offerVersion).toSet();
+            _expiredVersions.removeWhere(
+              (String version) => !versions.contains(version),
+            );
+            final List<DriverRideOffer> offers = received
+                .where(
+                  (DriverRideOffer offer) =>
+                      widget.enabled &&
+                      offer.isPendingAt(DateTime.now()) &&
+                      !_expiredVersions.contains(_offerVersion(offer)),
+                )
+                .toList();
+            _scheduleExpiry(offers.isEmpty ? null : offers.first);
+            if (offers.isEmpty) {
+              return Stack(
+                fit: StackFit.expand,
+                children: <Widget>[widget.child],
+              );
+            }
 
-        final DriverRideOffer offer = offers.first;
-        if (WidgetsBinding.instance.lifecycleState ==
-            AppLifecycleState.resumed) {
-          unawaited(
-            NotificationAlerts.show(
-              eventId: offer.notificationEventId,
-              title: 'Ride request',
-              body:
-                  '${offer.pickupAddress} · ${offer.estimatedFare} ${offer.currencyCode}',
-              urgent: true,
-            ),
-          );
-        }
-        final bool busy = _busyRideId == offer.rideId;
+            final DriverRideOffer offer = offers.first;
+            final int secondsLeft =
+                (offer.expiresAt.difference(DateTime.now()).inMilliseconds /
+                        1000)
+                    .ceil()
+                    .clamp(0, 86400)
+                    .toInt();
+            final bool busy = _busyRideId == offer.rideId;
 
-        return Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            widget.child,
-            const ModalBarrier(dismissible: false, color: Color(0x66000000)),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SafeArea(
-                minimum: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Material(
-                    key: const Key('liveRideOfferCard'),
-                    color: Theme.of(context).colorScheme.surface,
-                    elevation: 18,
-                    shadowColor: Colors.black45,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(AppSpacing.sheetRadius),
-                      bottom: Radius.circular(AppSpacing.cardRadius),
-                    ),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: <Widget>[
-                          const AlphaSheetHandle(),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Ride request',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
+            return Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                widget.child,
+                const ModalBarrier(
+                  dismissible: false,
+                  color: Color(0x66000000),
+                ),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: SafeArea(
+                    minimum: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: Material(
+                        key: const Key('liveRideOfferCard'),
+                        color: Theme.of(context).colorScheme.surface,
+                        elevation: 18,
+                        shadowColor: Colors.black45,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(AppSpacing.sheetRadius),
+                          bottom: Radius.circular(AppSpacing.cardRadius),
+                        ),
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
-                              AlphaMetricChip(
-                                icon: _rideIcon(offer.rideOptionId),
-                                label: _rideName(offer.rideOptionId),
+                              const AlphaSheetHandle(),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Ride request',
+                                style: Theme.of(context).textTheme.titleLarge,
                               ),
-                              AlphaMetricChip(
-                                icon: Icons.route_rounded,
-                                label:
-                                    '${_distanceLabel(offer.distanceToPickupMeters)} to pickup',
+                              const SizedBox(height: 4),
+                              Text(
+                                busy
+                                    ? 'Sending response…'
+                                    : '$secondsLeft s to respond',
+                                key: const Key('rideOfferCountdown'),
+                                style: Theme.of(context).textTheme.bodyMedium,
                               ),
-                              if (offer.isPhoneBooking)
-                                const KeyedSubtree(
-                                  key: Key('phoneBookingOfferBadge'),
-                                  child: AlphaMetricChip(
-                                    icon: Icons.phone_in_talk_rounded,
-                                    label: 'Phone booking',
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                children: <Widget>[
+                                  AlphaMetricChip(
+                                    icon: _rideIcon(offer.rideOptionId),
+                                    label: _rideName(offer.rideOptionId),
+                                  ),
+                                  AlphaMetricChip(
+                                    icon: Icons.route_rounded,
+                                    label:
+                                        '${_distanceLabel(offer.distanceToPickupMeters)} to pickup',
+                                  ),
+                                  if (offer.isPhoneBooking)
+                                    const KeyedSubtree(
+                                      key: Key('phoneBookingOfferBadge'),
+                                      child: AlphaMetricChip(
+                                        icon: Icons.phone_in_talk_rounded,
+                                        label: 'Phone booking',
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 18),
+                              AlphaRouteRow(
+                                icon: Icons.my_location_rounded,
+                                label: 'Pickup',
+                                value: offer.pickupAddress,
+                              ),
+                              const SizedBox(height: 8),
+                              AlphaRouteRow(
+                                icon: Icons.flag_rounded,
+                                label: 'Destination',
+                                value: offer.destinationAddress,
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                '${offer.estimatedFare} ${offer.currencyCode}',
+                                key: const Key('rideOfferFare'),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium,
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: <Widget>[
+                                  const Icon(
+                                    Icons.payments_outlined,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      offer.paymentMethod == 'cash'
+                                          ? 'Cash payment'
+                                          : offer.paymentMethod,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (_errorMessage != null) ...<Widget>[
+                                const SizedBox(height: 12),
+                                Text(
+                                  _errorMessage!,
+                                  key: const Key('liveRideOfferError'),
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                            ],
-                          ),
-                          const SizedBox(height: 18),
-                          AlphaRouteRow(
-                            icon: Icons.my_location_rounded,
-                            label: 'Pickup',
-                            value: offer.pickupAddress,
-                          ),
-                          const SizedBox(height: 8),
-                          AlphaRouteRow(
-                            icon: Icons.flag_rounded,
-                            label: 'Destination',
-                            value: offer.destinationAddress,
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            '${offer.estimatedFare} ${offer.currencyCode}',
-                            key: const Key('rideOfferFare'),
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: <Widget>[
-                              const Icon(
-                                Icons.payments_outlined,
-                                size: 18,
-                                color: AppColors.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  offer.paymentMethod == 'cash'
-                                      ? 'Cash payment'
-                                      : offer.paymentMethod,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
+                              ],
+                              const SizedBox(height: 18),
+                              Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      key: const Key('rejectRideOffer'),
+                                      onPressed: busy
+                                          ? null
+                                          : () => _respond(
+                                              offer: offer,
+                                              accept: false,
+                                            ),
+                                      child: const Text(
+                                        'Decline',
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_errorMessage != null) ...<Widget>[
-                            const SizedBox(height: 12),
-                            Text(
-                              _errorMessage!,
-                              key: const Key('liveRideOfferError'),
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 18),
-                          Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: OutlinedButton(
-                                  key: const Key('rejectRideOffer'),
-                                  onPressed: busy
-                                      ? null
-                                      : () => _respond(
-                                          offer: offer,
-                                          accept: false,
-                                        ),
-                                  child: const Text(
-                                    'Decline',
-                                    textAlign: TextAlign.center,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      key: const Key('acceptRideOffer'),
+                                      onPressed: busy
+                                          ? null
+                                          : () => _respond(
+                                              offer: offer,
+                                              accept: true,
+                                            ),
+                                      child: busy
+                                          ? const SizedBox.square(
+                                              dimension: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.3,
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Accept',
+                                              textAlign: TextAlign.center,
+                                            ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton(
-                                  key: const Key('acceptRideOffer'),
-                                  onPressed: busy
-                                      ? null
-                                      : () => _respond(
-                                          offer: offer,
-                                          accept: true,
-                                        ),
-                                  child: busy
-                                      ? const SizedBox.square(
-                                          dimension: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.3,
-                                          ),
-                                        )
-                                      : const Text(
-                                          'Accept',
-                                          textAlign: TextAlign.center,
-                                        ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          ],
-        );
-      },
+              ],
+            );
+          },
     );
   }
 

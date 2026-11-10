@@ -33,7 +33,11 @@ class MainActivity : FlutterFragmentActivity() {
         }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "alpha/notifications")
             .setMethodCallHandler { call, result ->
-                if (call.method != "show") {
+                if (call.method == "dismiss") {
+                    val eventId = call.arguments as? String
+                    if (eventId != null) manager.cancel(eventId.hashCode())
+                    result.success(null)
+                } else if (call.method != "show") {
                     result.notImplemented()
                 } else {
                     try {
@@ -57,6 +61,9 @@ class MainActivity : FlutterFragmentActivity() {
                             builder.setSound(soundUri)
                             builder.setPriority(if (urgent) android.app.Notification.PRIORITY_HIGH
                                 else android.app.Notification.PRIORITY_DEFAULT)
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            call.argument<Int>("timeoutMs")?.let { builder.setTimeoutAfter(it.toLong()) }
                         }
                         manager.notify(eventId.hashCode(), builder.build())
                         result.success(null)
