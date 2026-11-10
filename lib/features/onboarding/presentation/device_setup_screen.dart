@@ -402,7 +402,7 @@ class _DriverBackdrop extends StatelessWidget {
                   style: TextStyle(
                     color: AppColors.ink,
                     fontSize: 28,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: 1.4,
                   ),
                 ),
@@ -412,7 +412,7 @@ class _DriverBackdrop extends StatelessWidget {
                   style: TextStyle(
                     color: AppColors.ink.withValues(alpha: 0.6),
                     fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: 3,
                   ),
                 ),

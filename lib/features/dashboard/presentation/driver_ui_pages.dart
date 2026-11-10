@@ -1332,7 +1332,7 @@ class _SectionCard extends StatelessWidget {
               title,
               style: Theme.of(
                 context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             ...children,
@@ -1386,7 +1386,7 @@ class _HeroStatusCard extends StatelessWidget {
                   status,
                   style: const TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -1395,7 +1395,7 @@ class _HeroStatusCard extends StatelessWidget {
                 title,
                 style: Theme.of(
                   context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 5),
               Text(body, style: Theme.of(context).textTheme.bodyLarge),
@@ -1461,7 +1461,7 @@ class _ProfileHeader extends StatelessWidget {
                 Text(
                   driverName,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 5),
@@ -1537,7 +1537,7 @@ class _DriverServicesSummaryCard extends StatelessWidget {
                     Text(
                       'Passenger rides',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1640,7 +1640,7 @@ class _ActionRow extends StatelessWidget {
           ),
           title: Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.w800),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(subtitle),
           trailing: const Icon(Icons.keyboard_arrow_right_rounded),
@@ -1719,7 +1719,7 @@ class _ReadOnlyLine extends StatelessWidget {
                 child: Text(
                   value,
                   textAlign: TextAlign.end,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               if (trailing != null) ...<Widget>[
@@ -1807,7 +1807,7 @@ class _DataLine extends StatelessWidget {
                 child: SelectableText(
                   value,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -1848,7 +1848,7 @@ class _DocumentLine extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       title,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -1903,7 +1903,7 @@ class _GuidanceRow extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       title,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 3),
                     Text(body),
@@ -1949,7 +1949,7 @@ class _StepLine extends StatelessWidget {
                   number,
                   style: const TextStyle(
                     color: AppColors.ink,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -1960,7 +1960,7 @@ class _StepLine extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       title,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 3),
                     Text(body),
@@ -2003,7 +2003,7 @@ class _MetricTile extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             value,
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 2),
           Text(label),
@@ -2077,7 +2077,7 @@ class _QuickCard extends StatelessWidget {
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -2112,7 +2112,7 @@ class _BrandPanel extends StatelessWidget {
               style: TextStyle(
                 color: AppColors.ink,
                 fontSize: 24,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 1.2,
               ),
             ),

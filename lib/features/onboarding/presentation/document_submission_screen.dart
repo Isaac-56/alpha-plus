@@ -441,7 +441,7 @@ class _AutomaticCheckCard extends StatelessWidget {
                 Text(
                   'Automatic photo check',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 4),

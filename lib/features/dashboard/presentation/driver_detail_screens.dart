@@ -637,7 +637,7 @@ class _PhotoCheckScreenState extends State<PhotoCheckScreen> {
                       'Checking face and photo quality…',
                       style: TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -710,7 +710,7 @@ class _PhotoCheckScreenState extends State<PhotoCheckScreen> {
               children: <Widget>[
                 Text(
                   presentation.$3,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(presentation.$4),
@@ -840,7 +840,7 @@ class InviteDriverScreen extends StatelessWidget {
                       SizedBox(height: 4),
                       Text(
                         'NOT AVAILABLE YET',
-                        style: TextStyle(fontWeight: FontWeight.w900),
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -1200,7 +1200,7 @@ class _InformationCard extends StatelessWidget {
                       Text(
                         title,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           fontSize: 16,
                         ),
                       ),
@@ -1266,7 +1266,7 @@ class _StatusPill extends StatelessWidget {
             : AppColors.primary.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -1332,7 +1332,7 @@ class _DataRow extends StatelessWidget {
                   value,
                   textAlign: TextAlign.right,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     fontSize: 16,
                   ),
                 ),
@@ -1375,7 +1375,7 @@ class _ActionTile extends StatelessWidget {
             ),
             title: Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             subtitle: Text(subtitle),
             trailing: const Icon(Icons.keyboard_arrow_right_rounded),

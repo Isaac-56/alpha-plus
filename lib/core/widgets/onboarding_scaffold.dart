@@ -68,6 +68,25 @@ class OnboardingScaffold extends StatelessWidget {
           )
         : baseTheme;
 
+    final bool inlineFooter =
+        keyboardVisible ||
+        MediaQuery.sizeOf(context).height < 600 ||
+        MediaQuery.textScalerOf(context).scale(16) > 20;
+    final Widget? footer = bottom == null
+        ? null
+        : DecoratedBox(
+            decoration: BoxDecoration(
+              color: pageTheme.scaffoldBackgroundColor,
+              border: Border(top: BorderSide(color: pageTheme.dividerColor)),
+              boxShadow: null,
+            ),
+            child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(24, 14, 24, 18),
+              child: bottom!,
+            ),
+          );
+
     final Widget page = Scaffold(
       resizeToAvoidBottomInset: true,
       body: SafeArea(
@@ -104,7 +123,9 @@ class OnboardingScaffold extends StatelessWidget {
                                   height: 48,
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    color: colors.primary.withValues(alpha: 0.16),
+                                    color: colors.primary.withValues(
+                                      alpha: 0.16,
+                                    ),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
@@ -157,7 +178,7 @@ class OnboardingScaffold extends StatelessWidget {
                                       letterSpacing: -0.7,
                                     )
                                   : pageTheme.textTheme.headlineLarge?.copyWith(
-                                      fontWeight: FontWeight.w900,
+                                      fontWeight: FontWeight.w600,
                                       letterSpacing: -0.65,
                                     ),
                             ),
@@ -189,25 +210,15 @@ class OnboardingScaffold extends StatelessWidget {
                             height: authStyle && keyboardVisible ? 20 : 36,
                           ),
                           child,
+                          if (footer != null && inlineFooter) ...<Widget>[
+                            const SizedBox(height: 20),
+                            footer,
+                          ],
                         ],
                       ),
                     ),
                   ),
-                  if (bottom != null)
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: pageTheme.scaffoldBackgroundColor,
-                        border: Border(
-                          top: BorderSide(color: pageTheme.dividerColor),
-                        ),
-                        boxShadow: null,
-                      ),
-                      child: SafeArea(
-                        top: false,
-                        minimum: const EdgeInsets.fromLTRB(24, 14, 24, 18),
-                        child: bottom!,
-                      ),
-                    ),
+                  if (footer != null && !inlineFooter) footer,
                 ],
               ),
             ),

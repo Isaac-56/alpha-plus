@@ -95,7 +95,7 @@ class _ServiceRegistrationScreenState extends State<ServiceRegistrationScreen> {
             'Choose a service',
             style: Theme.of(
               context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
@@ -161,7 +161,7 @@ class _RegistrationCityCard extends StatelessWidget {
               Text(
                 'Registration city',
                 style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 4),
@@ -361,7 +361,7 @@ class _ServiceDetails extends StatelessWidget {
                 title,
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: foreground,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 5),
@@ -414,7 +414,7 @@ class _StatusBadge extends StatelessWidget {
             style: TextStyle(
               color: foreground,
               fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

@@ -314,7 +314,7 @@ class _VehicleIllustration extends StatelessWidget {
               style: TextStyle(
                 color: AppColors.ink,
                 fontSize: 16,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 1.2,
               ),
             ),

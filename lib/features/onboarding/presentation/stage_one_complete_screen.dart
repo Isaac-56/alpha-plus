@@ -138,7 +138,7 @@ class _SelectionSummaryCard extends StatelessWidget {
           Text(
             'Your starting setup',
             style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 16),
@@ -241,7 +241,7 @@ class _NextStageCard extends StatelessWidget {
                 Text(
                   'Next: Vehicle and documents',
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 5),
