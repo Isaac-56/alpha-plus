@@ -263,7 +263,7 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
                               ),
                               const SizedBox(width: 8),
                               Flexible(
-                                Text(
+                                child: Text(
                                   offer.paymentMethod == 'cash'
                                       ? 'Cash payment'
                                       : offer.paymentMethod,
