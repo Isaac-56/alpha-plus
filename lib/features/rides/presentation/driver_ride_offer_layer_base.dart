@@ -60,7 +60,6 @@ class _DriverRideOfferLayerState extends State<DriverRideOfferLayer> {
       if (!mounted) return;
       setState(() {
         _expiredVersions.add(version!);
-        _scheduledExpiry = null;
         _errorMessage = null;
       });
     });
