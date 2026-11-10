@@ -438,12 +438,14 @@ class _DriverActiveRideLayerState extends State<DriverActiveRideLayer> {
                                           color: AppColors.primary,
                                         ),
                                         const SizedBox(width: 8),
-                                        Text(
-                                          ride.paymentMethod == 'cash'
-                                              ? 'Cash payment'
-                                              : ride.paymentMethod,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
+                                        Flexible(
+                                          child: Text(
+                                            ride.paymentMethod == 'cash'
+                                                ? 'Cash payment'
+                                                : ride.paymentMethod,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
                                         ),
                                       ],
