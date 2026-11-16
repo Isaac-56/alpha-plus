@@ -4,7 +4,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'driver_account_role_service.dart';
+import '../../../services/whatsapp_auth_service.dart';
 import 'driver_session_service.dart';
 import 'driver_biometric_controller.dart';
 import 'verified_driver_identity_policy.dart';
@@ -83,66 +83,8 @@ class FirebaseDriverAuthService implements DriverAuthService {
     required String phoneNumber,
     int? forceResendingToken,
   }) async {
-    await DriverAccountRoleService.instance.preflightDriverRole(phoneNumber);
-
-    final Completer<PhoneVerificationSession> completer =
-        Completer<PhoneVerificationSession>();
-
-    _auth
-        .verifyPhoneNumber(
-          phoneNumber: phoneNumber,
-          forceResendingToken: forceResendingToken,
-          timeout: const Duration(seconds: 60),
-          verificationCompleted: (PhoneAuthCredential credential) async {
-            try {
-              await _signInAndActivateSession(credential);
-              if (!completer.isCompleted) {
-                completer.complete(
-                  const PhoneVerificationSession(
-                    verificationId: '',
-                    automaticallyVerified: true,
-                  ),
-                );
-              }
-            } on Object catch (error, stackTrace) {
-              if (!completer.isCompleted) {
-                completer.completeError(error, stackTrace);
-              }
-            }
-          },
-          verificationFailed: (FirebaseAuthException error) {
-            if (!completer.isCompleted) {
-              completer.completeError(error, StackTrace.current);
-            }
-          },
-          codeSent: (String verificationId, int? resendToken) {
-            if (!completer.isCompleted) {
-              completer.complete(
-                PhoneVerificationSession(
-                  verificationId: verificationId,
-                  resendToken: resendToken,
-                ),
-              );
-            }
-          },
-          codeAutoRetrievalTimeout: (String verificationId) {
-            if (!completer.isCompleted) {
-              completer.complete(
-                PhoneVerificationSession(
-                  verificationId: verificationId,
-                  resendToken: forceResendingToken,
-                ),
-              );
-            }
-          },
-        )
-        .catchError((Object error, StackTrace stackTrace) {
-          if (!completer.isCompleted) {
-            completer.completeError(error, stackTrace);
-          }
-        });
-
-    return completer.future;
+    final id = await WhatsAppAuthService().requestCode(phoneNumber, 'driver');
+    return PhoneVerificationSession(verificationId: id);
   }
 
   @override
@@ -150,24 +92,21 @@ class FirebaseDriverAuthService implements DriverAuthService {
     required String verificationId,
     required String smsCode,
   }) async {
-    final PhoneAuthCredential credential = PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: smsCode,
-    );
-    await _signInAndActivateSession(credential);
+    final token = await WhatsAppAuthService().verifyCode(verificationId, smsCode);
+    await _signInAndActivateSession(token);
   }
 
   @override
   Future<void> signOut() => _sessionService.signOutCurrentDevice();
 
-  Future<void> _signInAndActivateSession(PhoneAuthCredential credential) async {
+  Future<void> _signInAndActivateSession(String customToken) async {
     _sessionService.beginSignIn();
     final Completer<void> transition = Completer<void>();
     _activationTransition = transition;
 
     try {
-      final UserCredential result = await _auth.signInWithCredential(
-        credential,
+      final UserCredential result = await _auth.signInWithCustomToken(
+        customToken,
       );
       final User? user = result.user;
 
@@ -218,17 +157,17 @@ String readableAuthError(Object error) {
       case 'invalid-verification-code':
         return 'That verification code is incorrect. Try again.';
       case 'session-expired':
-        return 'This code expired. Request a new SMS code.';
+        return 'This code expired. Request a new WhatsApp code.';
       case 'too-many-requests':
         return 'Too many attempts. Wait a moment before trying again.';
       case 'network-request-failed':
         return 'Check your internet connection and try again.';
       case 'quota-exceeded':
-        return 'SMS verification is temporarily unavailable. Try again later.';
+        return 'WhatsApp verification is temporarily unavailable. Try again later.';
       case 'app-not-authorized':
         return 'This app is not authorized for Firebase phone sign-in.';
       case 'phone-number-not-verified':
-        return 'Firebase could not verify this phone number. Request a new SMS code.';
+        return 'Firebase could not verify this phone number. Request a new WhatsApp code.';
       default:
         return error.message ?? 'Phone verification failed. Please try again.';
     }

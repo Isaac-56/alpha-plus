@@ -29,7 +29,7 @@ class _OtpScreenState extends State<OtpScreen> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   Timer? _timer;
-  int _remainingSeconds = 30;
+  int _remainingSeconds = 60;
   late final DriverAuthService _authService;
   late String _verificationId;
   int? _resendToken;
@@ -55,8 +55,8 @@ class _OtpScreenState extends State<OtpScreen> {
 
   void _startTimer() {
     _timer?.cancel();
-    if (_remainingSeconds != 30) {
-      setState(() => _remainingSeconds = 30);
+    if (_remainingSeconds != 60) {
+      setState(() => _remainingSeconds = 60);
     }
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       if (!mounted) {
@@ -171,10 +171,10 @@ class _OtpScreenState extends State<OtpScreen> {
     return OnboardingScaffold(
       authStyle: true,
       centerHeader: true,
-      header: const AuthHeaderIcon(icon: Icons.sms_outlined),
+      header: const AuthHeaderIcon(icon: Icons.chat_outlined),
       title: 'Verify your number',
       subtitle:
-          'Enter the six-digit code sent by SMS to\n${widget.phoneNumber}.',
+          'Enter the six-digit code sent on WhatsApp to\n${widget.phoneNumber}.',
       bottom: ElevatedButton(
         key: const Key('verifyOtpButton'),
         onPressed: _controller.text.length == 6 && !_busy
@@ -325,7 +325,7 @@ class _OtpScreenState extends State<OtpScreen> {
           ],
           Text(
             _remainingSeconds > 0
-                ? 'Request a new code in 00:$seconds'
+                ? 'Request a new code in $seconds seconds'
                 : 'Didn’t receive the code?',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
@@ -340,7 +340,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       dimension: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.sms_outlined),
+                  : const Icon(Icons.chat_outlined),
               label: Text(_resending ? 'Sending…' : 'Resend code'),
               style: TextButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.onSurface,
