@@ -182,10 +182,14 @@ void main() {
       tester.widget<TextField>(find.byKey(const Key('otpField'))).enabled,
       isFalse,
     );
-    await tester.pump(const Duration(seconds: 31));
-    // Bird enforces a 60-second resend cooldown.
-    expect(auth.requestCount, 0);
-    await tester.pump(const Duration(seconds: 30));
+    for (var second = 0; second < 60; second++) {
+      await tester.pump(const Duration(seconds: 1));
+      if (second == 29) {
+        await tester.tap(find.byKey(const Key('resendOtpButton')));
+        await tester.pump();
+        expect(auth.requestCount, 0);
+      }
+    }
     expect(
       tester
           .widget<TextButton>(find.byKey(const Key('resendOtpButton')))
