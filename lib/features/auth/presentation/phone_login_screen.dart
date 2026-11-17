@@ -120,7 +120,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       header: const AuthHeaderIcon(icon: Icons.phone_rounded),
       title: 'Enter your phone number',
       subtitle:
-          'We’ll send you a verification code by SMS to confirm your number.',
+          'We’ll send a code to your WhatsApp from Bird Verify. Continue to request your code.',
       bottom: ElevatedButton(
         onPressed: _submitting ? null : _continue,
         child: _submitting
