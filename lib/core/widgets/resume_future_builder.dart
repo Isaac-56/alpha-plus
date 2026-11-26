@@ -24,7 +24,9 @@ class _ResumeFutureBuilderState<T> extends State<ResumeFutureBuilder<T>>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      setState(() => _future = Future<T>.sync(widget.load));
+      setState(() {
+        _future = Future<T>.sync(widget.load);
+      });
     }
   }
 
