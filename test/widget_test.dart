@@ -182,7 +182,14 @@ void main() {
       tester.widget<TextField>(find.byKey(const Key('otpField'))).enabled,
       isFalse,
     );
-    await tester.pump(const Duration(seconds: 31));
+    for (var second = 0; second < 60; second++) {
+      await tester.pump(const Duration(seconds: 1));
+      if (second == 29) {
+        await tester.tap(find.byKey(const Key('resendOtpButton')));
+        await tester.pump();
+        expect(auth.requestCount, 0);
+      }
+    }
     expect(
       tester
           .widget<TextButton>(find.byKey(const Key('resendOtpButton')))
@@ -217,7 +224,10 @@ void main() {
       ),
     );
     await tester.enterText(find.byKey(const Key('otpField')), '12');
-    await tester.pump(const Duration(seconds: 31));
+    // Advance periodic countdown ticks individually; the production cooldown is 60s.
+    for (int second = 0; second < 60; second++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
     await tester.ensureVisible(find.byKey(const Key('resendOtpButton')));
     await tester.tap(find.byKey(const Key('resendOtpButton')));
     await tester.pump();
@@ -1268,3 +1278,4 @@ class _FakeDriverProfileStore implements DriverProfileStore {
     required DriverRegistration registration,
   }) async {}
 }
+

@@ -992,6 +992,25 @@ class _DriverMapState extends State<_DriverMap> with WidgetsBindingObserver {
         return;
       }
 
+      // Paint a recent accurate position while a fresh GPS fix is requested.
+      // This is camera-only; driver presence still uses live location updates.
+      try {
+        final Position? recent = await Geolocator.getLastKnownPosition()
+            .timeout(const Duration(seconds: 1));
+        if (!mounted) return;
+        if (recent != null && recent.accuracy <= 100 &&
+            DateTime.now().difference(recent.timestamp).inSeconds >= 0 &&
+            DateTime.now().difference(recent.timestamp).inSeconds < 120) {
+          setState(() {
+            _driverLocation = LatLng(recent.latitude, recent.longitude);
+            _locationGranted = true;
+          });
+          unawaited(_frameDriver(animate: false));
+        }
+      } on Object {
+        // A missing cache must never prevent a fresh location request.
+      }
+      if (!mounted) return;
       final Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
@@ -1232,3 +1251,4 @@ class _ProfilePage extends StatelessWidget {
     );
   }
 }
+

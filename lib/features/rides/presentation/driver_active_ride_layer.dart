@@ -1,3 +1,4 @@
+import '../../../core/widgets/visible_clock.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -753,14 +754,8 @@ class _DriverWaitingStatus extends StatelessWidget {
       return Text(waitingPolicy, style: Theme.of(context).textTheme.bodySmall);
     }
 
-    return StreamBuilder<int>(
-      stream: Stream<int>.periodic(
-        const Duration(seconds: 1),
-        (int tick) => tick,
-      ),
-      initialData: 0,
-      builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
-        final DateTime now = DateTime.now();
+    return VisibleClock(
+      builder: (BuildContext context, DateTime now) {
         final int totalSeconds = ride.waitingSecondsAt(now);
         final int activeSeconds = ride.waitingStartedAt == null
             ? 0
@@ -812,4 +807,5 @@ class _DriverWaitingStatus extends StatelessWidget {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 }
+
 

@@ -1,3 +1,4 @@
+import '../../../core/widgets/resume_future_builder.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -938,8 +939,8 @@ class DriverNotificationsScreen extends StatelessWidget {
         _SectionCard(
           title: 'Device setup',
           children: <Widget>[
-            FutureBuilder<PermissionStatus>(
-              future: Permission.notification.status,
+            ResumeFutureBuilder<PermissionStatus>(
+              load: () => Permission.notification.status,
               builder:
                   (
                     BuildContext context,
@@ -1069,8 +1070,8 @@ class DriverPermissionsScreen extends StatelessWidget {
     return _DetailPage(
       title: 'App permissions',
       children: <Widget>[
-        FutureBuilder<(PermissionStatus, PermissionStatus, PermissionStatus)>(
-          future: _read(),
+        ResumeFutureBuilder<(PermissionStatus, PermissionStatus, PermissionStatus)>(
+          load: _read,
           builder:
               (
                 BuildContext context,
@@ -2177,3 +2178,4 @@ class _DriverAccountPhotoState extends State<_DriverAccountPhoto> {
     },
   );
 }
+

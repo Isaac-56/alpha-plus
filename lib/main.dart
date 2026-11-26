@@ -1,3 +1,4 @@
+import 'core/widgets/app_startup.dart';
 import 'dart:async';
 
 import 'services/app_attestation.dart';
@@ -23,26 +24,28 @@ import 'features/profile/data/driver_profile_repository.dart';
 import 'features/profile/models/driver_profile.dart';
 import 'firebase_options.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  final Future<void> themeInitialization = AppThemeController.initialize();
+  runApp(AppStartup(initialize: _initializeApp, builder: (_) => const AlphaPlusApp()));
+}
 
-  Object? firebaseInitializationError;
-  try {
+Future<void> _initializeApp() async {
+  await Future.wait<void>(<Future<void>>[
+    AppThemeController.initialize(),
+    _initializeFirebase(),
+  ]);
+}
+
+Future<void> _initializeFirebase() async {
+  // A failed attestation attempt can be retried without creating a second app.
+  if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
       options: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
           ? null
           : DefaultFirebaseOptions.currentPlatform,
     );
-    await initializeAppAttestation();
-  } on Object catch (error) {
-    firebaseInitializationError = error;
   }
-  await themeInitialization;
-
-  runApp(
-    AlphaPlusApp(firebaseInitializationError: firebaseInitializationError),
-  );
+  await initializeAppAttestation();
 }
 
 class AlphaPlusApp extends StatefulWidget {
@@ -551,3 +554,4 @@ class _ProfileLoadError extends StatelessWidget {
     );
   }
 }
+
