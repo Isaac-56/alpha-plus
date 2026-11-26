@@ -115,43 +115,53 @@ class LocalDocumentQualityAnalyzer implements DocumentQualityAnalyzer {
         );
       }
 
-      final ui.Codec originalCodec = await ui.instantiateImageCodec(bytes);
-      final ui.FrameInfo originalFrame = await originalCodec.getNextFrame();
-      final int originalWidth = originalFrame.image.width;
-      final int originalHeight = originalFrame.image.height;
-      originalFrame.image.dispose();
-      originalCodec.dispose();
+      // Read encoded dimensions without allocating a full-resolution bitmap.
+      final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+      final int originalWidth;
+      final int originalHeight;
+      try {
+        final ui.ImageDescriptor descriptor = await ui.ImageDescriptor.encoded(buffer);
+        try {
+          originalWidth = descriptor.width;
+          originalHeight = descriptor.height;
+        } finally {
+          descriptor.dispose();
+        }
+      } finally {
+        buffer.dispose();
+      }
 
       final ui.Codec analysisCodec = originalWidth > _analysisWidth
           ? await ui.instantiateImageCodec(bytes, targetWidth: _analysisWidth)
           : await ui.instantiateImageCodec(bytes);
-      final ui.FrameInfo analysisFrame = await analysisCodec.getNextFrame();
-      final ui.Image analysisImage = analysisFrame.image;
-      final ByteData? rgba = await analysisImage.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      );
-
-      if (rgba == null) {
-        analysisImage.dispose();
+      final DocumentQualityMetrics metrics;
+      try {
+        final ui.FrameInfo analysisFrame = await analysisCodec.getNextFrame();
+        final ui.Image analysisImage = analysisFrame.image;
+        try {
+          final ByteData? rgba = await analysisImage.toByteData(
+            format: ui.ImageByteFormat.rawRgba,
+          );
+          if (rgba == null) {
+            return const DocumentQualityResult(
+              accepted: false,
+              issues: <String>['The photo format could not be checked. Please take a new photo.'],
+            );
+          }
+          metrics = await compute(measureDocumentPixels, (
+            rgba: rgba,
+            width: analysisImage.width,
+            height: analysisImage.height,
+            originalWidth: originalWidth,
+            originalHeight: originalHeight,
+            fileBytes: bytes.length,
+          ));
+        } finally {
+          analysisImage.dispose();
+        }
+      } finally {
         analysisCodec.dispose();
-        return const DocumentQualityResult(
-          accepted: false,
-          issues: <String>[
-            'The photo format could not be checked. Please take a new photo.',
-          ],
-        );
       }
-
-      final DocumentQualityMetrics metrics = _measurePixels(
-        rgba: rgba,
-        width: analysisImage.width,
-        height: analysisImage.height,
-        originalWidth: originalWidth,
-        originalHeight: originalHeight,
-        fileBytes: bytes.length,
-      );
-      analysisImage.dispose();
-      analysisCodec.dispose();
 
       return DocumentQualityPolicy.evaluate(metrics);
     } on Object {
@@ -164,14 +174,21 @@ class LocalDocumentQualityAnalyzer implements DocumentQualityAnalyzer {
     }
   }
 
-  DocumentQualityMetrics _measurePixels({
-    required ByteData rgba,
-    required int width,
-    required int height,
-    required int originalWidth,
-    required int originalHeight,
-    required int fileBytes,
-  }) {
+}
+
+typedef DocumentPixelSample = ({
+  ByteData rgba,
+  int width,
+  int height,
+  int originalWidth,
+  int originalHeight,
+  int fileBytes,
+});
+
+/// A top-level compute callback; no platform objects cross the isolate boundary.
+@visibleForTesting
+DocumentQualityMetrics measureDocumentPixels(DocumentPixelSample sample) {
+    final (:rgba, :width, :height, :originalWidth, :originalHeight, :fileBytes) = sample;
     final Float32List previousRow = Float32List(width);
     int sampleCount = 0;
     int darkPixels = 0;
@@ -230,4 +247,3 @@ class LocalDocumentQualityAnalyzer implements DocumentQualityAnalyzer {
       brightPixelRatio: sampleCount == 0 ? 1 : brightPixels / sampleCount,
     );
   }
-}

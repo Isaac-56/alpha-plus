@@ -623,7 +623,7 @@ class _PhotoCheckScreenState extends State<PhotoCheckScreen> {
           if (photo == null)
             const Icon(Icons.face_retouching_natural_rounded, size: 128)
           else
-            Image.file(File(photo.path), fit: BoxFit.cover),
+            Image.file(File(photo.path), cacheWidth: 1024, fit: BoxFit.cover),
           if (_isAnalyzing)
             ColoredBox(
               color: Colors.black.withValues(alpha: 0.48),
@@ -1441,3 +1441,4 @@ void _showHelp(BuildContext context, String title, String message) {
     },
   );
 }
+

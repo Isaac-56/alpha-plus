@@ -507,6 +507,7 @@ class _DocumentTile extends StatelessWidget {
                             borderRadius: BorderRadius.circular(14),
                             child: Image.file(
                               File(imagePath!),
+                              cacheWidth: 192,
                               width: 52,
                               height: 52,
                               fit: BoxFit.cover,
@@ -598,3 +599,4 @@ class _DocumentIcon extends StatelessWidget {
     );
   }
 }
+
